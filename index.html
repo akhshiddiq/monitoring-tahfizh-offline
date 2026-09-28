@@ -2,6 +2,7 @@
 <html lang="id" class="h-full">
 <head>
 <!-- FORM INPUT PERSISTENCE V2: persistent rq_form_input_state_v1 + history hydration -->
+<!-- LIVE WA AUTO UPDATE FIX 2026-09-28: report follows newest local history -->
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Monitoring Tahfizh RQ Al-Khansa</title>
@@ -2886,6 +2887,9 @@
 
             localStorage.setItem('rq_history_rekapan', JSON.stringify(rekapanList));
             window.renderSantriCardsAndTable();
+            // Langsung segarkan Live Laporan WA Personal dari histori lokal terbaru.
+            // Tidak mengubah proses simpan/history; hanya memperbarui tampilan laporan.
+            try { window.generateWaReport?.(); } catch (_) {}
         };
 
         // --- UPDATE: Materi & Materi Tambahan otomatis masuk ke WA Personal/Grup jika terisi ---
@@ -2990,11 +2994,22 @@
                 const parsed = Date.parse(String(raw || ''));
                 return Number.isFinite(parsed) ? parsed : 0;
             };
-            // DATABASE LOKAL menjadi sumber data utama untuk Laporan WA Personal.
-            // localStorage hanya dipakai sebagai fallback bila baris santri belum
-            // tersedia di snapshot laporan_wa_personal. Dengan demikian HP dan
-            // laptop tidak lagi memilih data berdasarkan cache lokal masing-masing.
+            // LIVE WA PERSONAL memilih data PALING BARU per kategori.
+            // Riwayat lokal dipakai langsung jika waktunya lebih baru atau sama
+            // dengan snapshot laporan. Ini membuat data hasil Import → Merge
+            // maupun data yang baru disimpan dari Form Input langsung tampil
+            // tanpa harus menekan Simpan/Save lagi pada area laporan.
+            const getLocalTime = (localObj) => {
+                if (!localObj) return 0;
+                const raw = localObj?.rawTime || localObj?.timestamp || localObj?.tanggal || 0;
+                const n = Number(raw);
+                if (Number.isFinite(n) && n > 0) return n;
+                const parsed = Date.parse(String(raw || ''));
+                return Number.isFinite(parsed) ? parsed : 0;
+            };
             const chooseLatest = (personalTime, localObj) => {
+                const localTime = getLocalTime(localObj);
+                if (localObj && localTime >= Number(personalTime || 0)) return 'local';
                 if (personal) return 'personal';
                 return localObj ? 'local' : 'personal';
             };
@@ -3809,8 +3824,12 @@
                 try {
                     window.hydrateInputFormsFromHistory?.(true);
                     window.persistFormCache?.(true);
+                    // Setelah Merge/Ganti, langsung bangun ulang Live Laporan WA
+                    // dari histori lokal yang baru masuk sebelum halaman reload.
+                    window.generateWaReport?.();
+                    window.updateInlineLiveReportTabButtons?.();
                 } catch (e) {
-                    console.warn('Form cache dari hasil Import CSV tidak dapat diperbarui:', e);
+                    console.warn('Form cache / Live Laporan dari hasil Import CSV tidak dapat diperbarui:', e);
                 }
                 window.showToast(`Import CSV ${mode === 'merge' ? 'gabung' : 'ganti'} berhasil.`, 'success');
                 setTimeout(() => location.reload(), 2200);
@@ -5360,6 +5379,7 @@
                 window.getMassalSelectedSet('murojaah').clear();
                 window.renderMassalHistory('murojaah');
                 window.renderSantriCardsAndTable();
+                try { window.generateWaReport?.(); } catch (_) {}
                 window.setSyncIndicator('success');
 
                 window.massalShowResult('murojaah', `✅ SUDAH DI-INPUT — Muroja'ah Bersama berhasil disimpan untuk ${saved} santri.`, true);
@@ -5435,6 +5455,7 @@
                 window.getMassalSelectedSet('tugas').clear();
                 window.renderMassalHistory('tugas');
                 window.renderSantriCardsAndTable();
+                try { window.generateWaReport?.(); } catch (_) {}
                 window.setSyncIndicator('success');
 
                 window.massalShowResult('tugas', `✅ SUDAH DI-INPUT — Tugas Bersama berhasil disimpan untuk ${saved} santri.`, true);
