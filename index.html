@@ -3658,13 +3658,40 @@
                     if (!ok) return;
                 }
 
+                // BACKUP PENGAMAN UNTUK IMPORT CSV
+                // Pada HP/browser tertentu, Folder Backup Pengaman dapat gagal atau
+                // tidak didukung walaupun proses Import CSV sendiri bisa berjalan.
+                // Jangan memblokir MERGE hanya karena folder backup tidak tersedia.
+                // Fallback menggunakan Undo Snapshot lokal yang tetap tersimpan di localStorage.
+                let safetyBackupOk = true;
                 try {
                     if (typeof window.rqCreateSafetyBackup === 'function') {
-                        const backupOk = await window.rqCreateSafetyBackup('sebelum-import-csv-' + mode);
-                        if (!backupOk) throw new Error('Backup pengaman belum berhasil dibuat. Import dibatalkan agar data lama tetap aman.');
+                        safetyBackupOk = await window.rqCreateSafetyBackup('sebelum-import-csv-' + mode);
                     }
                 } catch (e) {
-                    throw e;
+                    console.warn('Backup Pengaman Import CSV gagal:', e);
+                    safetyBackupOk = false;
+                }
+
+                if (!safetyBackupOk) {
+                    let snapshotOk = false;
+                    try {
+                        if (typeof window.rqCreateUndoSnapshot === 'function') {
+                            snapshotOk = !!window.rqCreateUndoSnapshot('sebelum-import-csv-' + mode + '-mobile-fallback');
+                        }
+                    } catch (e) {
+                        console.warn('Fallback Undo Snapshot Import CSV gagal:', e);
+                        snapshotOk = false;
+                    }
+
+                    if (!snapshotOk) {
+                        throw new Error('Backup Pengaman dan cadangan lokal tidak berhasil dibuat. Import dibatalkan agar data lama tetap aman.');
+                    }
+
+                    window.showToast(
+                        'Backup folder belum tersedia. Cadangan lokal otomatis dibuat, lalu Import CSV dilanjutkan.',
+                        'info'
+                    );
                 }
 
                 const readLocal = key => {
@@ -6322,7 +6349,7 @@
                                 </div>
                                 <button type="button" onclick="window.resetOfflineCsvImport()" class="shrink-0 px-4 py-2.5 bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-800 dark:text-white rounded-xl font-black text-xs"><i class="fa-solid fa-rotate-left"></i> Reset File</button>
                             </div>
-                            <input id="rqOfflineCsvImportInput" type="file" accept=".csv,text/csv" class="hidden" onchange="window.previewOfflineCsvFile(this.files?.[0])">
+                            <input id="rqOfflineCsvImportInput" type="file" accept=".csv,text/csv,application/csv,application/vnd.ms-excel" class="hidden" onchange="window.previewOfflineCsvFile(this.files?.[0])">
                             <div class="text-xs font-black text-slate-600 dark:text-slate-300 bg-white/80 dark:bg-slate-800 rounded-xl border-2 border-slate-200 dark:border-slate-700 px-4 py-3">
                                 <i class="fa-solid fa-file-csv mr-1"></i> File terpilih: <span id="rqOfflineCsvSelectedName" class="font-bold text-slate-500 dark:text-slate-400">Belum ada file</span>
                             </div>
