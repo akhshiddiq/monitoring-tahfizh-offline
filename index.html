@@ -341,6 +341,101 @@
                 .filter(s => s.name);
         };
 
+        // ============================================================
+        // TAMBAH SANTRI — Data > Tambah Santri
+        // Hanya menambah master santri baru ke localStorage; fitur lain
+        // tidak diubah. ID dapat diisi manual atau dibuat otomatis.
+        // ============================================================
+        window.rqAddSantriClasses = ['Abdurrahman','Abu Ubaidah','Zubair','Ali','Utsman','Abu Bakar','Bilal','Hamzah','Fatimah','Umar'];
+
+        window.rqGenerateNextSantriId = function(existingList) {
+            const nums = (Array.isArray(existingList) ? existingList : [])
+                .map(s => String(s?.id || '').match(/^IDSRQ(\d+)$/i))
+                .filter(Boolean)
+                .map(m => Number(m[1]) || 0);
+            const next = Math.max(0, ...nums) + 1;
+            return `IDSRQ${String(next).padStart(3,'0')}`;
+        };
+
+        window.refreshSantriMasterAfterAdd = function() {
+            try {
+                const master = window.normalizeSantriMaster(JSON.parse(localStorage.getItem('rq_santri_master') || '[]'));
+                if (master.length) window.santriList = master;
+            } catch (_) {}
+            try {
+                window.renderSantriCardsAndTable?.();
+                window.renderLaporanSantriPekan?.();
+                window.renderRiwayatInputMenu?.();
+                window.generateWaReport?.();
+                window.generateClassReport?.();
+            } catch (_) {}
+        };
+
+        window.addNewSantriFromDataMenu = function() {
+            const nameEl = document.getElementById('rqAddSantriName');
+            const classEl = document.getElementById('rqAddSantriClass');
+            const teacherEl = document.getElementById('rqAddSantriTeacher');
+            const phoneEl = document.getElementById('rqAddSantriPhone');
+            const genderEl = document.getElementById('rqAddSantriGender');
+            const idEl = document.getElementById('rqAddSantriId');
+            const name = String(nameEl?.value || '').trim();
+            const kelas = String(classEl?.value || '').trim();
+            const teacher = String(teacherEl?.value || '').trim();
+            const phone = String(phoneEl?.value || '').trim();
+            const gender = String(genderEl?.value || '').trim();
+
+            if (!name) { window.showToast?.('Nama santri wajib diisi.', 'error'); nameEl?.focus(); return; }
+            if (!kelas) { window.showToast?.('Kelas wajib dipilih.', 'error'); classEl?.focus(); return; }
+            if (!teacher) { window.showToast?.('Pengajar wajib dipilih.', 'error'); teacherEl?.focus(); return; }
+
+            let current = [];
+            try { current = window.normalizeSantriMaster(JSON.parse(localStorage.getItem('rq_santri_master') || '[]')); } catch (_) {}
+            if (!current.length) current = window.normalizeSantriMaster(window.santriList || []);
+
+            const nameKey = name.toLowerCase();
+            const duplicateName = current.find(s => String(s?.name || '').trim().toLowerCase() === nameKey);
+            if (duplicateName) {
+                window.showToast?.(`Nama santri sudah terdaftar: ${duplicateName.name}.`, 'error');
+                return;
+            }
+
+            const typedId = String(idEl?.value || '').trim();
+            const id = typedId || window.rqGenerateNextSantriId(current);
+            if (!/^IDSRQ\d+$/i.test(id)) {
+                window.showToast?.('ID harus berformat IDSRQ001, IDSRQ002, dan seterusnya.', 'error');
+                idEl?.focus();
+                return;
+            }
+            const duplicateId = current.find(s => String(s?.id || '').trim().toLowerCase() === id.toLowerCase());
+            if (duplicateId) {
+                window.showToast?.(`ID sudah digunakan oleh ${duplicateId.name}.`, 'error');
+                return;
+            }
+
+            const student = { id: id.toUpperCase(), name, class: kelas, teacher, phone, gender };
+            current.push(student);
+            current = window.normalizeSantriMaster(current);
+            localStorage.setItem('rq_santri_master', JSON.stringify(current));
+            window.santriList = current;
+
+            // Pastikan elemen kelas yang ada di filter utama/target ikut mengenal kelas baru.
+            document.querySelectorAll('select').forEach(sel => {
+                if (!sel || !['classFilterSelect','reportWaClassFilter','laporanSantriClassFilter','kartuClassSelect','targetReportClassFilter'].includes(sel.id)) return;
+                if ([...sel.options].some(o => String(o.value) === kelas)) return;
+                const opt = document.createElement('option');
+                opt.value = kelas; opt.textContent = kelas;
+                sel.appendChild(opt);
+            });
+
+            window.refreshSantriMasterAfterAdd();
+            window.showToast?.(`Santri ${name} berhasil ditambahkan (${kelas}, ${id.toUpperCase()}).`, 'success');
+
+            [nameEl,idEl,phoneEl].forEach(el => { if (el) el.value = ''; });
+            if (genderEl) genderEl.value = '';
+            if (teacherEl) teacherEl.value = 'Kak Sidik';
+            if (classEl) classEl.value = '';
+        };
+
         window.santriList = window.normalizeSantriMaster(window.santriList);
 
         window.surahList = [
@@ -5865,6 +5960,14 @@
 .rq-target-juz-auto{background:#ecfdf5!important;color:#065f46!important;font-weight:900!important}
 .dark .rq-target-juz-auto{background:#052e2b!important;color:#a7f3d0!important}
 </style>
+
+<style id="rq-add-santri-css">
+  .rq-add-santri-grid { display:grid; grid-template-columns:repeat(1,minmax(0,1fr)); gap:.75rem; }
+  @media (min-width:640px){ .rq-add-santri-grid{ grid-template-columns:repeat(2,minmax(0,1fr)); } }
+  .rq-add-santri-card{ border:2px solid rgb(186 230 253); background:rgba(240,249,255,.72); border-radius:1rem; padding:1rem; }
+  .dark .rq-add-santri-card{ border-color:rgb(7 89 133); background:rgba(8,47,73,.28); }
+</style>
+
 </head>
 <body class="bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 min-h-full flex flex-col antialiased transition-colors duration-200">
     <div id="toastContainer" class="fixed top-4 right-4 z-[20000] space-y-2 w-[min(92vw,420px)] pointer-events-none"></div>
@@ -6395,6 +6498,80 @@
                 </div>
                 <p class="text-xs sm:text-sm text-slate-600 dark:text-slate-400 font-extrabold leading-relaxed">Akses cepat ke berbagai web sistem pembelajaran Rumah Qur'an Al-Khansa serta sinkronisasi database.</p>
                 
+
+                <div class="rq-add-santri-card space-y-3.5">
+                    <div class="flex items-center justify-between gap-3 flex-wrap">
+                        <div>
+                            <div class="font-black text-sm text-sky-900 dark:text-sky-200 flex items-center gap-2">
+                                <i class="fa-solid fa-user-plus"></i> Tambah Santri
+                            </div>
+                            <p class="text-[11px] sm:text-xs text-slate-600 dark:text-slate-400 font-bold mt-1">
+                                Tambahkan santri baru ke Master Santri. Data disimpan ke penyimpanan lokal perangkat ini.
+                            </p>
+                        </div>
+                        <span class="px-2.5 py-1 rounded-full bg-sky-600 text-white text-[10px] font-black">MASTER SANTRI</span>
+                    </div>
+
+                    <div class="rq-add-santri-grid">
+                        <div>
+                            <label for="rqAddSantriName" class="text-[11px] font-black text-slate-700 dark:text-slate-200">Nama Lengkap Santri *</label>
+                            <input id="rqAddSantriName" type="text" placeholder="Contoh: Ahmad Fauzan" class="mt-1.5 w-full min-h-[46px] px-3 py-2.5 rounded-xl border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm font-bold outline-none focus:border-sky-500">
+                        </div>
+                        <div>
+                            <label for="rqAddSantriId" class="text-[11px] font-black text-slate-700 dark:text-slate-200">ID Santri</label>
+                            <input id="rqAddSantriId" type="text" placeholder="Kosong = otomatis" class="mt-1.5 w-full min-h-[46px] px-3 py-2.5 rounded-xl border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm font-bold outline-none focus:border-sky-500">
+                        </div>
+                        <div>
+                            <label for="rqAddSantriClass" class="text-[11px] font-black text-slate-700 dark:text-slate-200">Kelas *</label>
+                            <select id="rqAddSantriClass" class="mt-1.5 w-full min-h-[46px] px-3 py-2.5 rounded-xl border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm font-bold outline-none focus:border-sky-500">
+                                <option value="">Pilih Kelas</option>
+                                <option value="Abdurrahman">Abdurrahman</option>
+                                <option value="Abu Ubaidah">Abu Ubaidah</option>
+                                <option value="Zubair">Zubair</option>
+                                <option value="Ali">Ali</option>
+                                <option value="Utsman">Utsman</option>
+                                <option value="Abu Bakar">Abu Bakar</option>
+                                <option value="Bilal">Bilal</option>
+                                <option value="Hamzah">Hamzah</option>
+                                <option value="Fatimah">Fatimah</option>
+                                <option value="Umar">Umar</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="rqAddSantriTeacher" class="text-[11px] font-black text-slate-700 dark:text-slate-200">Pengajar *</label>
+                            <select id="rqAddSantriTeacher" class="mt-1.5 w-full min-h-[46px] px-3 py-2.5 rounded-xl border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm font-bold outline-none focus:border-sky-500">
+                                <option value="Kak Sidik">Kak Sidik</option>
+                                <option value="Kak Mega">Kak Mega</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="rqAddSantriPhone" class="text-[11px] font-black text-slate-700 dark:text-slate-200">No. WA / Telepon</label>
+                            <input id="rqAddSantriPhone" type="tel" placeholder="Contoh: 62812xxxxxxx" class="mt-1.5 w-full min-h-[46px] px-3 py-2.5 rounded-xl border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm font-bold outline-none focus:border-sky-500">
+                        </div>
+                        <div>
+                            <label for="rqAddSantriGender" class="text-[11px] font-black text-slate-700 dark:text-slate-200">Jenis Kelamin</label>
+                            <select id="rqAddSantriGender" class="mt-1.5 w-full min-h-[46px] px-3 py-2.5 rounded-xl border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm font-bold outline-none focus:border-sky-500">
+                                <option value="">Pilih (opsional)</option>
+                                <option value="L">Laki-laki</option>
+                                <option value="P">Perempuan</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="flex flex-col sm:flex-row gap-2.5">
+                        <button type="button" onclick="window.addNewSantriFromDataMenu()" class="flex-1 min-h-[48px] px-4 py-3 bg-sky-600 hover:bg-sky-700 text-white rounded-xl font-black text-sm shadow-md transition active:scale-95 flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-user-plus"></i> Simpan Santri Baru
+                        </button>
+                        <button type="button" onclick="document.getElementById('rqAddSantriName').focus()" class="px-4 py-3 bg-white dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 rounded-xl font-black text-xs text-slate-700 dark:text-slate-200">
+                            <i class="fa-solid fa-arrow-up-right-from-square mr-1"></i> Mulai Isi
+                        </button>
+                    </div>
+
+                    <div class="text-[10px] font-bold text-slate-500 dark:text-slate-400">
+                        Nama harus unik. ID boleh dikosongkan untuk dibuat otomatis berdasarkan ID master terakhir.
+                    </div>
+                </div>
+
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-3.5 pt-1">
                     <a href="https://akhshiddiq.github.io/presensi-rq/" target="_blank" class="p-4 bg-slate-50 dark:bg-slate-900 hover:bg-emerald-50 dark:hover:bg-slate-800 border-2 rounded-2xl flex flex-col justify-between space-y-3 transition shadow-xs group">
                         <div>
