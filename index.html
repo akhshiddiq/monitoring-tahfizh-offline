@@ -3406,6 +3406,7 @@
             
             const includeMateriClass = (document.getElementById('includeMateriClassInlineCheckbox') || document.getElementById('includeMateriClassCheckbox'))?.checked ?? true;
             const includeTambahanClass = (document.getElementById('includeTambahanClassInlineCheckbox') || document.getElementById('includeTambahanClassCheckbox'))?.checked ?? true;
+            const includeTargetClass = document.getElementById('includeTargetClassCheckbox')?.checked ?? true;
             const reportMateri = window.getReportMateriForClass(className);
             const latestMateri = includeMateriClass ? reportMateri.utama : null;
             const latestTambahan = includeTambahanClass ? reportMateri.tambahan : null;
@@ -3479,8 +3480,30 @@
                     cloudReport ? cloudReport.tugas : (sTug ? sTug.detail : (s.lastTugas !== '-' ? s.lastTugas : ''))
                 );
 
-                let hasAnySetoran = (bacaanVal && bacaanVal !== '-') || (hafalanVal && hafalanVal !== '-') || (murojaahVal && murojaahVal !== '-') || (tugasVal && tugasVal !== '-');
-                if (hasAnySetoran) {
+                // Target hanya untuk Laporan Grup WA dan dikendalikan oleh checkbox
+                // "Cantumkan Target". Default tetap ON agar perilaku lama tidak berubah.
+                let targetText = '';
+                try {
+                    const targetDB = window.rqTargetEngine?.getDB?.() || {};
+                    const targetData = targetDB.hafalan?.[s.name] || {};
+                    const targetNow = targetData.jangkaPendek || (targetData.ayat ? targetData : null);
+                    const targetItems = Array.isArray(targetNow?.items) && targetNow.items.length
+                        ? targetNow.items
+                        : (targetNow?.surat && Number(targetNow?.ayat) > 0
+                            ? [{ surat: targetNow.surat, ayat: Number(targetNow.ayat), juz: targetNow.juz || '' }]
+                            : []);
+                    if (targetItems.length) {
+                        targetText = targetItems.map(item => {
+                            const surat = String(item?.surat || '').trim();
+                            const ayat = Number(item?.ayat) || 0;
+                            return surat ? `${surat} (sampai Ayat ${ayat})` : '';
+                        }).filter(Boolean).join(' + ');
+                    }
+                } catch (_) {}
+
+                const hasAnySetoran = (bacaanVal && bacaanVal !== '-') || (hafalanVal && hafalanVal !== '-') || (murojaahVal && murojaahVal !== '-') || (tugasVal && tugasVal !== '-');
+                const showSantriInGroupReport = hasAnySetoran || (includeTargetClass && !!targetText);
+                if (showSantriInGroupReport) {
                     activeSantriCount++;
                     const emojiNum = window.numberToEmoji(activeSantriCount);
                     let santriLine = (activeSantriCount === 1 ? `👥 *Daftar Santri & Prestasi:*\n` : '') + `\n${emojiNum} *${s.name}*`;
@@ -3489,26 +3512,9 @@
                     if (murojaahVal && murojaahVal !== '-') santriLine += `\n    - Muroja'ah di Kelas: ${murojaahVal}`;
                     if (tugasVal && tugasVal !== '-') santriLine += `\n    - Tugas: ${tugasVal}`;
 
-                    // Target Hafalan aktif — hanya ditambahkan ke Laporan Grup WA.
-                    // Tidak mengubah format laporan personal maupun data input lainnya.
-                    try {
-                        const targetDB = window.rqTargetEngine?.getDB?.() || {};
-                        const targetData = targetDB.hafalan?.[s.name] || {};
-                        const targetNow = targetData.jangkaPendek || (targetData.ayat ? targetData : null);
-                        const targetItems = Array.isArray(targetNow?.items) && targetNow.items.length
-                            ? targetNow.items
-                            : (targetNow?.surat && Number(targetNow?.ayat) > 0
-                                ? [{ surat: targetNow.surat, ayat: Number(targetNow.ayat), juz: targetNow.juz || '' }]
-                                : []);
-                        if (targetItems.length) {
-                            const targetText = targetItems.map(item => {
-                                const surat = String(item?.surat || '').trim();
-                                const ayat = Number(item?.ayat) || 0;
-                                return surat ? `${surat} (sampai Ayat ${ayat})` : '';
-                            }).filter(Boolean).join(' + ');
-                            if (targetText) santriLine += `\n    - Target : ${targetText}`;
-                        }
-                    } catch (_) {}
+                    if (includeTargetClass && targetText) {
+                        santriLine += `\n    - Target : ${targetText}`;
+                    }
 
                     msg += santriLine + `\n`;
                 }
@@ -6356,6 +6362,10 @@
                             <input type="checkbox" id="includeTambahanClassCheckbox" checked onchange="window.generateClassReport()" class="w-5 h-5 text-emerald-600 rounded">
                             <label for="includeTambahanClassCheckbox" class="text-xs sm:text-sm font-extrabold text-slate-700 dark:text-slate-300">Cantumkan Materi Tambahan</label>
                         </div>
+                        <div class="flex items-center gap-3">
+                            <input type="checkbox" id="includeTargetClassCheckbox" checked onchange="window.generateClassReport()" class="w-5 h-5 text-emerald-600 rounded">
+                            <label for="includeTargetClassCheckbox" class="text-xs sm:text-sm font-extrabold text-slate-700 dark:text-slate-300">Cantumkan Target</label>
+                        </div>
                     </div>
 
                     <div>
@@ -6370,6 +6380,8 @@
         </section>
 
         <!-- SECTION: LAPORAN SANTRI PER PEKAN -->
+<!-- Laporan Grup WA: checkbox Cantumkan Target ditambahkan; fitur lain dipertahankan. -->
+
 <!-- SECTION: RIWAYAT INPUT PER NAMA -->
 <!-- SECTION: CLOUD & EXPORT -->
         <!-- SECTION: ALUR SINKRON -->
