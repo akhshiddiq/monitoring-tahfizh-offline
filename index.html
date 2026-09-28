@@ -495,12 +495,15 @@
             if (icon) icon.className = isDark ? 'fa-solid fa-sun text-xs' : 'fa-solid fa-moon text-xs';
         };
 
+        // MENU TERPISAH: Laporan WA Personal dan Laporan WA Grup.
+        // Keduanya tetap memakai mesin laporan existing agar fitur lain tidak berubah.
         window.switchTab = function(tabId) {
+            const reportTab = tabId === 'laporan' || tabId === 'laporan-personal' || tabId === 'laporan-grup';
             document.querySelectorAll('main > section').forEach(sec => sec.classList.add('hidden'));
-            const target = document.getElementById(`section-${tabId}`);
+            const target = document.getElementById(`section-${reportTab ? 'laporan' : tabId}`);
             if (target) target.classList.remove('hidden');
             
-            ['setoran', 'materi', 'dashboard', 'laporan', 'rekapan', 'export'].forEach(t => {
+            ['setoran', 'materi', 'dashboard', 'laporan-personal', 'laporan-grup', 'rekapan', 'export'].forEach(t => {
                 const btn = document.getElementById(`btnTab-${t}`);
                 if (btn) {
                     btn.className = (t === tabId)
@@ -514,6 +517,8 @@
             if (tabId === 'dashboard') window.renderDashboardSantri();
             if (tabId === 'kartu') window.initKartuTab();
             if (tabId === 'laporan') window.switchLaporanSubTab('wa');
+            if (tabId === 'laporan-personal') window.switchLaporanSubTab('wa');
+            if (tabId === 'laporan-grup') window.switchLaporanSubTab('kelas');
             if (tabId === 'rekapan') window.renderRekapan();
             if (tabId === 'laporan-santri') window.renderLaporanSantriPekan();
             if (tabId === 'riwayat') window.renderRiwayatInputMenu();
@@ -5894,7 +5899,8 @@
                 <button onclick="window.switchTab('setoran')" id="btnTab-setoran" class="px-3.5 py-2 rounded-xl text-xs sm:text-sm font-black bg-white text-emerald-950 shadow-md transition-all shrink-0">Input</button>
                 <button onclick="window.switchTab('materi')" id="btnTab-materi" class="px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold text-emerald-100 hover:bg-emerald-700/65 transition-all shrink-0">Materi</button>
                 <button onclick="window.switchTab('dashboard')" id="btnTab-dashboard" class="px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold text-emerald-100 hover:bg-emerald-700/65 transition-all shrink-0">Dashboard Santri</button>
-                                <button onclick="window.switchTab('laporan')" id="btnTab-laporan" class="px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold text-emerald-100 hover:bg-emerald-700/65 transition-all shrink-0">Laporan</button>                                  <button onclick="window.switchTab('rekapan')" id="btnTab-rekapan" class="px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold text-emerald-100 hover:bg-emerald-700/65 transition-all shrink-0">Rekapan</button>
+                                <button onclick="window.switchTab('laporan-personal')" id="btnTab-laporan-personal" class="px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold text-emerald-100 hover:bg-emerald-700/65 transition-all shrink-0">Laporan WA Personal</button>
+                <button onclick="window.switchTab('laporan-grup')" id="btnTab-laporan-grup" class="px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold text-emerald-100 hover:bg-emerald-700/65 transition-all shrink-0">Laporan WA Grup</button>                                  <button onclick="window.switchTab('rekapan')" id="btnTab-rekapan" class="px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold text-emerald-100 hover:bg-emerald-700/65 transition-all shrink-0">Rekapan</button>
                 
                 <button onclick="window.switchTab('export')" id="btnTab-export" class="px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold text-emerald-100 hover:bg-emerald-700/65 transition-all shrink-0">Data</button>
             </div>
