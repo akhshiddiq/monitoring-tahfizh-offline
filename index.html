@@ -1990,7 +1990,7 @@
         // kembali nilai kolom input dari riwayat terbaru.
         // Tidak mengubah history; hanya mengisi state form.
         // ============================================================
-        window.hydrateInputFormsFromHistory = function() {
+        window.hydrateInputFormsFromHistory = function(forceOverwrite = false) {
             const parseList = (key) => {
                 try {
                     const value = JSON.parse(localStorage.getItem(key) || '[]');
@@ -2010,7 +2010,7 @@
             const escapeKey = (name) => String(name || '');
             const setIfMissing = (key, value) => {
                 if (value === undefined || value === null) return;
-                if (window.localFormCache[key] === undefined) {
+                if (forceOverwrite || window.localFormCache[key] === undefined) {
                     window.localFormCache[key] = String(value);
                 }
             };
@@ -2054,7 +2054,19 @@
             (window.santriList || []).forEach(s => {
                 const name = escapeKey(s.name);
                 configs.forEach(cfg => {
-                    const latest = cfg.history.find(item => String(item?.name || '').toLowerCase() === name.toLowerCase());
+                    const matches = cfg.history.filter(item => String(item?.name || '').trim().toLowerCase() === name.toLowerCase());
+                    const historyTime = item => {
+                        const raw = Number(item?.rawTime);
+                        if (Number.isFinite(raw) && raw > 0) return raw;
+                        const parsedTimestamp = Date.parse(String(item?.timestamp || ''));
+                        if (Number.isFinite(parsedTimestamp)) return parsedTimestamp;
+                        const parsedDate = Date.parse(String(item?.tanggal || ''));
+                        return Number.isFinite(parsedDate) ? parsedDate : 0;
+                    };
+                    const latest = matches.reduce((best, item) => {
+                        if (!best) return item;
+                        return historyTime(item) >= historyTime(best) ? item : best;
+                    }, null);
                     if (!latest) return;
 
                     const slots = Array.isArray(latest.slots) && latest.slots.length
@@ -3793,6 +3805,12 @@
                         </div>
                         <div class="mt-3 text-xs font-black text-emerald-700 dark:text-emerald-300">✓ Backup pengaman dibuat sebelum proses. Data berhasil diperbarui.</div>
                         <div class="mt-2 text-xs font-bold text-slate-600 dark:text-slate-400">Aplikasi akan dimuat ulang sebentar lagi untuk menampilkan data terbaru.</div>`;
+                }
+                try {
+                    window.hydrateInputFormsFromHistory?.(true);
+                    window.persistFormCache?.(true);
+                } catch (e) {
+                    console.warn('Form cache dari hasil Import CSV tidak dapat diperbarui:', e);
                 }
                 window.showToast(`Import CSV ${mode === 'merge' ? 'gabung' : 'ganti'} berhasil.`, 'success');
                 setTimeout(() => location.reload(), 2200);
