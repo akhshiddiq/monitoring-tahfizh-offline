@@ -3933,7 +3933,56 @@
             const oldSantriMap = new Map(currentSantri.map(x=>[santriKey(x),x]));
             const newSantri = incSantri.filter(x=>!oldSantriMap.has(santriKey(x)));
             const changedSantri = incSantri.filter(x=>{const old=oldSantriMap.get(santriKey(x));return old && sig(old)!==sig(x);});
-            const section = (title, items, empty='Tidak ada') => `<details open class="rounded-xl border border-slate-200 dark:border-slate-700 bg-white/80 dark:bg-slate-900/60 p-3"><summary class="cursor-pointer font-black text-xs sm:text-sm text-slate-800 dark:text-slate-100">${esc(title)} <span class="text-slate-500">(${items.length})</span></summary><div class="mt-2 space-y-1.5 text-[11px] font-bold text-slate-700 dark:text-slate-300">${items.length?items.map(x=>`<div class="rounded-lg bg-slate-50 dark:bg-slate-800/80 px-3 py-2 border border-slate-100 dark:border-slate-700">${x}</div>`).join(''):`<div class="text-slate-500">${esc(empty)}</div>`}</div></details>`;
+            const panel = (title, inner, tone='slate') => {
+                const tones = {
+                    slate: 'border-slate-200 dark:border-slate-700',
+                    emerald: 'border-emerald-200 dark:border-emerald-800',
+                    amber: 'border-amber-200 dark:border-amber-800',
+                    violet: 'border-violet-200 dark:border-violet-800',
+                    sky: 'border-sky-200 dark:border-sky-800',
+                    rose: 'border-rose-200 dark:border-rose-800'
+                };
+                return `<section class="rounded-2xl border-2 ${tones[tone]||tones.slate} bg-white/90 dark:bg-slate-900/70 overflow-hidden">${title ? `<div class="px-3.5 py-3 border-b ${tones[tone]||tones.slate} bg-slate-50/80 dark:bg-slate-800/70"><div class="font-black text-xs sm:text-sm text-slate-800 dark:text-slate-100">${title}</div></div>` : ''}<div class="p-3">${inner}</div></section>`;
+            };
+            const emptyBox = (text='Tidak ada data') => `<div class="rounded-xl border border-dashed border-slate-300 dark:border-slate-700 px-3 py-4 text-center text-[11px] font-bold text-slate-500">${esc(text)}</div>`;
+            const historyTable = (title, rows, badgeClass='bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300') => {
+                const list = Array.isArray(rows) ? rows : [];
+                if (!list.length) return panel(`<span class="inline-flex items-center gap-2">${esc(title)} <span class="px-2 py-0.5 rounded-full text-[10px] ${badgeClass}">0</span></span>`, emptyBox(), 'slate');
+                const body = list.map(r => {
+                    const name = esc(r?.name || '-');
+                    const tanggal = esc(r?.tanggal || r?.date || '-');
+                    const detail = esc((r?.detail || '').trim() || (Array.isArray(r?.slots) && r.slots.length ? r.slots.map(x => { const surat=x?.surat||x?.name||''; const a=x?.ayatAwal??x?.start??''; const b=x?.ayatAkhir??x?.end??''; return surat ? `${surat}${a!==''?` ${a}${b!==''?`–${b}`:''}`:''}` : ''; }).filter(Boolean).join(' · ') : '-'));
+                    const status = esc(r?.status || r?.progressStatus || '-');
+                    const catatan = esc(r?.catatan || '-');
+                    return `<tr class="border-t border-slate-100 dark:border-slate-800 align-top"><td class="px-3 py-2.5 font-black text-slate-800 dark:text-slate-100 whitespace-nowrap">${name}</td><td class="px-3 py-2.5 whitespace-nowrap">${tanggal}</td><td class="px-3 py-2.5 min-w-[220px]">${detail}</td><td class="px-3 py-2.5 whitespace-nowrap">${status}</td><td class="px-3 py-2.5 min-w-[220px]">${catatan}</td></tr>`;
+                }).join('');
+                return panel(`<span class="inline-flex items-center gap-2">${esc(title)} <span class="px-2 py-0.5 rounded-full text-[10px] ${badgeClass}">${list.length}</span></span>`, `<div class="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700"><table class="w-full text-[11px] font-bold text-slate-700 dark:text-slate-300"><thead class="bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200"><tr><th class="px-3 py-2.5 text-left whitespace-nowrap">Santri</th><th class="px-3 py-2.5 text-left whitespace-nowrap">Tanggal</th><th class="px-3 py-2.5 text-left">Data</th><th class="px-3 py-2.5 text-left whitespace-nowrap">Status</th><th class="px-3 py-2.5 text-left">Catatan</th></tr></thead><tbody>${body}</tbody></table></div>`, 'slate');
+            };
+            const masterTable = (title, rows, changed=false) => {
+                const list = Array.isArray(rows) ? rows : [];
+                if (!list.length) return panel(`<span class="inline-flex items-center gap-2">${esc(title)} <span class="px-2 py-0.5 rounded-full text-[10px] bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300">0</span></span>`, emptyBox(), 'slate');
+                const body = list.map(x => {
+                    const old = changed ? oldSantriMap.get(santriKey(x)) : null;
+                    const name = esc(x?.name || '-');
+                    const currentClass = esc(x?.class || '-');
+                    const currentTeacher = esc(x?.teacher || '-');
+                    const before = old ? `<div class="text-[10px] text-slate-500 mt-1">Sebelumnya: Kelas ${esc(old?.class||'-')} · ${esc(old?.teacher||'-')}</div>` : '';
+                    return `<tr class="border-t border-slate-100 dark:border-slate-800 align-top"><td class="px-3 py-2.5 font-black text-slate-800 dark:text-slate-100">${name}</td><td class="px-3 py-2.5 whitespace-nowrap">${currentClass}</td><td class="px-3 py-2.5">${currentTeacher}${before}</td></tr>`;
+                }).join('');
+                return panel(`<span class="inline-flex items-center gap-2">${esc(title)} <span class="px-2 py-0.5 rounded-full text-[10px] bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300">${list.length}</span></span>`, `<div class="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700"><table class="w-full text-[11px] font-bold text-slate-700 dark:text-slate-300"><thead class="bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200"><tr><th class="px-3 py-2.5 text-left">Santri</th><th class="px-3 py-2.5 text-left">Kelas</th><th class="px-3 py-2.5 text-left">Pengajar</th></tr></thead><tbody>${body}</tbody></table></div>`, 'slate');
+            };
+            const targetTable = (title, items) => {
+                const list = Array.isArray(items) ? items : [];
+                if (!list.length) return panel(`<span class="inline-flex items-center gap-2">${esc(title)} <span class="px-2 py-0.5 rounded-full text-[10px] bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300">0</span></span>`, emptyBox(), 'slate');
+                const body = list.map((x,i) => `<tr class="border-t border-slate-100 dark:border-slate-800"><td class="px-3 py-2.5 text-left">${i+1}</td><td class="px-3 py-2.5">${x}</td></tr>`).join('');
+                return panel(`<span class="inline-flex items-center gap-2">${esc(title)} <span class="px-2 py-0.5 rounded-full text-[10px] bg-violet-100 text-violet-800 dark:bg-violet-950/40 dark:text-violet-300">${list.length}</span></span>`, `<div class="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700"><table class="w-full text-[11px] font-bold text-slate-700 dark:text-slate-300"><thead class="bg-slate-100 dark:bg-slate-800"><tr><th class="px-3 py-2.5 text-left w-12">No.</th><th class="px-3 py-2.5 text-left">Keterangan</th></tr></thead><tbody>${body}</tbody></table></div>`, 'slate');
+            };
+            const scalarTable = (title, items) => {
+                const list = Array.isArray(items) ? items : [];
+                if (!list.length) return panel(`<span class="inline-flex items-center gap-2">${esc(title)} <span class="px-2 py-0.5 rounded-full text-[10px] bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300">0</span></span>`, emptyBox(), 'slate');
+                const body = list.map((x,i) => `<tr class="border-t border-slate-100 dark:border-slate-800"><td class="px-3 py-2.5">${i+1}</td><td class="px-3 py-2.5">${x}</td></tr>`).join('');
+                return panel(`<span class="inline-flex items-center gap-2">${esc(title)} <span class="px-2 py-0.5 rounded-full text-[10px] bg-sky-100 text-sky-800 dark:bg-sky-950/40 dark:text-sky-300">${list.length}</span></span>`, `<div class="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700"><table class="w-full text-[11px] font-bold text-slate-700 dark:text-slate-300"><thead class="bg-slate-100 dark:bg-slate-800"><tr><th class="px-3 py-2.5 text-left w-12">No.</th><th class="px-3 py-2.5 text-left">Keterangan</th></tr></thead><tbody>${body}</tbody></table></div>`, 'slate');
+            };
 
             const historyKeys = [
                 ['rq_history_bacaan','Bacaan'],['rq_history_hafalan','Hafalan'],
@@ -3995,17 +4044,30 @@
                 ? incSantri.map(x=>`<b>${esc(x?.name||'-')}</b> — Kelas: ${esc(x?.class||'-')} — Pengajar: ${esc(x?.teacher||'-')}`)
                 : newSantri.map(x=>`<b>${esc(x?.name||'-')}</b> — Kelas: ${esc(x?.class||'-')} — Pengajar: ${esc(x?.teacher||'-')}`);
             const santriChangedItems = changedSantri.map(x=>{const o=oldSantriMap.get(santriKey(x));return `<b>${esc(x?.name||'-')}</b> — lama: Kelas ${esc(o?.class||'-')}, Pengajar ${esc(o?.teacher||'-')} → file: Kelas ${esc(x?.class||'-')}, Pengajar ${esc(x?.teacher||'-')}`;});
-            let html=`<div class="space-y-3 text-left">${summary}<div class="rounded-xl bg-slate-100 dark:bg-slate-800 p-3 text-[11px] font-black text-slate-800 dark:text-slate-100">RINGKASAN FILE: ${incSantri.length} santri · ${Object.keys(incoming).length} kunci aplikasi · ${Object.keys(targetIncoming?.hafalan||{}).length} santri target hafalan · ${Object.keys(targetIncoming?.murojaah||{}).length} santri target muroja’ah</div>`;
-            html += section(mode==='replace'?'SEMUA SANTRI YANG AKAN DI-GANTI':'SANTRI BARU YANG AKAN DITAMBAHKAN',santriItems);
-            if(mode==='merge') html += section('SANTRI YANG DATANYA BERBEDA / AKAN DIPERBARUI',santriChangedItems);
+            const historyNewTotal = historyReport.reduce((n,h)=>n+h.brandNew.length,0);
+            const historyChangedTotal = historyReport.reduce((n,h)=>n+h.changed.length,0);
+            const summaryCards = [
+                ['MODE', mode==='merge'?'GABUNGKAN':'GANTI', mode==='merge'?'bg-amber-50 text-amber-800 dark:bg-amber-950/30 dark:text-amber-300':'bg-violet-50 text-violet-800 dark:bg-violet-950/30 dark:text-violet-300'],
+                ['SANTRI BARU', newSantri.length, 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-300'],
+                ['SANTRI BERUBAH', changedSantri.length, 'bg-sky-50 text-sky-800 dark:bg-sky-950/30 dark:text-sky-300'],
+                ['RIWAYAT BARU', historyNewTotal, 'bg-purple-50 text-purple-800 dark:bg-purple-950/30 dark:text-purple-300'],
+                ['RIWAYAT BERUBAH', historyChangedTotal, 'bg-rose-50 text-rose-800 dark:bg-rose-950/30 dark:text-rose-300'],
+                ['TARGET BARU', targetNew.length, 'bg-violet-50 text-violet-800 dark:bg-violet-950/30 dark:text-violet-300'],
+                ['TARGET BERUBAH', targetChanged.length, 'bg-orange-50 text-orange-800 dark:bg-orange-950/30 dark:text-orange-300'],
+                ['KUNCI APLIKASI', Object.keys(incoming).length, 'bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-200']
+            ];
+            const cardsHtml = `<div class="grid grid-cols-2 md:grid-cols-4 gap-2.5">${summaryCards.map(([label,value,cls])=>`<div class="rounded-xl border border-slate-200 dark:border-slate-700 p-3 ${cls}"><div class="text-[9px] font-black tracking-wide opacity-80">${label}</div><div class="mt-1 text-lg font-black">${value}</div></div>`).join('')}</div>`;
+            let html=`<div class="space-y-3 text-left">${summary}${cardsHtml}<div class="rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50/80 dark:bg-slate-900/60 p-3"><div class="font-black text-xs sm:text-sm text-slate-800 dark:text-slate-100">HASIL PEMBACAAN FILE</div><div class="mt-1 text-[11px] font-bold text-slate-600 dark:text-slate-400">${Math.max(0, Object.keys(incoming).length)} kunci aplikasi · ${incSantri.length} data master santri</div></div>`;
+            html += masterTable(mode==='replace'?'MASTER SANTRI YANG AKAN DI-GANTI':'MASTER SANTRI BARU', mode==='replace'?incSantri:newSantri, false);
+            if(mode==='merge') html += masterTable('MASTER SANTRI YANG DATANYA BERBEDA', changedSantri, true);
             for(const h of historyReport){
-                html += section(`${mode==='replace'?'SEMUA':'DATA BARU'} ${h.label}`,h.brandNew.map(r=>esc(window.rqImportRecordText(r))));
-                if(mode==='merge') html += section(`DATA ${h.label.toUpperCase()} YANG BERUBAH`,h.changed.map(r=>esc(window.rqImportRecordText(r))));
+                html += historyTable(`${mode==='replace'?'SEMUA':'DATA BARU'} ${h.label}`, h.brandNew);
+                if(mode==='merge') html += historyTable(`DATA ${h.label.toUpperCase()} YANG BERBEDA`, h.changed, 'bg-sky-100 text-sky-800 dark:bg-sky-950/40 dark:text-sky-300');
             }
-            html += section(mode==='replace'?'SEMUA TARGET YANG AKAN DI-GANTI':'TARGET BARU',targetNew);
-            if(mode==='merge') html += section('TARGET YANG BERUBAH',targetChanged);
-            html += section(mode==='replace'?'DATA / PENGATURAN LAIN YANG AKAN DI-GANTI':'DATA / PENGATURAN LAIN YANG BARU ATAU BERUBAH',scalar);
-            html += `<div class="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/60 p-3 text-[10px] font-bold text-slate-600 dark:text-slate-400">Laporan ini dibuat dari perbandingan file dengan data perangkat saat file dibaca. Untuk Gabungkan, data yang sama persis tidak dihitung sebagai data baru; data riwayat yang berbeda akan ditambahkan, sedangkan target yang berubah akan mengikuti data target dari file.</div></div>`;
+            html += targetTable(mode==='replace'?'SEMUA TARGET YANG AKAN DI-GANTI':'TARGET BARU',targetNew);
+            if(mode==='merge') html += targetTable('TARGET YANG BERUBAH',targetChanged);
+            html += scalarTable(mode==='replace'?'DATA / PENGATURAN LAIN YANG AKAN DI-GANTI':'DATA / PENGATURAN LAIN YANG BARU ATAU BERUBAH',scalar);
+            html += `<div class="rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50/70 dark:bg-emerald-950/20 p-3 text-[10px] font-bold text-slate-600 dark:text-slate-300"><div class="font-black text-emerald-800 dark:text-emerald-300 mb-1">CARA MEMBACA LAPORAN</div>${mode==='merge'?'Data yang sama persis tidak ditampilkan sebagai data baru. Data riwayat yang berbeda akan ditambahkan, sedangkan data yang berubah ditampilkan terpisah agar mudah diperiksa sebelum menekan tombol GABUNGKAN.':'Pada mode GANTI, data yang ditampilkan adalah isi file yang akan menjadi data aplikasi untuk kunci yang dibawa file.'}</div></div>`;
             return html;
         };
 
@@ -4075,7 +4137,7 @@
                 const detailedReport = document.getElementById('rqOfflineCsvImportDetailedReport');
                 if (detailedReport) {
                     detailedReport.className = 'mt-3 rounded-2xl border-2 border-indigo-200 dark:border-indigo-800 bg-white dark:bg-slate-900 p-4';
-                    detailedReport.innerHTML = '<div class="font-black text-sm text-indigo-800 dark:text-indigo-300 mb-3"><i class="fa-solid fa-clipboard-list mr-1"></i> LAPORAN LENGKAP YANG AKAN DIPROSES</div>' + window.buildImportDetailedReport(mode, imported, importedSantri, targetInfo);
+                    detailedReport.innerHTML = '<div class="font-black text-sm text-indigo-800 dark:text-indigo-300 mb-3"><i class="fa-solid fa-clipboard-list mr-1"></i> HASIL PEMBACAAN & PEMBANDINGAN FILE</div>' + window.buildImportDetailedReport(mode, imported, importedSantri, targetInfo);
                 }
                 if (box) {
                     box.className = 'mt-3 rounded-xl border-2 border-emerald-300 bg-emerald-50 dark:bg-slate-900/70 dark:border-emerald-800 p-4';
