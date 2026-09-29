@@ -304,8 +304,6 @@
             window.localFormCache = {};
         }
         window._formCacheSaveTimer = null;
-        // Reset form hanya berlaku pada draft/tampilan sesi ini. Data tersimpan tidak dihapus.
-        window.formResetHold = new Set();
 
         window.persistFormCache = function(immediate = false) {
             const write = () => {
@@ -1038,9 +1036,6 @@
             if (!box) return;
 
             const q = String(value || '').trim().toLowerCase();
-            // Pastikan pencarian tetap bekerja walau selectedClass belum pernah
-            // diinisialisasi oleh filter kelas. Default harus ALL.
-            const selectedClass = String(window.selectedClass || 'ALL').trim() || 'ALL';
             if (clearBtn) clearBtn.classList.toggle('hidden', !q);
 
             if (!q) {
@@ -1052,7 +1047,7 @@
             }
 
             const matches = (window.santriList || []).filter(s =>
-                (selectedClass === 'ALL' || String(s.class || '').trim().toLowerCase() === selectedClass.toLowerCase()) &&
+                (window.selectedClass === 'ALL' || s.class === window.selectedClass) &&
                 String(s.name || '').toLowerCase().includes(q)
             );
 
@@ -1669,8 +1664,22 @@
                 if (btnUlangi) btnUlangi.className = "flex-1 py-3 px-3 rounded-xl text-xs font-bold bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 transition min-h-[50px]";
             }
 
-            const sectionLabel = category === 'bac' ? 'Bacaan' : category === 'haf' ? 'Hafalan Baru' : 'Murojaah';
-            window.showToast(`${sectionLabel}: status dipilih. Tekan Simpan & Sinkron untuk menyimpan.`, 'success');
+            // STATUS LANGSUNG DISIMPAN KE RIWAYAT + DATABASE LOKAL.
+            // Jadi setelah Bacaan/Hafalan/Muroja'ah sudah diinput, menekan
+            // Lanjut/Ulangi langsung membuat rekaman status dan laporan orang tua.
+            if (category === 'bac' || category === 'haf' || category === 'mur') {
+                const sectionType = category === 'bac' ? 'bacaan' : (category === 'haf' ? 'hafalan' : 'murojaah');
+                const hasData = typeof window.extractSlotEntries === 'function' && window.extractSlotEntries(category, santriName) !== '-';
+                if (hasData) {
+                    clearTimeout(window._statusSaveTimers && window._statusSaveTimers[statusKey]);
+                    window._statusSaveTimers = window._statusSaveTimers || {};
+                    window._statusSaveTimers[statusKey] = setTimeout(() => {
+                        window.saveSectionData(santriName, sectionType);
+                    }, 60);
+                } else {
+                    window.showToast('Status dipilih. Isi setoran lalu tekan Simpan & Sinkron.', 'success');
+                }
+            }
         };
 
         window.toggleSlotVisibility = function(category, slot, santriName) {
@@ -1724,89 +1733,7 @@
             }
         };
 
-        window.getFormResetHoldFromKey = function(key) {
-            const raw = String(key || '');
-            let m = raw.match(/^(.*?)_(bac|haf|mur)_/);
-            if (m) {
-                const map = { bac: 'bacaan', haf: 'hafalan', mur: 'murojaah' };
-                return `${m[1]}::${map[m[2]]}`;
-            }
-            m = raw.match(/^(.*?)_tug_(detail|cat)$/);
-            return m ? `${m[1]}::tugas` : '';
-        };
-
-        window.clearFormCacheByPrefix = function(prefixes) {
-            const list = Array.isArray(prefixes) ? prefixes : [prefixes];
-            Object.keys(window.localFormCache || {}).forEach(key => {
-                if (list.some(prefix => key.startsWith(prefix))) delete window.localFormCache[key];
-            });
-        };
-
-        window.resetInputForm = function(name, sectionType) {
-            const category = sectionType === 'bacaan' ? 'bac' : sectionType === 'hafalan' ? 'haf' : sectionType === 'murojaah' ? 'mur' : '';
-            if (!category && sectionType !== 'tugas') return;
-            window.formResetHold.add(`${name}::${sectionType}`);
-
-            if (category) {
-                window.clearFormCacheByPrefix(`${name}_${category}_`);
-                for (let slot = 1; slot <= 3; slot++) {
-                    [`${category}_surah_search_${slot}_${name}`, `${category}_surah_${slot}_${name}`, `${category}_iqro_${slot}_${name}`, `${category}_start_${slot}_${name}`, `${category}_end_${slot}_${name}`].forEach(id => {
-                        const el = document.getElementById(id);
-                        if (el) el.value = '';
-                    });
-                    const q = document.getElementById(`field_quran_${category}_${slot}_${name}`);
-                    const iq = document.getElementById(`field_iqro_${category}_${slot}_${name}`);
-                    const ls = document.getElementById(`lbl_start_${category}_${slot}_${name}`);
-                    const le = document.getElementById(`lbl_end_${category}_${slot}_${name}`);
-                    if (q) q.classList.remove('hidden');
-                    if (iq) iq.classList.add('hidden');
-                    if (ls) ls.innerText = 'Ayat Mulai:';
-                    if (le) le.innerText = 'Ayat Sampai:';
-                    if (slot > 1) {
-                        window.activeSlotState[`${name}_${category}_slot_${slot}`] = false;
-                        const box = document.getElementById(`slot_container_${category}_${slot}_${name}`);
-                        const toggle = document.getElementById(`toggle_btn_${category}_${slot}_${name}`);
-                        if (box) box.classList.add('hidden');
-                        if (toggle) toggle.innerHTML = `<i class="fa-solid fa-plus"></i> Tambah Pilihan ${slot}`;
-                    }
-                }
-                delete window.itemSlotStatus[`${name}_${category}_progress_status`];
-                const normal = "flex-1 py-3 px-3 rounded-xl text-xs font-bold bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 transition min-h-[50px]";
-                const btnLanjut = document.getElementById(`btn_status_lanjut_${category}_${name}`);
-                const btnUlangi = document.getElementById(`btn_status_ulangi_${category}_${name}`);
-                if (btnLanjut) btnLanjut.className = normal;
-                if (btnUlangi) btnUlangi.className = normal;
-
-                const fieldMap = {
-                    bac: ['bac_stat','bac_cat_type','bac_cat_desc'],
-                    haf: ['haf_stat','haf_cat_type','haf_cat_desc'],
-                    mur: ['mur_stat','mur_cat_type','mur_cat_desc']
-                };
-                fieldMap[category].forEach(prefix => {
-                    const el = document.getElementById(`${prefix}_${name}`);
-                    if (el) el.value = '';
-                });
-            } else {
-                window.clearFormCacheByPrefix(`${name}_tug_`);
-                const detail = document.getElementById(`tug_detail_${name}`);
-                const cat = document.getElementById(`tug_cat_${name}`);
-                if (detail) detail.value = '';
-                if (cat) cat.value = '';
-            }
-
-            window.persistFormCache(true);
-            window.selectInlineWaSantri?.(name, true);
-            const label = sectionType === 'bacaan' ? 'Bacaan' : sectionType === 'hafalan' ? 'Hafalan Baru' : sectionType === 'murojaah' ? "Muroja'ah" : 'Tugas';
-            window.showToast?.(`Form ${label} direset. Data yang sudah tersimpan tidak dihapus.`, 'success');
-        };
-
-        window.clearResetHoldAfterSave = function(name, sectionType) {
-            window.formResetHold.delete(`${name}::${sectionType}`);
-        };
-
         window.cacheFormInput = function(elem, key) {
-            const hold = window.getFormResetHoldFromKey(key);
-            if (hold) window.formResetHold.delete(hold);
             window.localFormCache[key] = elem.value;
             window.persistFormCache(false);
 
@@ -2228,7 +2155,6 @@
             (window.santriList || []).forEach(s => {
                 const name = escapeKey(s.name);
                 configs.forEach(cfg => {
-                    if (window.formResetHold.has(`${name}::${cfg.type}`)) return;
                     const matches = cfg.history.filter(item => String(item?.name || '').trim().toLowerCase() === name.toLowerCase());
                     const historyTime = item => {
                         const raw = Number(item?.rawTime);
@@ -2544,9 +2470,6 @@
                                         </div>
                                     </div>
                                     <div class="flex items-center gap-2">
-                                        <button type="button" onclick="window.resetInputForm(${JSON.stringify(s.name)}, 'bacaan')" class="px-4 py-4 bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 rounded-2xl font-black text-sm shadow-md transition flex items-center justify-center gap-2 active:scale-95" title="Reset form Bacaan saja">
-                                            <i class="fa-solid fa-rotate-left"></i> Reset Form
-                                        </button>
                                         <button type="button" onclick="window.saveSectionData('${s.name}', 'bacaan')" class="flex-1 py-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black text-sm sm:text-base shadow-md transition flex items-center justify-center gap-2 active:scale-95">
                                             <i class="fa-solid fa-paper-plane"></i> Simpan &amp; Sinkron Bacaan (${s.name})
                                         </button>
@@ -2597,10 +2520,7 @@
                                             <div id="inputTargetHafalanJangkaPendekMulti_${s.name}" class="rq-target-multi-list"></div>
                                             <button type="button" class="rq-target-multi-add" onclick='window.addTargetSurahRow(${JSON.stringify(s.name)},"jangkaPendek")'><i class="fa-solid fa-plus mr-1"></i> Tambah Surat Lagi</button>
                                             <div id="inputTargetHafalanJangkaPendekInfo_${s.name}" class="text-[9px] font-bold text-slate-500"></div>
-                                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
                                             <button type="button" onclick='window.saveInputTarget("hafalan", ${JSON.stringify(s.name)}, "jangkaPendek")' class="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-black text-[10px] active:scale-[.99]"><i class="fa-solid fa-floppy-disk mr-1"></i> Simpan Target Jangka Pendek</button>
-                                            <button type="button" onclick='window.resetHafalanTargetForm(${JSON.stringify(s.name)}, "jangkaPendek")' class="w-full py-2.5 bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 rounded-xl font-black text-[10px] active:scale-[.99]" title="Reset form target jangka pendek saja"><i class="fa-solid fa-rotate-left mr-1"></i> Reset Form Target</button>
-                                            </div>
                                             <div id="inputTargetHafalanJangkaPendekProgress_${s.name}"></div>
                                         </div>
                                         <div class="p-3 rounded-2xl border border-sky-200 dark:border-sky-900/50 bg-sky-50/40 dark:bg-sky-950/20 space-y-3">
@@ -2614,10 +2534,7 @@
                                             <div id="inputTargetHafalanAkanDatangMulti_${s.name}" class="rq-target-multi-list"></div>
                                             <button type="button" class="rq-target-multi-add" onclick='window.addTargetSurahRow(${JSON.stringify(s.name)},"akanDatang")'><i class="fa-solid fa-plus mr-1"></i> Tambah Surat Lagi</button>
                                             <div id="inputTargetHafalanAkanDatangInfo_${s.name}" class="text-[9px] font-bold text-slate-500"></div>
-                                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
                                             <button type="button" onclick='window.saveInputTarget("hafalan", ${JSON.stringify(s.name)}, "akanDatang")' class="w-full py-2.5 bg-sky-600 hover:bg-sky-700 text-white rounded-xl font-black text-[10px] active:scale-[.99]"><i class="fa-solid fa-floppy-disk mr-1"></i> Simpan Target Yang Akan Datang</button>
-                                            <button type="button" onclick='window.resetHafalanTargetForm(${JSON.stringify(s.name)}, "akanDatang")' class="w-full py-2.5 bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 rounded-xl font-black text-[10px] active:scale-[.99]" title="Reset form target yang akan datang saja"><i class="fa-solid fa-rotate-left mr-1"></i> Reset Form Target</button>
-                                            </div>
                                             <div id="inputTargetHafalanAkanDatangProgress_${s.name}"></div>
                                         </div>
                                     </div>
@@ -2653,9 +2570,6 @@
                                         </div>
                                     </div>
                                     <div class="flex items-center gap-2">
-                                        <button type="button" onclick="window.resetInputForm(${JSON.stringify(s.name)}, 'hafalan')" class="px-4 py-4 bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 rounded-2xl font-black text-sm shadow-md transition flex items-center justify-center gap-2 active:scale-95" title="Reset form Hafalan Baru saja">
-                                            <i class="fa-solid fa-rotate-left"></i> Reset Form
-                                        </button>
                                         <button type="button" onclick="window.saveSectionData('${s.name}', 'hafalan')" class="flex-1 py-4 bg-rose-600 hover:bg-rose-700 text-white rounded-2xl font-black text-sm sm:text-base shadow-md transition flex items-center justify-center gap-2 active:scale-95">
                                             <i class="fa-solid fa-paper-plane"></i> Simpan &amp; Sinkron Hafalan Baru (${s.name})
                                         </button>
@@ -2737,9 +2651,6 @@
                                         </div>
                                     </div>
                                     <div class="flex items-center gap-2">
-                                        <button type="button" onclick="window.resetInputForm(${JSON.stringify(s.name)}, 'murojaah')" class="px-4 py-4 bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 rounded-2xl font-black text-sm shadow-md transition flex items-center justify-center gap-2 active:scale-95" title="Reset form Muroja'ah saja">
-                                            <i class="fa-solid fa-rotate-left"></i> Reset Form
-                                        </button>
                                         <button type="button" onclick="window.saveSectionData('${s.name}', 'murojaah')" class="flex-1 py-4 bg-purple-600 hover:bg-purple-700 text-white rounded-2xl font-black text-sm sm:text-base shadow-md transition flex items-center justify-center gap-2 active:scale-95">
                                             <i class="fa-solid fa-paper-plane"></i> Simpan &amp; Sinkron Muroja'ah (${s.name})
                                         </button>
@@ -2776,9 +2687,6 @@
                                     <input type="text" id="tug_detail_${s.name}" oninput="window.cacheFormInput(this, '${s.name}_tug_detail')" placeholder="Rincian Tugas..." value="${defaultTugDetail}" class="w-full p-4 bg-transparent border-2 border-slate-300 dark:border-slate-700 rounded-2xl font-black text-sm sm:text-base min-h-[60px]">
                                     <input type="text" id="tug_cat_${s.name}" oninput="window.cacheFormInput(this, '${s.name}_tug_cat')" placeholder="Catatan Tugas..." value="${defaultTugCat}" class="w-full p-4 bg-transparent border-2 border-slate-300 dark:border-slate-700 rounded-2xl font-black text-sm sm:text-base min-h-[60px]">
                                     <div class="flex items-center gap-2">
-                                        <button type="button" onclick="window.resetInputForm(${JSON.stringify(s.name)}, 'tugas')" class="px-4 py-4 bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 rounded-2xl font-black text-sm shadow-md transition flex items-center justify-center gap-2 active:scale-95" title="Reset form Tugas saja">
-                                            <i class="fa-solid fa-rotate-left"></i> Reset Form
-                                        </button>
                                         <button type="button" onclick="window.saveSectionData('${s.name}', 'tugas')" class="flex-1 py-4 bg-amber-700 hover:bg-amber-800 text-white rounded-2xl font-black text-sm sm:text-base shadow-md transition flex items-center justify-center gap-2 active:scale-95">
                                             <i class="fa-solid fa-paper-plane"></i> Simpan &amp; Sinkron Tugas (${s.name})
                                         </button>
@@ -2941,7 +2849,6 @@
                                 window.cardHistoryToggleState[`${name}_history_Bacaan`] = true;
                 const badge = document.getElementById(`save_badge_bacaan_${name}`);
                 if (badge) { badge.classList.remove('hidden'); setTimeout(() => badge.classList.add('hidden'), 3000); }
-                window.clearResetHoldAfterSave(name, 'bacaan');
                 window.showToast("💾 Alhamdulillah sudah di input", "success");
             } 
             else if (sectionType === 'hafalan') {
@@ -2989,7 +2896,6 @@
                                 window.cardHistoryToggleState[`${name}_history_Hafalan`] = true;
                 const badge = document.getElementById(`save_badge_hafalan_${name}`);
                 if (badge) { badge.classList.remove('hidden'); setTimeout(() => badge.classList.add('hidden'), 3000); }
-                window.clearResetHoldAfterSave(name, 'hafalan');
                 window.showToast("💾 Alhamdulillah sudah di input", "success");
             } 
             else if (sectionType === 'murojaah') {
@@ -3039,7 +2945,6 @@
                                 window.cardHistoryToggleState[`${name}_history_Murojaah`] = true;
                 const badge = document.getElementById(`save_badge_murojaah_${name}`);
                 if (badge) { badge.classList.remove('hidden'); setTimeout(() => badge.classList.add('hidden'), 3000); }
-                window.clearResetHoldAfterSave(name, 'murojaah');
                 window.showToast("💾 Alhamdulillah sudah di input", "success");
             } 
             else if (sectionType === 'tugas') {
@@ -3077,7 +2982,6 @@
                                 window.cardHistoryToggleState[`${name}_history_Tugas`] = true;
                 const badge = document.getElementById(`save_badge_tugas_${name}`);
                 if (badge) { badge.classList.remove('hidden'); setTimeout(() => badge.classList.add('hidden'), 3000); }
-                window.clearResetHoldAfterSave(name, 'tugas');
                 window.showToast("💾 Alhamdulillah sudah di input", "success");
             }
 
@@ -3959,27 +3863,6 @@
                                     jangkaPendek: inc[name].jangkaPendek ?? prev.jangkaPendek ?? null,
                                     akanDatang: inc[name].akanDatang ?? prev.akanDatang ?? null
                                 };
-                            } else if (type === 'murojaah' && inc[name] && typeof inc[name] === 'object') {
-                                const prev = c[name] && typeof c[name] === 'object' ? c[name] : {};
-                                const legacyToArray = value => {
-                                    if (value && Array.isArray(value.targets)) return value.targets.filter(x => x && typeof x === 'object');
-                                    if (value && (value.surat || value.ayat || value.items)) return [value];
-                                    return [];
-                                };
-                                const base = legacyToArray(prev);
-                                const incomingTargets = legacyToArray(inc[name]);
-                                const map = new Map();
-                                const targetKey = t => {
-                                    const id = String(t?.id || '').trim();
-                                    if (id) return 'id:' + id;
-                                    const sig = Array.isArray(t?.items) && t.items.length
-                                        ? t.items.map(i => `${String(i?.surat||'').trim().toLowerCase()}:${Number(i?.ayat)||0}`).join('|')
-                                        : `${String(t?.surat||'').trim().toLowerCase()}:${Number(t?.ayat)||0}`;
-                                    return `sig:${sig}|${String(t?.mulai||'')}|${String(t?.selesai||'')}|${String(t?.createdAt||'')}`;
-                                };
-                                base.forEach(t => map.set(targetKey(t), t));
-                                incomingTargets.forEach(t => map.set(targetKey(t), t));
-                                out[type][name] = { targets: [...map.values()] };
                             } else {
                                 out[type][name] = inc[name];
                             }
@@ -6271,7 +6154,6 @@
             </div>
 \n\n                    </section>
 
-
 <!-- SECTION: DASHBOARD SANTRI -->
         <section id="section-dashboard" class="hidden space-y-4">
             <div class="bg-white dark:bg-slate-800 p-4 sm:p-5 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700">
@@ -7936,8 +7818,8 @@ html.dark #rqSafetyBackupBox #rqSafetyBackupLocation b{color:#ecfdf5 !important}
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
 })();
 </script>
-
-<script id="rq-target-multi-surah-logic">
+</body>
+</html>\n<script id="rq-target-multi-surah-logic">
 (function(){
   const esc=v=>String(v??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');
   const key='rq_target_hafalan_murojaah_v2';
@@ -8062,400 +7944,3 @@ html.dark #rqSafetyBackupBox #rqSafetyBackupLocation b{color:#ecfdf5 !important}
   new MutationObserver(run).observe(document.body||document.documentElement,{childList:true,subtree:true});
 })();
 </script>
-<style id="rq-multi-target-v3-style">
-.rq-mur-target-manager{margin-top:.75rem;padding:.9rem;border:2px solid rgb(186 230 253);border-radius:1rem;background:rgba(255,255,255,.72)}
-.dark .rq-mur-target-manager{border-color:rgb(7 89 133);background:rgba(15,23,42,.42)}
-.rq-mur-target-list{display:flex;flex-direction:column;gap:.85rem;margin-top:.8rem}
-.rq-mur-target-card{border:2px solid rgb(196 181 253);border-radius:1rem;background:rgba(250,245,255,.62);padding:.8rem}
-.dark .rq-mur-target-card{border-color:rgb(91 33 182);background:rgba(76,29,149,.12)}
-.rq-mur-target-card-grid{display:grid;grid-template-columns:1fr;gap:.7rem}
-.rq-mur-target-card label{font-size:.75rem;font-weight:900;color:#64748b}
-.rq-mur-target-card input,.rq-mur-target-card select{box-sizing:border-box;width:100%;margin-top:.25rem;padding:1rem;border:2px solid #cbd5e1;border-radius:1rem;background:#fff;min-height:56px;font-weight:900}
-.dark .rq-mur-target-card input,.dark .rq-mur-target-card select{background:#0f172a;border-color:#334155;color:#f8fafc}
-.rq-mur-item-list{display:flex;flex-direction:column;gap:.7rem;margin-top:.7rem}
-.rq-mur-item-row{border:2px solid rgb(221 214 254);background:rgba(255,255,255,.62);border-radius:1rem;padding:.7rem}
-.dark .rq-mur-item-row{border-color:rgb(91 33 182);background:rgba(15,23,42,.32)}
-.rq-mur-item-grid{display:grid;grid-template-columns:1fr;gap:.65rem}
-.rq-mur-item-grid label{font-size:.72rem;font-weight:900}
-.rq-mur-item-grid input,.rq-mur-item-grid select{min-height:52px;padding:.8rem}
-.rq-mur-add-item,.rq-mur-add-target{width:100%;min-height:52px;border-radius:1rem;font-weight:900;border:2px dashed #8b5cf6;color:#6d28d9;background:rgba(139,92,246,.08)}
-.dark .rq-mur-add-item,.dark .rq-mur-add-target{color:#c4b5fd;border-color:#7c3aed}
-.rq-mur-progress{margin-top:.7rem;padding:.65rem;border-radius:.85rem;background:rgba(240,249,255,.88);border:1px solid rgb(186 230 253)}
-.dark .rq-mur-progress{background:rgba(8,47,73,.28);border-color:rgb(7 89 133)}
-.rq-mur-empty{padding:.8rem;border:2px dashed #cbd5e1;border-radius:1rem;text-align:center;font-size:.75rem;font-weight:800;color:#64748b}
-@media (min-width:640px){.rq-mur-target-card-grid{grid-template-columns:1fr 1fr}.rq-mur-item-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
-</style>
-<script id="rq-multi-target-hafalan-murojaah-v3">
-(function(){
-  'use strict';
-  const KEY='rq_target_hafalan_murojaah_v2';
-  const esc=v=>String(v??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');
-  const norm=v=>String(v??'').trim().toLowerCase().replace(/[‐‑‒–—]/g,'-').replace(/\s+/g,' ');
-  const nowIso=()=>new Date().toISOString();
-  const uid=()=>`mur-${Date.now().toString(36)}-${Math.random().toString(36).slice(2,8)}`;
-  const surah=name=>(window.surahList||[]).find(x=>norm(x?.name)===norm(name));
-  const juzFor=(surat,ayat)=>{
-    const q=surah(surat), no=Number(q?.no), a=Math.max(1,Number(ayat)||1);
-    const starts=[[1,1],[2,142],[2,253],[3,93],[4,24],[4,148],[5,83],[6,111],[7,88],[8,41],[9,93],[11,6],[12,53],[15,1],[17,1],[18,75],[21,1],[23,1],[25,21],[27,56],[29,46],[33,31],[36,28],[39,32],[41,47],[46,1],[51,31],[58,1],[67,1],[78,1]];
-    if(!no)return ''; let j=1; for(let i=0;i<starts.length;i++){const [sn,sa]=starts[i]; if(no>sn||(no===sn&&a>=sa))j=i+1; else break;} return `Juz ${j}`;
-  };
-  const readDB=()=>{try{return JSON.parse(localStorage.getItem(KEY)||'{}')||{};}catch(_){return {};}};
-  const writeDB=db=>localStorage.setItem(KEY,JSON.stringify(db));
-  const asItems=t=>{
-    if(Array.isArray(t?.items)&&t.items.length)return t.items.map(i=>({surat:String(i?.surat||'').trim(),ayat:Number(i?.ayat)||0,juz:String(i?.juz||'').trim()})).filter(i=>i.surat&&i.ayat>0);
-    if(String(t?.surat||'').trim()&&Number(t?.ayat)>0)return [{surat:String(t.surat).trim(),ayat:Number(t.ayat),juz:String(t.juz||'').trim()}];
-    return [];
-  };
-  const normaliseTarget=t=>{
-    if(!t||typeof t!=='object')return null;
-    const items=asItems(t);
-    return {...t,id:String(t.id||uid()),items,ayat:items.reduce((n,i)=>n+Number(i.ayat||0),0),surat:items[0]?.surat||String(t.surat||''),juz:items[0]?.juz||String(t.juz||''),kali:Math.max(0,Number(t.kali)||0)};
-  };
-  const normaliseMuro=raw=>{
-    if(raw&&Array.isArray(raw.targets))return {targets:raw.targets.map(normaliseTarget).filter(Boolean)};
-    if(raw&&typeof raw==='object'&&(raw.surat||raw.ayat||raw.items))return {targets:[normaliseTarget(raw)].filter(Boolean)};
-    return {targets:[]};
-  };
-  const migrateAll=()=>{
-    const db=readDB(); db.murojaah=db.murojaah&&typeof db.murojaah==='object'?db.murojaah:{}; let changed=false;
-    for(const name of Object.keys(db.murojaah)){
-      const old=db.murojaah[name], next=normaliseMuro(old);
-      if(JSON.stringify(old)!==JSON.stringify(next)){db.murojaah[name]=next; changed=true;}
-    }
-    if(changed)writeDB(db);
-    return db;
-  };
-  const getTargets=name=>{const db=migrateAll(); return Array.isArray(db.murojaah?.[name]?.targets)?db.murojaah[name].targets:[];};
-
-  function findMuroHost(name){
-    const stable=[...document.querySelectorAll('[data-rq-muro-target-host]')].find(el=>el.dataset.rqMuroTargetHost===String(name));
-    if(stable)return stable;
-    const anchor=document.getElementById(`inputTargetMurojaahJuz_${name}`);
-    if(!anchor)return null;
-    let cur=anchor.parentElement;
-    for(let i=0;cur&&i<8;i++,cur=cur.parentElement){
-      if(cur.querySelector && cur.querySelector('[id^="inputTargetMurojaahProgress_"]'))return cur;
-    }
-    return anchor.parentElement?.parentElement||null;
-  }
-
-  function surahOptions(selected){
-    return `<option value="">-- Pilih Surat --</option>`+(window.surahList||[]).map(x=>`<option value="${esc(x.name)}" ${norm(x.name)===norm(selected)?'selected':''}>${x.no}. ${esc(x.name)} (${x.ayat} ayat)</option>`).join('');
-  }
-
-  function itemHTML(item={},canRemove=true){
-    const q=surah(item.surat), max=q?.ayat||'';
-    return `<div class="rq-mur-item-row" data-mur-item>
-      <div class="flex items-center justify-between gap-2 mb-2"><b class="text-[11px] text-purple-700 dark:text-purple-300">${canRemove?'Surat Tambahan':'Surat Target'}</b>${canRemove?'<button type="button" data-mur-remove-item class="text-[11px] font-black text-rose-600">Hapus</button>':''}</div>
-      <div class="rq-mur-item-grid">
-        <label>Juz Otomatis<input data-mur-juz readonly value="${esc(item.juz||juzFor(item.surat,item.ayat))}" placeholder="Otomatis"></label>
-        <label>Nama Surat — Otomatis<select data-mur-surah>${surahOptions(item.surat)}</select></label>
-        <label>Nama Surat — Manual / Cari<input data-mur-search autocomplete="off" value="${esc(item.surat||'')}" placeholder="Ketik nama surat..."><div data-mur-dropdown class="hidden mt-1 max-h-56 overflow-y-auto bg-white dark:bg-slate-900 border-2 border-slate-300 dark:border-slate-700 rounded-xl shadow-xl"></div></label>
-        <label>Target ayat<input data-mur-ayat type="number" min="1" max="${max}" inputmode="numeric" value="${Number(item.ayat)>0?Number(item.ayat):''}" placeholder="1-${max||'...'}"></label>
-      </div>
-    </div>`;
-  }
-
-  function makeItemRow(item={},canRemove=true){
-    const wrap=document.createElement('div');
-    wrap.innerHTML=itemHTML(item,canRemove).trim();
-    const row=wrap.firstElementChild;
-    bindItemRow(row);
-    return row;
-  }
-
-  function bindItemRow(row){
-    const sel=row.querySelector('[data-mur-surah]'), search=row.querySelector('[data-mur-search]'), ay=row.querySelector('[data-mur-ayat]'), juz=row.querySelector('[data-mur-juz]'), drop=row.querySelector('[data-mur-dropdown]');
-    const choose=name=>{
-      const q=surah(name); if(sel)sel.value=name||''; if(search)search.value=name||''; if(q&&ay){ay.max=q.ayat; if(Number(ay.value)>q.ayat)ay.value=q.ayat;} if(juz)juz.value=q?juzFor(name,Number(ay?.value)||1):''; if(drop)drop.classList.add('hidden');
-    };
-    const searchList=value=>{
-      if(!drop)return; const term=norm(value); const list=(window.surahList||[]).filter(x=>!term||norm(x.name).includes(term)||String(x.no).startsWith(term)).slice(0,20);
-      drop.innerHTML=list.map(x=>`<button type="button" data-mur-pick="${esc(x.name)}" class="w-full text-left p-3 font-black text-sm hover:bg-purple-50 dark:hover:bg-slate-800 border-b border-slate-100 dark:border-slate-800">${x.no}. ${esc(x.name)} <span class="text-xs text-slate-400">(${x.ayat} ayat)</span></button>`).join('');
-      drop.classList.toggle('hidden',!list.length);
-    };
-    sel?.addEventListener('change',()=>choose(sel.value));
-    search?.addEventListener('input',()=>searchList(search.value));
-    search?.addEventListener('focus',()=>searchList(search.value));
-    drop?.addEventListener('mousedown',e=>{const b=e.target.closest('[data-mur-pick]');if(b){e.preventDefault();choose(b.getAttribute('data-mur-pick'));}});
-    ay?.addEventListener('input',()=>{const q=surah(sel?.value||search?.value);if(q&&Number(ay.value)>q.ayat)ay.value=q.ayat;if(juz)juz.value=q?juzFor(q.name,Number(ay.value)||1):'';});
-    row.querySelector('[data-mur-remove-item]')?.addEventListener('click',()=>row.remove());
-    choose(sel?.value||search?.value||'');
-  }
-
-  function collectItems(card){
-    const items=[]; card.querySelectorAll('[data-mur-item]').forEach(row=>{
-      const suratName=String(row.querySelector('[data-mur-surah]')?.value||row.querySelector('[data-mur-search]')?.value||'').trim();
-      const ayat=Number(row.querySelector('[data-mur-ayat]')?.value||0);
-      const q=surah(suratName);
-      if(suratName&&ayat>0)items.push({surat:suratName,ayat,juz:q?juzFor(suratName,ayat):String(row.querySelector('[data-mur-juz]')?.value||'')});
-    });
-    const seen=new Set();
-    return items.filter(i=>{const k=norm(i.surat);if(seen.has(k))return false;seen.add(k);return true;});
-  }
-
-  function calcTarget(name,target){
-    try{return window.rqTargetEngine?.calc('murojaah',name,target)||{};}catch(_){return {}; }
-  }
-
-  function targetProgressHTML(name,target){
-    const q=calcTarget(name,target); const pct=Number.isFinite(Number(q.pct))?Number(q.pct):0;
-    const ayR=Number(q.ayatReal)||0, ayT=Number(q.ayatTarget)||0, setR=Number(q.setoranReal)||0, setT=Number(q.setoranTarget)||0;
-    const items=Array.isArray(target.items)?target.items:asItems(target);
-    const suratText=items.map(x=>`${esc(x.surat)} (${Number(x.ayat)||0})`).join(' · ')||'-';
-    return `<div class="rq-mur-progress"><div class="flex items-center justify-between gap-2"><b class="text-[10px] font-black text-sky-800 dark:text-sky-300">Progress Target Muroja'ah</b><b class="text-sm font-black text-sky-600">${pct}%</b></div><div class="mt-1.5 h-2.5 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden"><div class="h-full bg-sky-500 rounded-full" style="width:${Math.max(0,Math.min(100,pct))}%"></div></div><div class="mt-2 grid grid-cols-2 gap-2 text-[9px] font-bold text-slate-600 dark:text-slate-300"><div>Ayat: <b>${ayR}/${ayT}</b></div><div>Setoran: <b>${setR}/${setT}</b></div></div><div class="mt-1 text-[9px] font-bold text-slate-500">${suratText}${target.mulai&&target.selesai?` · ${esc(target.mulai)} s.d. ${esc(target.selesai)}`:''}</div></div>`;
-  }
-
-  function renderTargetCard(name,target,index){
-    const card=document.createElement('div'); card.className='rq-mur-target-card'; card.dataset.murTargetId=target.id;
-    const items=asItems(target);
-    card.innerHTML=`<div class="flex items-center justify-between gap-2 mb-3"><div><div class="text-xs font-black text-purple-800 dark:text-purple-200">Target Muroja'ah ${index+1}</div><div class="text-[9px] font-bold text-slate-500">Bisa berisi banyak surat/ayat dalam satu target.</div></div><button type="button" data-mur-remove-target class="px-2.5 py-1.5 rounded-lg bg-rose-50 text-rose-600 font-black text-[10px]">Hapus Target</button></div>
-      <div class="rq-mur-item-list" data-mur-items></div>
-      <button type="button" data-mur-add-item class="rq-mur-add-item mt-2"><i class="fa-solid fa-plus mr-1"></i> Tambah Surat Lagi</button>
-      <div class="rq-mur-target-card-grid mt-3">
-        <label>Target Setoran<input data-mur-kali type="number" min="1" inputmode="numeric" value="${Number(target.kali)>0?Number(target.kali):''}" placeholder="Jumlah setoran"></label>
-        <label>Tanggal Mulai<input data-mur-mulai type="date" value="${esc(target.mulai||'')}"></label>
-        <label>Tanggal Selesai<input data-mur-selesai type="date" value="${esc(target.selesai||'')}"></label>
-      </div>
-      <div class="mt-3 text-[9px] font-bold text-slate-500">Perhitungan ayat dan setoran target ini berdiri sendiri dari Target Hafalan Baru.</div>
-      <div class="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
-        <button type="button" data-mur-save-target class="w-full py-2.5 bg-sky-600 hover:bg-sky-700 text-white rounded-xl font-black text-[10px]"><i class="fa-solid fa-floppy-disk mr-1"></i> Simpan Target Ini</button>
-        <button type="button" data-mur-reset-target class="w-full py-2.5 bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 rounded-xl font-black text-[10px]" title="Reset form target ini saja"><i class="fa-solid fa-rotate-left mr-1"></i> Reset Form Target</button>
-      </div>
-      <div data-mur-progress></div>`;
-    const list=card.querySelector('[data-mur-items]');
-    if(items.length)items.forEach((item,i)=>list.appendChild(makeItemRow(item,i>0)));
-    else list.appendChild(makeItemRow({},false));
-    card.querySelector('[data-mur-add-item]')?.addEventListener('click',()=>{list.appendChild(makeItemRow({},true));});
-    card.querySelector('[data-mur-remove-target]')?.addEventListener('click',()=>{
-      const id=String(card.dataset.murTargetId||''); if(!id)return; const db=migrateAll(), bucket=db.murojaah[name]||{targets:[]}; bucket.targets=(bucket.targets||[]).filter(t=>String(t?.id||'')!==id); db.murojaah[name]={targets:bucket.targets}; writeDB(db); renderManager(name); window.showToast?.('Target Muroja\'ah dihapus.','success');
-    });
-    card.querySelector('[data-mur-save-target]')?.addEventListener('click',()=>saveCard(name,card));
-    const p=card.querySelector('[data-mur-progress]'); if(p)p.innerHTML=targetProgressHTML(name,target);
-    return card;
-  }
-
-  function saveCard(name,card){
-    const items=collectItems(card);
-    if(!items.length)return window.showToast?.('Pilih minimal 1 surat dan isi target ayat.','error');
-    for(const item of items){const q=surah(item.surat);if(!q)return window.showToast?.(`Surat ${item.surat} tidak ditemukan.`,'error');if(!Number.isInteger(item.ayat)||item.ayat<1||item.ayat>Number(q.ayat))return window.showToast?.(`Target ayat harus 1–${q.ayat} untuk ${q.name}.`,'error');}
-    const kali=Number(card.querySelector('[data-mur-kali]')?.value||0), mulai=String(card.querySelector('[data-mur-mulai]')?.value||'').trim(), selesai=String(card.querySelector('[data-mur-selesai]')?.value||'').trim();
-    if(!Number.isInteger(kali)||kali<1)return window.showToast?.('Isi target setoran minimal 1.','error');
-    if(!mulai||!selesai)return window.showToast?.('Isi tanggal mulai dan tanggal selesai.','error');
-    if(selesai<mulai)return window.showToast?.('Tanggal selesai tidak boleh sebelum tanggal mulai.','error');
-    const id=String(card.dataset.murTargetId||uid()), db=migrateAll(); db.murojaah=db.murojaah||{}; const bucket=db.murojaah[name]&&Array.isArray(db.murojaah[name].targets)?db.murojaah[name]:{targets:[]};
-    const old=bucket.targets.find(t=>String(t?.id||'')===id);
-    const same=old&&JSON.stringify(old.items||[])===JSON.stringify(items)&&Number(old.kali||0)===kali&&old.mulai===mulai&&old.selesai===selesai;
-    const target={...(old||{}),id,items,ayat:items.reduce((n,x)=>n+Number(x.ayat||0),0),surat:items[0].surat,juz:items[0].juz,kali,mulai,selesai,createdAt:same?(old.createdAt||nowIso()):nowIso(),updatedAt:nowIso()};
-    const idx=bucket.targets.findIndex(t=>String(t?.id||'')===id); if(idx>=0)bucket.targets[idx]=target; else bucket.targets.push(target);
-    db.murojaah[name]={targets:bucket.targets}; writeDB(db); renderManager(name); window.showToast?.(`Target Muroja'ah ${bucket.targets.indexOf(target)+1} berhasil disimpan (${items.length} surat, ${target.ayat} ayat).`,'success');
-  }
-
-  function renderManager(name){
-    const host=findMuroHost(name); if(!host)return;
-    const db=migrateAll(); const targets=Array.isArray(db.murojaah?.[name]?.targets)?db.murojaah[name].targets:[];
-    host.dataset.rqMuroTargetHost=String(name); host.innerHTML=''; host.classList.add('rq-mur-target-manager');
-    const head=document.createElement('div'); head.innerHTML=`<div class="flex items-start justify-between gap-2 flex-wrap"><div><div class="font-black text-xs text-sky-800 dark:text-sky-300"><i class="fa-solid fa-rotate mr-1"></i> Target Muroja'ah</div><div class="text-[9px] font-bold text-slate-500 mt-1">Tambah target sebanyak yang diperlukan. Tidak ada batas jumlah target.</div></div><div class="text-[9px] font-black text-slate-500">${targets.length} target</div></div>`; host.appendChild(head);
-    const list=document.createElement('div'); list.className='rq-mur-target-list'; list.dataset.murTargetList='1'; host.appendChild(list);
-    if(targets.length)targets.forEach((t,i)=>list.appendChild(renderTargetCard(name,t,i)));
-    else {const empty=document.createElement('div'); empty.className='rq-mur-empty'; empty.textContent='Belum ada target Muroja\'ah. Klik “Tambah Target Muroja\'ah”.'; list.appendChild(empty);}
-    const add=document.createElement('button'); add.type='button'; add.className='rq-mur-add-target mt-3'; add.innerHTML='<i class="fa-solid fa-plus mr-1"></i> Tambah Target Muroja\'ah'; add.addEventListener('click',()=>{
-      const db2=migrateAll(); db2.murojaah=db2.murojaah||{}; const b=db2.murojaah[name]&&Array.isArray(db2.murojaah[name].targets)?db2.murojaah[name]:{targets:[]}; b.targets.push({id:uid(),items:[],ayat:0,surat:'',juz:'',kali:1,mulai:'',selesai:'',createdAt:nowIso(),updatedAt:nowIso()}); db2.murojaah[name]={targets:b.targets}; writeDB(db2); renderManager(name);
-      setTimeout(()=>{host.querySelectorAll('[data-mur-target-id]').at(-1)?.scrollIntoView({behavior:'smooth',block:'center'});},50);
-    }); host.appendChild(add);
-    if(window.rqTargetEngine?.calc)try{}catch(_){}
-  }
-
-  function upgradeAll(){migrateAll(); for(const s of (window.santriList||[])){const n=String(s?.name||'').trim(); if(n)renderManager(n);}}
-  window.rqRenderMurojaahTargets=renderManager;
-  window.rqUpgradeAllMurojaahTargets=upgradeAll;
-
-  // Make Live/target reports include every Muroja'ah target while keeping Hafalan Baru separate.
-  const oldBlock=window.getTargetReportBlock;
-  const itemLabel=t=>{const items=Array.isArray(t?.items)&&t.items.length?t.items:asItems(t);return items.map(x=>`${x.surat||'-'} (${Number(x.ayat)||0} ayat)`).join(' · ')};
-  const formatPeriod=(a,b)=>a&&b?`${a} s.d ${b}`:'-';
-  window.getTargetReportBlock=function(name){
-    const db=migrateAll(), blocks=[]; const h=db.hafalan?.[name]||{};
-    const calcH=t=>window.rqTargetEngine?.calc('hafalan',name,t)||{};
-    const addH=(label,t)=>{if(!t)return;const q=calcH(t);blocks.push([`• *${label}:* ${itemLabel(t)}`,t.juz?`• *Juz:* ${t.juz}`:'',`• *Total Target Ayat:* ${Number(q.ayatTarget)||0}`,`• *Total Realisasi Ayat:* ${Number(q.ayatReal)||0}`,`• *Progress:* ${Number(q.ayatPct??q.pct)||0}%`,`• *Periode:* ${formatPeriod(t.mulai,t.selesai)}`].filter(Boolean).join('\n'));};
-    addH('Target Hafalan Baru — Jangka Pendek',h.jangkaPendek); addH('Target Hafalan Baru — Yang Akan Datang',h.akanDatang);
-    if(blocks.length)blocks.unshift('📚 *HAFALAN BARU*');
-    const mts=Array.isArray(db.murojaah?.[name]?.targets)?db.murojaah[name].targets:[];
-    const mblocks=['🔄 *MUROJA\'AH DI KELAS*'];
-    mts.forEach((t,i)=>{const q=window.rqTargetEngine?.calc('murojaah',name,t)||{};mblocks.push([`• *Target Muroja’ah ${i+1}:* ${itemLabel(t)}`,t.juz?`• *Juz:* ${t.juz}`:'',`• *Total Target Ayat:* ${Number(q.ayatTarget)||0}`,`• *Total Realisasi Ayat:* ${Number(q.ayatReal)||0}`,`• *Progress:* ${Number(q.ayatPct??q.pct)||0}%`,`• *Target Setoran:* ${Number(q.setoranTarget)||0}`,`• *Realisasi Setoran:* ${Number(q.setoranReal)||0}`,`• *Progress Keseluruhan:* ${Number(q.pct)||0}%`,`• *Periode:* ${formatPeriod(t.mulai,t.selesai)}`].filter(Boolean).join('\n'));});
-    if(mts.length)blocks.push(mblocks.join('\n\n'));
-    if(!blocks.length && typeof oldBlock==='function')return oldBlock(name);
-    return blocks.join('\n\n');
-  };
-
-  const oldText=window.getTargetReportText;
-  window.getTargetReportText=function(type,name){
-    if(type!=='murojaah')return oldText?.apply(this,arguments)||'';
-    const db=migrateAll(), mts=Array.isArray(db.murojaah?.[name]?.targets)?db.murojaah[name].targets:[];
-    if(!mts.length)return '';
-    return mts.map((t,i)=>{const q=window.rqTargetEngine?.calc('murojaah',name,t)||{};return [`TARGET MUROJA'AH ${i+1}`,`Surat: ${itemLabel(t)||'-'}`,`Target: ${Number(q.ayatTarget)||0} ayat`,`Realisasi: ${Number(q.ayatReal)||0}/${Number(q.ayatTarget)||0} ayat`,`Progress Ayat: ${Number(q.ayatPct??q.pct)||0}%`,`Target Setoran: ${Number(q.setoranTarget)||0}`,`Realisasi Setoran: ${Number(q.setoranReal)||0}`,`Progress Keseluruhan: ${Number(q.pct)||0}%`,`Periode: ${formatPeriod(t.mulai,t.selesai)}`].join('\n');}).join('\n\n');
-  };
-
-  // Patch the card renderer once, without touching existing input/WA logic.
-  function hookRenderer(){
-    const r=window.renderSantriCardsAndTable;
-    if(typeof r!=='function'||r.__rqMurUnlimited)return;
-    const wrapped=function(){const result=r.apply(this,arguments);setTimeout(upgradeAll,90);return result;}; wrapped.__rqMurUnlimited=true; window.renderSantriCardsAndTable=wrapped;
-  }
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>{setTimeout(()=>{hookRenderer();upgradeAll();},250)});
-  else setTimeout(()=>{hookRenderer();upgradeAll();},250);
-})();
-</script>
-
-
-<script id="rq-reset-target-forms-v1">
-(function(){
-  'use strict';
-  function clearEl(id){const el=document.getElementById(id);if(el)el.value='';}
-  function hideDrop(id){const el=document.getElementById(id);if(el)el.classList.add('hidden');}
-  function slotBase(slot){return slot==='jangkaPendek'?'inputTargetHafalanJangkaPendek':'inputTargetHafalanAkanDatang';}
-
-  window.resetHafalanTargetForm=function(name,slot){
-    const base=slotBase(slot);
-    clearEl(`${base}Juz_${name}`);
-    clearEl(`${base}Surat_${name}`);
-    clearEl(`${base}SuratSearch_${name}`);
-    clearEl(`${base}Ayat_${name}`);
-    clearEl(`${base}Mulai_${name}`);
-    clearEl(`${base}Selesai_${name}`);
-    const multi=document.getElementById(`${base}Multi_${name}`); if(multi)multi.innerHTML='';
-    const info=document.getElementById(`${base}Info_${name}`); if(info)info.textContent='';
-    hideDrop(`${base}SuratSearch_${name}_dropdown`);
-    window.showToast?.(`Form Target ${slot==='jangkaPendek'?'Jangka Pendek':'Yang Akan Datang'} direset. Target yang sudah tersimpan tidak dihapus.`, 'success');
-  };
-
-  function resetMuroCard(card){
-    if(!card)return;
-    const rows=[...card.querySelectorAll('[data-mur-item]')];
-    rows.slice(1).forEach(row=>row.remove());
-    const first=rows[0]||card.querySelector('[data-mur-item]');
-    if(first){
-      const sel=first.querySelector('[data-mur-surah]');
-      const search=first.querySelector('[data-mur-search]');
-      const ayat=first.querySelector('[data-mur-ayat]');
-      const juz=first.querySelector('[data-mur-juz]');
-      const drop=first.querySelector('[data-mur-dropdown]');
-      if(sel)sel.value='';
-      if(search)search.value='';
-      if(ayat)ayat.value='';
-      if(juz)juz.value='';
-      if(drop)drop.classList.add('hidden');
-    }
-    const kali=card.querySelector('[data-mur-kali]'); if(kali)kali.value='';
-    const mulai=card.querySelector('[data-mur-mulai]'); if(mulai)mulai.value='';
-    const selesai=card.querySelector('[data-mur-selesai]'); if(selesai)selesai.value='';
-    window.showToast?.("Form Target Muroja'ah ini direset. Target yang sudah tersimpan tidak dihapus.",'success');
-  }
-
-  document.addEventListener('click',function(e){
-    const btn=e.target?.closest?.('[data-mur-reset-target]');
-    if(btn)resetMuroCard(btn.closest('[data-mur-target-id]'));
-  });
-})();
-</script>
-
-<script id="rq-target-engine-multi-aware-fix-2026-09-29">
-(function(){
-  'use strict';
-  const E=window.rqTargetEngine;
-  if(!E || E.__multiAwareV1) return;
-  const norm=v=>String(v??'').trim().toLowerCase().replace(/[‐‑‒–—]/g,'-').replace(/\s+/g,' ');
-  const dateKey=value=>{
-    if(!value)return '';
-    const raw=String(value).trim();
-    let m=raw.match(/^(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})/);
-    if(m)return `${m[1]}-${String(m[2]).padStart(2,'0')}-${String(m[3]).padStart(2,'0')}`;
-    m=raw.match(/^(\d{1,2})[\/](\d{1,2})[\/](\d{4})/);
-    if(m)return `${m[3]}-${String(m[2]).padStart(2,'0')}-${String(m[1]).padStart(2,'0')}`;
-    const d=new Date(value); if(isNaN(d.getTime()))return '';
-    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-  };
-  const rowTime=row=>{
-    const n=Number(row?.rawTime); if(Number.isFinite(n)&&n>0)return n;
-    const d=Date.parse(row?.timestamp||row?.date||row?.tanggal||row?.rawDate||'');
-    return Number.isFinite(d)?d:0;
-  };
-  const targetCreated=t=>{const d=Date.parse(t?.createdAt||t?.updatedAt||'');return Number.isFinite(d)?d:0;};
-  const histories=(type,name)=>{
-    const key=type==='hafalan'?'rq_history_hafalan':'rq_history_murojaah';
-    try{return JSON.parse(localStorage.getItem(key)||'[]').filter(x=>norm(x?.name)===norm(name));}catch(_){return []}
-  };
-  const itemsFor=t=>{
-    if(Array.isArray(t?.items)&&t.items.length)return t.items.filter(x=>x&&String(x.surat||'').trim()&&Number(x.ayat)>0).map(x=>({surat:String(x.surat).trim(),ayat:Number(x.ayat)||0,juz:x.juz||''}));
-    if(String(t?.surat||'').trim()&&Number(t.ayat)>0)return [{surat:String(t.surat).trim(),ayat:Number(t.ayat)||0,juz:t.juz||''}];
-    return [];
-  };
-  const targetNames=t=>itemsFor(t).map(x=>norm(x.surat)).filter(Boolean);
-  const rowMatchesAny=row=>{
-    const names=targetNames(row.__targetRef);
-    const ss=Array.isArray(row?.slots)?row.slots.filter(x=>x&&x.item&&x.item!=='-'):[];
-    if(ss.length)return ss.some(sl=>names.some(n=>{const item=norm(sl.item);return item===n||item.includes(n)||n.includes(item);}));
-    const d=norm(row?.detail);
-    return names.some(n=>d.includes(n));
-  };
-  const rowsForMulti=(type,name,t)=>{
-    const a=dateKey(t?.mulai),b=dateKey(t?.selesai),created=targetCreated(t);
-    if(!a||!b)return [];
-    return histories(type,name).filter(original=>{
-      const d=dateKey(original?.tanggal)||dateKey(original?.date)||dateKey(original?.rawDate)||dateKey(original?.timestamp)||((Number(original?.rawTime)||0)?dateKey(new Date(Number(original.rawTime))):'');
-      if(!d||d<a||d>b)return false;
-      const row={...original,__targetRef:t};
-      if(!rowMatchesAny(row))return false;
-      const rt=rowTime(row);
-      return !(created&&rt&&rt<created);
-    }).sort((x,y)=>rowTime(x)-rowTime(y));
-  };
-  const addRange=(set,a,b)=>{
-    if(!Number.isFinite(a)||a<1)return;
-    if(Number.isFinite(b)&&b>=a){for(let n=a;n<=b;n++)set.add(n);}else set.add(a);
-  };
-  const fallbackSet=(row,set)=>{
-    const d=String(row?.detail||''), re=/(?:ayat|ay)[^0-9]*(\d+)(?:\s*[-–]\s*(\d+))?/gi;
-    let m; while((m=re.exec(d))){const a=Number(m[1]),b=Number(m[2]||m[1]);addRange(set,a,b);}
-  };
-  const calcMulti=(type,name,t)=>{
-    if(!t)return {ayatReal:0,ayatTarget:0,ayatPct:0,setoranReal:0,setoranTarget:0,setoranPct:0,pct:0,ayatCount:0,lastAyat:0,rows:[],completeDate:'',itemProgress:[]};
-    const items=itemsFor(t),rows=rowsForMulti(type,name,t),itemProgress=[];
-    let totalTarget=0,totalReal=0,lastAyat=0;
-    for(const item of items){
-      const target=Math.max(0,Number(item.ayat)||0), targetName=norm(item.surat), set=new Set();
-      totalTarget+=target;
-      for(const row of rows){
-        const ss=Array.isArray(row?.slots)?row.slots.filter(x=>x&&x.item&&x.item!=='-'):[];
-        if(ss.length){
-          for(const sl of ss){
-            const n=norm(sl.item); if(n!==targetName && !n.includes(targetName) && !targetName.includes(n))continue;
-            addRange(set,Number(sl.start),Number(sl.end));
-          }
-        } else if(norm(row?.detail).includes(targetName)) fallbackSet(row,set);
-      }
-      for(const n of [...set])if(n>target)set.delete(n);
-      const real=Math.min(target,set.size),pct=target?Math.min(100,Math.round(real/target*100)):0,last=target?Math.min(target,set.size?Math.max(...set):0):0;
-      totalReal+=real; if(last>lastAyat)lastAyat=last;
-      itemProgress.push({surat:item.surat,ayatTarget:target,ayatReal:real,pct,lastAyat:last,juz:item.juz||''});
-    }
-    const ayatTarget=totalTarget,ayatReal=Math.min(ayatTarget,totalReal),ayatPct=ayatTarget?Math.min(100,Math.round(ayatReal/ayatTarget*100)):0;
-    const setoranTarget=type==='murojaah'?Math.max(0,Number(t.kali)||0):0;
-    const setoranReal=type==='murojaah'?Math.min(setoranTarget||rows.length,rows.length):rows.length;
-    const setoranPct=setoranTarget?Math.min(100,Math.round(setoranReal/setoranTarget*100)):0;
-    const pct=type==='murojaah'?(ayatTarget&&setoranTarget?Math.min(ayatPct,setoranPct):ayatTarget?ayatPct:setoranPct):ayatPct;
-    const completeDate=pct>=100&&rows.length?dateKey(rows[rows.length-1]?.tanggal||rows[rows.length-1]?.date||rows[rows.length-1]?.timestamp||((Number(rows[rows.length-1]?.rawTime)||0)?new Date(Number(rows[rows.length-1].rawTime)):'')):'';
-    return {ayatReal,ayatTarget,ayatPct,setoranReal,setoranTarget,setoranPct,pct,ayatCount:totalReal,lastAyat,rows,completeDate,itemProgress};
-  };
-  const oldCalc=E.calc;
-  E.rowsFor=(type,name,t)=>rowsForMulti(type,name,t);
-  E.calc=(type,name,t)=>calcMulti(type,name,t);
-  E.__multiAwareV1=true;
-  E.__previousCalc=oldCalc;
-})();
-</script>
-
-
-
-</body>
-</html>
