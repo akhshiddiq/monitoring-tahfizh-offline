@@ -3934,6 +3934,7 @@
                     // dari histori lokal yang baru masuk sebelum halaman reload.
                     window.generateWaReport?.();
                     window.updateInlineLiveReportTabButtons?.();
+                    window.rqMarkImportRefreshPending?.();
                 } catch (e) {
                     console.warn('Form cache / Live Laporan dari hasil Import CSV tidak dapat diperbarui:', e);
                 }
@@ -7927,6 +7928,124 @@ html.dark #rqSafetyBackupBox #rqSafetyBackupLocation b{color:#ecfdf5 !important}
   document.addEventListener('input',e=>{if(e.target?.matches?.('[data-rq-search]')){const row=e.target.closest('.rq-target-multi-row');if(row)search(row,e.target.value)}if(e.target?.matches?.('[data-rq-ayat]')){const row=e.target.closest('.rq-target-multi-row');if(row)setJuzForRow(row);}});
 })();
 </script>\n
+
+<script id="rq-import-live-refresh-fix-2026-09-29">
+(function(){
+  // FIX KHUSUS IMPORT -> MERGE:
+  // Data yang baru masuk ke rq_history_* langsung menjadi sumber terbaru
+  // untuk Form Input, WA Personal, dan WA Grup. Tidak mengubah format history
+  // atau mekanisme penyimpanan yang sudah ada.
+  function safeList(key){
+    try { const v=JSON.parse(localStorage.getItem(key)||'[]'); return Array.isArray(v)?v:[]; }
+    catch(_) { return []; }
+  }
+  function rowTime(row){
+    const n=Number(row?.rawTime||0);
+    if(Number.isFinite(n)&&n>0) return n;
+    const d=Date.parse(String(row?.timestamp||row?.tanggal||''));
+    return Number.isFinite(d)?d:0;
+  }
+  function latestFor(history,name){
+    const n=String(name||'').trim().toLowerCase();
+    return history.filter(x=>String(x?.name||'').trim().toLowerCase()===n)
+      .sort((a,b)=>rowTime(b)-rowTime(a))[0]||null;
+  }
+  function localHistories(){
+    return {
+      bacaan:safeList('rq_history_bacaan'),
+      hafalan:safeList('rq_history_hafalan'),
+      murojaah:safeList('rq_history_murojaah'),
+      tugas:safeList('rq_history_tugas')
+    };
+  }
+
+  window.rqRefreshReportsAfterImport = function(){
+    try {
+      const h=localHistories();
+      const allRows=[];
+      (window.santriList||[]).forEach(s=>{
+        const b=latestFor(h.bacaan,s.name), f=latestFor(h.hafalan,s.name), m=latestFor(h.murojaah,s.name), t=latestFor(h.tugas,s.name);
+        if(!(b||f||m||t)) return;
+        allRows.push({
+          id:s.id,name:s.name,class:s.class,teacher:s.teacher,
+          bacaan:b?.detail||'', hafalan:f?.detail||'', murojaah:m?.detail||'', tugas:t?.detail||'',
+          bacaanTimestamp:b?.rawTime||b?.timestamp||'', hafalanTimestamp:f?.rawTime||f?.timestamp||'',
+          murojaahTimestamp:m?.rawTime||m?.timestamp||'', tugasTimestamp:t?.rawTime||t?.timestamp||''
+        });
+      });
+
+      // Sinkronkan snapshot laporan grup di memori dengan history lokal terbaru.
+      // Snapshot ini bukan database baru; hanya cache pembacaan laporan.
+      window._laporanGrupWaCloud = allRows;
+
+      // Bentuk kembali state form dari history hasil Merge.
+      window.hydrateInputFormsFromHistory?.(true);
+      window.persistFormCache?.(true);
+
+      // Tampilkan santri pertama yang memiliki data baru jika belum ada pilihan.
+      if(!window.selectedInputSantriName && allRows[0]) window.selectedInputSantriName=allRows[0].name;
+      if(!window.selectedWaSantriName && allRows[0]) window.selectedWaSantriName=allRows[0].name;
+
+      // Render Input dari state lokal terbaru, tanpa menekan tombol Save.
+      window.renderSantriCardsAndTable?.();
+      window.generateWaReport?.();
+      window.generateClassReport?.();
+      window.renderLaporanSantriPekan?.();
+    } catch(e) {
+      console.warn('Refresh laporan/form setelah Import Merge gagal:',e);
+    }
+  };
+
+  // Laporan Grup harus selalu mengutamakan history lokal terbaru ketika fungsi
+  // generateClassReport dipanggil, termasuk setelah halaman selesai reload.
+  const installGroupReportBridge=function(){
+    if(typeof window.generateClassReport!=='function' || window.__rqGroupReportBridgeInstalled) return;
+    const old=window.generateClassReport;
+    window.generateClassReport=function(){
+      try {
+        const h=localHistories();
+        const rows=[];
+        (window.santriList||[]).forEach(s=>{
+          const b=latestFor(h.bacaan,s.name), f=latestFor(h.hafalan,s.name), m=latestFor(h.murojaah,s.name), t=latestFor(h.tugas,s.name);
+          if(!(b||f||m||t)) return;
+          rows.push({id:s.id,name:s.name,class:s.class,teacher:s.teacher,
+            bacaan:b?.detail||'',hafalan:f?.detail||'',murojaah:m?.detail||'',tugas:t?.detail||'',
+            bacaanTimestamp:b?.rawTime||b?.timestamp||'',hafalanTimestamp:f?.rawTime||f?.timestamp||'',
+            murojaahTimestamp:m?.rawTime||m?.timestamp||'',tugasTimestamp:t?.rawTime||t?.timestamp||''});
+        });
+        window._laporanGrupWaCloud=rows;
+      } catch(_){}
+      return old.apply(this,arguments);
+    };
+    window.__rqGroupReportBridgeInstalled=true;
+  };
+
+  function bootBridge(){
+    installGroupReportBridge();
+    // Jika halaman baru saja direload oleh proses Import, lanjutkan refresh sekali.
+    let pending=false;
+    try { pending=sessionStorage.getItem('rq_import_refresh_pending')==='1'; } catch(_) {}
+    if(pending){ try{sessionStorage.removeItem('rq_import_refresh_pending');}catch(_){} }
+    setTimeout(function(){
+      installGroupReportBridge();
+      if(window.__rqImportRefreshPending || pending){
+        window.__rqImportRefreshPending=false;
+        window.rqRefreshReportsAfterImport();
+      }
+    },180);
+  }
+
+  // Dipanggil oleh importer setelah MERGE. Flag hanya untuk satu kali refresh.
+  window.rqMarkImportRefreshPending=function(){
+    window.__rqImportRefreshPending=true;
+    try { sessionStorage.setItem('rq_import_refresh_pending','1'); } catch(_) {}
+    setTimeout(function(){ window.rqRefreshReportsAfterImport?.(); },80);
+  };
+
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',bootBridge); else bootBridge();
+})();
+</script>
+
 <style id="rq-ui-leak-fix-2026-09-26">
   /* Legacy floating Offline Center is retained in code for compatibility, but must not leak into pages. */
   #rqOfflineCenter, #rqOfflineOpenBtn, .rq-offline-open { display:none !important; }
