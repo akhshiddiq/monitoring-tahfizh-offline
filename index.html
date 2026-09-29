@@ -600,7 +600,7 @@
             const target = document.getElementById(`section-${reportTab ? 'laporan' : tabId}`);
             if (target) target.classList.remove('hidden');
             
-            ['setoran', 'target', 'materi', 'dashboard', 'laporan-personal', 'laporan-grup', 'rekapan', 'export'].forEach(t => {
+            ['setoran', 'materi', 'dashboard', 'laporan-personal', 'laporan-grup', 'rekapan', 'export'].forEach(t => {
                 const btn = document.getElementById(`btnTab-${t}`);
                 if (btn) {
                     btn.className = (t === tabId)
@@ -610,7 +610,6 @@
             });
 
             if (tabId === 'setoran') window.renderSantriCardsAndTable();
-            if (tabId === 'target') window.renderTargetMenu?.();
             if (tabId === 'materi') window.renderMateriList('utama');
             if (tabId === 'dashboard') window.renderDashboardSantri();
             if (tabId === 'kartu') window.initKartuTab();
@@ -6121,7 +6120,6 @@
 
             <div class="flex items-center gap-2 overflow-x-auto w-full sm:w-auto pb-1.5 sm:pb-0 custom-scrollbar">
                 <button onclick="window.switchTab('setoran')" id="btnTab-setoran" class="px-3.5 py-2 rounded-xl text-xs sm:text-sm font-black bg-white text-emerald-950 shadow-md transition-all shrink-0">Input</button>
-                <button onclick="window.switchTab('target')" id="btnTab-target" class="px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold text-emerald-100 hover:bg-emerald-700/65 transition-all shrink-0">Target</button>
                 <button onclick="window.switchTab('materi')" id="btnTab-materi" class="px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold text-emerald-100 hover:bg-emerald-700/65 transition-all shrink-0">Materi</button>
                 <button onclick="window.switchTab('dashboard')" id="btnTab-dashboard" class="px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold text-emerald-100 hover:bg-emerald-700/65 transition-all shrink-0">Dashboard Santri</button>
                                 <button onclick="window.switchTab('laporan-personal')" id="btnTab-laporan-personal" class="px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold text-emerald-100 hover:bg-emerald-700/65 transition-all shrink-0">Laporan WA Personal</button>
@@ -6269,32 +6267,6 @@
                 </aside>
             </div>
 \n\n                    </section>
-
-
-<!-- SECTION: TARGET — dipisahkan dari Input. Form target tetap memakai mesin target existing. -->
-<section id="section-target" class="hidden space-y-4">
-    <div class="bg-white dark:bg-slate-800 p-4 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700">
-        <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
-            <div>
-                <div class="text-base sm:text-lg font-black text-slate-800 dark:text-slate-100 flex items-center gap-2">
-                    <span class="w-9 h-9 rounded-xl bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 flex items-center justify-center"><i class="fa-solid fa-bullseye"></i></span>
-                    Target Santri
-                </div>
-                <div class="text-[10px] sm:text-xs font-bold text-slate-500 mt-1">Pengaturan Target Hafalan Baru dan Muroja’ah dipisahkan dari menu Input.</div>
-            </div>
-            <div class="flex flex-col sm:flex-row gap-2 w-full lg:w-auto">
-                <label class="flex-1 lg:w-56 text-xs font-black text-slate-500">
-                    Kelas
-                    <select id="targetMenuClassFilter" onchange="window.filterTargetMenuClass(this.value)" class="mt-1 w-full p-3 rounded-xl border-2 border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 font-black">
-                        <option value="ALL">Semua Kelas</option>
-                    </select>
-                </label>
-                <button type="button" onclick="window.refreshTargetMenu?.(true)" class="self-end sm:self-auto px-4 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black"><i class="fa-solid fa-rotate mr-1"></i> Muat Ulang Target</button>
-            </div>
-        </div>
-    </div>
-    <div id="targetMenuCards" class="space-y-4"></div>
-</section>
 
 <!-- SECTION: DASHBOARD SANTRI -->
         <section id="section-dashboard" class="hidden space-y-4">
@@ -8478,134 +8450,5 @@ html.dark #rqSafetyBackupBox #rqSafetyBackupLocation b{color:#ecfdf5 !important}
   E.__previousCalc=oldCalc;
 })();
 </script>
-
-<style id="rq-target-menu-separated-2026-09-29">
-  .rq-target-menu-card{background:#fff;border:2px solid rgb(226 232 240);border-radius:1.25rem;overflow:hidden;box-shadow:0 1px 2px rgba(15,23,42,.04)}
-  .dark .rq-target-menu-card{background:#0f172a;border-color:rgb(51 65 85)}
-  .rq-target-menu-head{padding:.9rem 1rem;display:flex;align-items:center;justify-content:space-between;gap:.75rem;background:linear-gradient(180deg,rgba(248,250,252,.95),rgba(241,245,249,.78))}
-  .dark .rq-target-menu-head{background:rgba(15,23,42,.82)}
-  .rq-target-menu-body{padding:1rem;display:flex;flex-direction:column;gap:1rem}
-  .rq-target-menu-moved{display:block!important;margin-top:0!important}
-  .rq-target-menu-moved .rq-target-multi-row{margin-top:.75rem}
-</style>
-<script id="rq-target-menu-separated-2026-09-29-script">
-(function(){
-  'use strict';
-  const esc=v=>String(v??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');
-  let classFilter='ALL';
-  let wired=false;
-
-  function getCardsHost(){return document.getElementById('targetMenuCards');}
-  function getClassFilter(){return document.getElementById('targetMenuClassFilter');}
-  function studentId(name){return 'rq-target-student-'+encodeURIComponent(String(name||''));}
-  function findStudentCard(name){
-    const root=document.getElementById(studentId(name));
-    return root||null;
-  }
-  function targetBlockFromInput(id){
-    const el=document.getElementById(id);
-    if(!el)return null;
-    let node=el.closest('div.mt-3');
-    if(node && node.querySelector('[id^="inputTarget"]')) return node;
-    node=el.parentElement;
-    for(let i=0;node&&i<8;i++,node=node.parentElement){
-      if(node.querySelector && node.querySelector('[id^="inputTarget"]')) return node;
-    }
-    return null;
-  }
-  function clearMovedNodes(){
-    document.querySelectorAll('#targetMenuCards [data-rq-target-moved="1"]').forEach(el=>el.remove());
-    document.querySelectorAll('#targetMenuCards .rq-target-menu-card').forEach(card=>card.remove());
-  }
-  function ensureClassOptions(){
-    const sel=getClassFilter(); if(!sel)return;
-    const classes=[...new Set((window.santriList||[]).map(s=>String(s?.class||'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'id'));
-    const current=classFilter||sel.value||'ALL';
-    sel.innerHTML='<option value="ALL">Semua Kelas</option>'+classes.map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join('');
-    sel.value=classes.includes(current)?current:'ALL';
-    classFilter=sel.value;
-  }
-  function createStudentCard(s){
-    const name=String(s?.name||'').trim();
-    const card=document.createElement('div'); card.className='rq-target-menu-card'; card.id=studentId(name); card.dataset.className=String(s?.class||'');
-    card.innerHTML=`<div class="rq-target-menu-head"><div><div class="text-sm sm:text-base font-black text-slate-800 dark:text-slate-100">${esc(name)}</div><div class="text-[10px] font-bold text-slate-500">Kelas ${esc(s?.class||'-')}</div></div><button type="button" onclick='window.quickSelectSantri?.(${JSON.stringify(name)});window.switchTab("setoran")' class="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 text-[10px] font-black"><i class="fa-solid fa-pen-to-square mr-1"></i> Buka Input</button></div><div class="rq-target-menu-body" data-rq-target-body></div>`;
-    return card;
-  }
-  function moveOne(name, s){
-    const card=findStudentCard(name); if(!card)return;
-    const body=card.querySelector('[data-rq-target-body]'); if(!body)return;
-    const hafId=`inputTargetHafalanJangkaPendekJuz_${name}`;
-    const murId=`inputTargetMurojaahJuz_${name}`;
-    const haf=targetBlockFromInput(hafId);
-    const mur=targetBlockFromInput(murId);
-    if(haf){haf.dataset.rqTargetMoved='1';haf.classList.add('rq-target-menu-moved');body.appendChild(haf);}
-    if(mur){mur.dataset.rqTargetMoved='1';mur.classList.add('rq-target-menu-moved');body.appendChild(mur);}
-    // Preserve target section headings without showing an empty student shell.
-    if(!haf && !mur) card.dataset.emptyTarget='1';
-  }
-  function applyClassFilter(){
-    document.querySelectorAll('#targetMenuCards .rq-target-menu-card').forEach(card=>{
-      const show=classFilter==='ALL'||String(card.dataset.className||'')===String(classFilter);
-      card.classList.toggle('hidden',!show);
-    });
-  }
-  function renderTargetMenu(){
-    const host=getCardsHost(); if(!host)return;
-    ensureClassOptions();
-    // Bila target sudah dipindahkan ke menu ini, jangan hapus lalu membangun ulang;
-    // ini menjaga draft target yang belum ditekan Simpan. Rebuild hanya dilakukan
-    // setelah renderer Input membuat DOM target yang baru.
-    if(host.querySelector('[data-rq-target-moved="1"]')){ applyClassFilter(); return true; }
-    // The existing renderer already builds the exact target form DOM. We only move those existing nodes here.
-    const students=(window.santriList||[]).filter(s=>s&&s.name);
-    const frag=document.createDocumentFragment();
-    for(const s of students){
-      const card=createStudentCard(s); frag.appendChild(card);
-    }
-    host.appendChild(frag);
-    for(const s of students)moveOne(String(s.name).trim(),s);
-    host.querySelectorAll('.rq-target-menu-card[data-empty-target="1"]').forEach(card=>card.remove());
-    applyClassFilter();
-    return true;
-  }
-  function prepareBeforeRender(){
-    // Remove the previously moved DOM so the normal Input renderer can safely rebuild it without duplicate IDs.
-    document.querySelectorAll('#targetMenuCards [data-rq-target-moved="1"]').forEach(el=>el.remove());
-    document.querySelectorAll('#targetMenuCards .rq-target-menu-card').forEach(card=>card.remove());
-  }
-  function filterTargetMenuClass(value){classFilter=String(value||'ALL');applyClassFilter();}
-  window.renderTargetMenu=renderTargetMenu;
-  window.refreshTargetMenu=function(){
-    prepareBeforeRender();
-    if(typeof window.renderSantriCardsAndTable==='function')window.renderSantriCardsAndTable();
-    setTimeout(renderTargetMenu,120);
-  };
-  window.filterTargetMenuClass=filterTargetMenuClass;
-
-  function hookRenderer(){
-    if(wired)return;
-    const old=window.renderSantriCardsAndTable;
-    if(typeof old!=='function')return;
-    const wrapped=function(){
-      prepareBeforeRender();
-      const result=old.apply(this,arguments);
-      setTimeout(()=>{renderTargetMenu();},100);
-      return result;
-    };
-    wrapped.__rqTargetMenuSeparated=true;
-    window.renderSantriCardsAndTable=wrapped;
-    wired=true;
-  }
-  function boot(){
-    hookRenderer();
-    setTimeout(()=>{
-      // Initial normal Input render has already occurred in the existing boot sequence; relocate its target blocks now.
-      renderTargetMenu();
-    },350);
-  }
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);else boot();
-})();
-</script>
-
 </body>
 </html>
