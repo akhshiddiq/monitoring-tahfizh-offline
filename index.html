@@ -1038,6 +1038,9 @@
             if (!box) return;
 
             const q = String(value || '').trim().toLowerCase();
+            // Pastikan pencarian tetap bekerja walau selectedClass belum pernah
+            // diinisialisasi oleh filter kelas. Default harus ALL.
+            const selectedClass = String(window.selectedClass || 'ALL').trim() || 'ALL';
             if (clearBtn) clearBtn.classList.toggle('hidden', !q);
 
             if (!q) {
@@ -1049,7 +1052,7 @@
             }
 
             const matches = (window.santriList || []).filter(s =>
-                (window.selectedClass === 'ALL' || s.class === window.selectedClass) &&
+                (selectedClass === 'ALL' || String(s.class || '').trim().toLowerCase() === selectedClass.toLowerCase()) &&
                 String(s.name || '').toLowerCase().includes(q)
             );
 
