@@ -304,6 +304,8 @@
             window.localFormCache = {};
         }
         window._formCacheSaveTimer = null;
+        // Reset form hanya berlaku pada draft/tampilan sesi ini. Data tersimpan tidak dihapus.
+        window.formResetHold = new Set();
 
         window.persistFormCache = function(immediate = false) {
             const write = () => {
@@ -1664,22 +1666,8 @@
                 if (btnUlangi) btnUlangi.className = "flex-1 py-3 px-3 rounded-xl text-xs font-bold bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 transition min-h-[50px]";
             }
 
-            // STATUS LANGSUNG DISIMPAN KE RIWAYAT + DATABASE LOKAL.
-            // Jadi setelah Bacaan/Hafalan/Muroja'ah sudah diinput, menekan
-            // Lanjut/Ulangi langsung membuat rekaman status dan laporan orang tua.
-            if (category === 'bac' || category === 'haf' || category === 'mur') {
-                const sectionType = category === 'bac' ? 'bacaan' : (category === 'haf' ? 'hafalan' : 'murojaah');
-                const hasData = typeof window.extractSlotEntries === 'function' && window.extractSlotEntries(category, santriName) !== '-';
-                if (hasData) {
-                    clearTimeout(window._statusSaveTimers && window._statusSaveTimers[statusKey]);
-                    window._statusSaveTimers = window._statusSaveTimers || {};
-                    window._statusSaveTimers[statusKey] = setTimeout(() => {
-                        window.saveSectionData(santriName, sectionType);
-                    }, 60);
-                } else {
-                    window.showToast('Status dipilih. Isi setoran lalu tekan Simpan & Sinkron.', 'success');
-                }
-            }
+            const sectionLabel = category === 'bac' ? 'Bacaan' : category === 'haf' ? 'Hafalan Baru' : 'Murojaah';
+            window.showToast(`${sectionLabel}: status dipilih. Tekan Simpan & Sinkron untuk menyimpan.`, 'success');
         };
 
         window.toggleSlotVisibility = function(category, slot, santriName) {
@@ -1733,7 +1721,89 @@
             }
         };
 
+        window.getFormResetHoldFromKey = function(key) {
+            const raw = String(key || '');
+            let m = raw.match(/^(.*?)_(bac|haf|mur)_/);
+            if (m) {
+                const map = { bac: 'bacaan', haf: 'hafalan', mur: 'murojaah' };
+                return `${m[1]}::${map[m[2]]}`;
+            }
+            m = raw.match(/^(.*?)_tug_(detail|cat)$/);
+            return m ? `${m[1]}::tugas` : '';
+        };
+
+        window.clearFormCacheByPrefix = function(prefixes) {
+            const list = Array.isArray(prefixes) ? prefixes : [prefixes];
+            Object.keys(window.localFormCache || {}).forEach(key => {
+                if (list.some(prefix => key.startsWith(prefix))) delete window.localFormCache[key];
+            });
+        };
+
+        window.resetInputForm = function(name, sectionType) {
+            const category = sectionType === 'bacaan' ? 'bac' : sectionType === 'hafalan' ? 'haf' : sectionType === 'murojaah' ? 'mur' : '';
+            if (!category && sectionType !== 'tugas') return;
+            window.formResetHold.add(`${name}::${sectionType}`);
+
+            if (category) {
+                window.clearFormCacheByPrefix(`${name}_${category}_`);
+                for (let slot = 1; slot <= 3; slot++) {
+                    [`${category}_surah_search_${slot}_${name}`, `${category}_surah_${slot}_${name}`, `${category}_iqro_${slot}_${name}`, `${category}_start_${slot}_${name}`, `${category}_end_${slot}_${name}`].forEach(id => {
+                        const el = document.getElementById(id);
+                        if (el) el.value = '';
+                    });
+                    const q = document.getElementById(`field_quran_${category}_${slot}_${name}`);
+                    const iq = document.getElementById(`field_iqro_${category}_${slot}_${name}`);
+                    const ls = document.getElementById(`lbl_start_${category}_${slot}_${name}`);
+                    const le = document.getElementById(`lbl_end_${category}_${slot}_${name}`);
+                    if (q) q.classList.remove('hidden');
+                    if (iq) iq.classList.add('hidden');
+                    if (ls) ls.innerText = 'Ayat Mulai:';
+                    if (le) le.innerText = 'Ayat Sampai:';
+                    if (slot > 1) {
+                        window.activeSlotState[`${name}_${category}_slot_${slot}`] = false;
+                        const box = document.getElementById(`slot_container_${category}_${slot}_${name}`);
+                        const toggle = document.getElementById(`toggle_btn_${category}_${slot}_${name}`);
+                        if (box) box.classList.add('hidden');
+                        if (toggle) toggle.innerHTML = `<i class="fa-solid fa-plus"></i> Tambah Pilihan ${slot}`;
+                    }
+                }
+                delete window.itemSlotStatus[`${name}_${category}_progress_status`];
+                const normal = "flex-1 py-3 px-3 rounded-xl text-xs font-bold bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 transition min-h-[50px]";
+                const btnLanjut = document.getElementById(`btn_status_lanjut_${category}_${name}`);
+                const btnUlangi = document.getElementById(`btn_status_ulangi_${category}_${name}`);
+                if (btnLanjut) btnLanjut.className = normal;
+                if (btnUlangi) btnUlangi.className = normal;
+
+                const fieldMap = {
+                    bac: ['bac_stat','bac_cat_type','bac_cat_desc'],
+                    haf: ['haf_stat','haf_cat_type','haf_cat_desc'],
+                    mur: ['mur_stat','mur_cat_type','mur_cat_desc']
+                };
+                fieldMap[category].forEach(prefix => {
+                    const el = document.getElementById(`${prefix}_${name}`);
+                    if (el) el.value = '';
+                });
+            } else {
+                window.clearFormCacheByPrefix(`${name}_tug_`);
+                const detail = document.getElementById(`tug_detail_${name}`);
+                const cat = document.getElementById(`tug_cat_${name}`);
+                if (detail) detail.value = '';
+                if (cat) cat.value = '';
+            }
+
+            window.persistFormCache(true);
+            window.selectInlineWaSantri?.(name, true);
+            const label = sectionType === 'bacaan' ? 'Bacaan' : sectionType === 'hafalan' ? 'Hafalan Baru' : sectionType === 'murojaah' ? "Muroja'ah" : 'Tugas';
+            window.showToast?.(`Form ${label} direset. Data yang sudah tersimpan tidak dihapus.`, 'success');
+        };
+
+        window.clearResetHoldAfterSave = function(name, sectionType) {
+            window.formResetHold.delete(`${name}::${sectionType}`);
+        };
+
         window.cacheFormInput = function(elem, key) {
+            const hold = window.getFormResetHoldFromKey(key);
+            if (hold) window.formResetHold.delete(hold);
             window.localFormCache[key] = elem.value;
             window.persistFormCache(false);
 
@@ -2155,6 +2225,7 @@
             (window.santriList || []).forEach(s => {
                 const name = escapeKey(s.name);
                 configs.forEach(cfg => {
+                    if (window.formResetHold.has(`${name}::${cfg.type}`)) return;
                     const matches = cfg.history.filter(item => String(item?.name || '').trim().toLowerCase() === name.toLowerCase());
                     const historyTime = item => {
                         const raw = Number(item?.rawTime);
@@ -2470,6 +2541,9 @@
                                         </div>
                                     </div>
                                     <div class="flex items-center gap-2">
+                                        <button type="button" onclick="window.resetInputForm(${JSON.stringify(s.name)}, 'bacaan')" class="px-4 py-4 bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 rounded-2xl font-black text-sm shadow-md transition flex items-center justify-center gap-2 active:scale-95" title="Reset form Bacaan saja">
+                                            <i class="fa-solid fa-rotate-left"></i> Reset Form
+                                        </button>
                                         <button type="button" onclick="window.saveSectionData('${s.name}', 'bacaan')" class="flex-1 py-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black text-sm sm:text-base shadow-md transition flex items-center justify-center gap-2 active:scale-95">
                                             <i class="fa-solid fa-paper-plane"></i> Simpan &amp; Sinkron Bacaan (${s.name})
                                         </button>
@@ -2570,6 +2644,9 @@
                                         </div>
                                     </div>
                                     <div class="flex items-center gap-2">
+                                        <button type="button" onclick="window.resetInputForm(${JSON.stringify(s.name)}, 'hafalan')" class="px-4 py-4 bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 rounded-2xl font-black text-sm shadow-md transition flex items-center justify-center gap-2 active:scale-95" title="Reset form Hafalan Baru saja">
+                                            <i class="fa-solid fa-rotate-left"></i> Reset Form
+                                        </button>
                                         <button type="button" onclick="window.saveSectionData('${s.name}', 'hafalan')" class="flex-1 py-4 bg-rose-600 hover:bg-rose-700 text-white rounded-2xl font-black text-sm sm:text-base shadow-md transition flex items-center justify-center gap-2 active:scale-95">
                                             <i class="fa-solid fa-paper-plane"></i> Simpan &amp; Sinkron Hafalan Baru (${s.name})
                                         </button>
@@ -2651,6 +2728,9 @@
                                         </div>
                                     </div>
                                     <div class="flex items-center gap-2">
+                                        <button type="button" onclick="window.resetInputForm(${JSON.stringify(s.name)}, 'murojaah')" class="px-4 py-4 bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 rounded-2xl font-black text-sm shadow-md transition flex items-center justify-center gap-2 active:scale-95" title="Reset form Muroja'ah saja">
+                                            <i class="fa-solid fa-rotate-left"></i> Reset Form
+                                        </button>
                                         <button type="button" onclick="window.saveSectionData('${s.name}', 'murojaah')" class="flex-1 py-4 bg-purple-600 hover:bg-purple-700 text-white rounded-2xl font-black text-sm sm:text-base shadow-md transition flex items-center justify-center gap-2 active:scale-95">
                                             <i class="fa-solid fa-paper-plane"></i> Simpan &amp; Sinkron Muroja'ah (${s.name})
                                         </button>
@@ -2687,6 +2767,9 @@
                                     <input type="text" id="tug_detail_${s.name}" oninput="window.cacheFormInput(this, '${s.name}_tug_detail')" placeholder="Rincian Tugas..." value="${defaultTugDetail}" class="w-full p-4 bg-transparent border-2 border-slate-300 dark:border-slate-700 rounded-2xl font-black text-sm sm:text-base min-h-[60px]">
                                     <input type="text" id="tug_cat_${s.name}" oninput="window.cacheFormInput(this, '${s.name}_tug_cat')" placeholder="Catatan Tugas..." value="${defaultTugCat}" class="w-full p-4 bg-transparent border-2 border-slate-300 dark:border-slate-700 rounded-2xl font-black text-sm sm:text-base min-h-[60px]">
                                     <div class="flex items-center gap-2">
+                                        <button type="button" onclick="window.resetInputForm(${JSON.stringify(s.name)}, 'tugas')" class="px-4 py-4 bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 rounded-2xl font-black text-sm shadow-md transition flex items-center justify-center gap-2 active:scale-95" title="Reset form Tugas saja">
+                                            <i class="fa-solid fa-rotate-left"></i> Reset Form
+                                        </button>
                                         <button type="button" onclick="window.saveSectionData('${s.name}', 'tugas')" class="flex-1 py-4 bg-amber-700 hover:bg-amber-800 text-white rounded-2xl font-black text-sm sm:text-base shadow-md transition flex items-center justify-center gap-2 active:scale-95">
                                             <i class="fa-solid fa-paper-plane"></i> Simpan &amp; Sinkron Tugas (${s.name})
                                         </button>
@@ -2849,6 +2932,7 @@
                                 window.cardHistoryToggleState[`${name}_history_Bacaan`] = true;
                 const badge = document.getElementById(`save_badge_bacaan_${name}`);
                 if (badge) { badge.classList.remove('hidden'); setTimeout(() => badge.classList.add('hidden'), 3000); }
+                window.clearResetHoldAfterSave(name, 'bacaan');
                 window.showToast("💾 Alhamdulillah sudah di input", "success");
             } 
             else if (sectionType === 'hafalan') {
@@ -2896,6 +2980,7 @@
                                 window.cardHistoryToggleState[`${name}_history_Hafalan`] = true;
                 const badge = document.getElementById(`save_badge_hafalan_${name}`);
                 if (badge) { badge.classList.remove('hidden'); setTimeout(() => badge.classList.add('hidden'), 3000); }
+                window.clearResetHoldAfterSave(name, 'hafalan');
                 window.showToast("💾 Alhamdulillah sudah di input", "success");
             } 
             else if (sectionType === 'murojaah') {
@@ -2945,6 +3030,7 @@
                                 window.cardHistoryToggleState[`${name}_history_Murojaah`] = true;
                 const badge = document.getElementById(`save_badge_murojaah_${name}`);
                 if (badge) { badge.classList.remove('hidden'); setTimeout(() => badge.classList.add('hidden'), 3000); }
+                window.clearResetHoldAfterSave(name, 'murojaah');
                 window.showToast("💾 Alhamdulillah sudah di input", "success");
             } 
             else if (sectionType === 'tugas') {
@@ -2982,6 +3068,7 @@
                                 window.cardHistoryToggleState[`${name}_history_Tugas`] = true;
                 const badge = document.getElementById(`save_badge_tugas_${name}`);
                 if (badge) { badge.classList.remove('hidden'); setTimeout(() => badge.classList.add('hidden'), 3000); }
+                window.clearResetHoldAfterSave(name, 'tugas');
                 window.showToast("💾 Alhamdulillah sudah di input", "success");
             }
 
