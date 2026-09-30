@@ -7925,25 +7925,49 @@ html.dark #rqSafetyBackupBox #rqSafetyBackupLocation b{color:#ecfdf5 !important}
     return [];
   };
   const liveMurojaahRow=(name,t)=>{
-    // Live Laporan harus ikut membaca form Muroja'ah yang sedang diisi,
-    // walaupun tombol Simpan belum ditekan. Ini membuat angka target benar-benar live.
+    // Live Laporan membaca FORM MUROJA'AH yang sedang aktif.
+    // Sumber utama memakai extractSlotsStructured(), sama seperti proses Simpan.
     if(typeof document==='undefined'||!t||!dateKey(t.mulai)||!dateKey(t.selesai))return null;
     const tanggal=String(document.getElementById(`tgl_${name}`)?.value||'').trim()||dateKey(new Date());
     const d=dateKey(tanggal),a=dateKey(t.mulai),b=dateKey(t.selesai);
     if(!d||d<a||d>b)return null;
-    const slots=[];
-    for(let slot=1;slot<=3;slot++){
-      const mode=window.itemSourceMode?.[`${name}_mur_${slot}`]||'quran';
-      const item=mode==='iqro'
-        ? String(document.getElementById(`mur_iqro_${slot}_${name}`)?.value||'').trim()
-        : String(document.getElementById(`mur_surah_${slot}_${name}`)?.value||document.getElementById(`mur_surah_search_${slot}_${name}`)?.value||'').trim();
-      const start=String(document.getElementById(`mur_start_${slot}_${name}`)?.value||'').trim();
-      const end=String(document.getElementById(`mur_end_${slot}_${name}`)?.value||'').trim();
-      if(!item||item==='-'||!start||start==='-')continue;
-      slots.push({item,start,end:end||start,mode});
+
+    let sourceSlots=[];
+    try{
+      if(typeof window.extractSlotsStructured==='function'){
+        sourceSlots=window.extractSlotsStructured('mur',name)||[];
+      }
+    }catch(_){sourceSlots=[];}
+
+    // Fallback hanya jika fungsi sumber belum tersedia saat kalkulasi pertama.
+    if(!Array.isArray(sourceSlots)||!sourceSlots.length){
+      sourceSlots=[];
+      for(let slot=1;slot<=3;slot++){
+        const mode=window.itemSourceMode?.[`${name}_mur_${slot}`]||'quran';
+        const item=mode==='iqro'
+          ? String(document.getElementById(`mur_iqro_${slot}_${name}`)?.value||'').trim()
+          : String(document.getElementById(`mur_surah_${slot}_${name}`)?.value||'').trim();
+        const start=String(document.getElementById(`mur_start_${slot}_${name}`)?.value||'').trim();
+        const end=String(document.getElementById(`mur_end_${slot}_${name}`)?.value||'').trim();
+        sourceSlots.push({item,start,end,mode});
+      }
     }
+
+    const slots=sourceSlots
+      .map(x=>({
+        item:String(x?.item||'').trim(),
+        start:String(x?.start||'').trim(),
+        end:String(x?.end||'').trim(),
+        mode:String(x?.mode||'quran').trim()||'quran'
+      }))
+      .filter(x=>x.item&&x.item!=='-'&&x.start&&x.start!=='-');
+
     if(!slots.length)return null;
-    return {name, tanggal, rawTime:Date.now(), detail:slots.map(x=>`${x.item} ${x.start}${x.end&&x.end!==x.start?`-${x.end}`:''}`).join(', '), slots};
+    return {
+      name,tanggal,rawTime:Date.now(),
+      detail:slots.map(x=>`${x.item} ${x.start}${x.end&&x.end!==x.start?`-${x.end}`:''}`).join(', '),
+      slots
+    };
   };
   const calc=(type,name,t)=>{
     if(!t)return {ayatReal:0,ayatTarget:0,ayatPct:0,setoranReal:0,setoranTarget:0,setoranPct:0,pct:0,ayatCount:0,lastAyat:0,rows:[],completeDate:'',itemProgress:[]};
@@ -7996,6 +8020,31 @@ html.dark #rqSafetyBackupBox #rqSafetyBackupLocation b{color:#ecfdf5 !important}
   const status=(t,q)=>{if(!t)return {status:'Belum Ada',result:'Belum dinilai'};const today=dateKey(new Date()),mulai=dateKey(t.mulai),selesai=dateKey(t.selesai);if(!mulai||!selesai)return {status:'Belum Lengkap',result:'Belum dinilai'};if(today<mulai)return {status:'Belum Mulai',result:'Belum dinilai'};if(q.pct>=100)return {status:'Selesai',result:'Berhasil'};if(today>selesai)return {status:'Terlewat',result:'Tidak Berhasil'};return {status:'Sedang Berjalan',result:'Belum dinilai'};};
   const getTarget=(name,type,slot='legacy')=>{const d=getDB(),t=d[type]?.[name];if(type==='hafalan'){if(t?.jangkaPendek||t?.akanDatang)return slot==='akanDatang'?t.akanDatang:t.jangkaPendek;return t?.ayat?t:null;}return t||null;};
   window.rqTargetEngine={KEY,getDB,dateKey,rowsFor,calc,status,getTarget};
+})();
+</script>
+
+<script>
+/* ============================================================
+   LIVE MUROJA'AH TARGET SYNC
+   Hanya menyegarkan Live Laporan saat field Muroja'ah berubah.
+   Tidak mengubah penyimpanan, format laporan, atau fitur input lain.
+   ============================================================ */
+(function(){
+  let timer=0;
+  const schedule=()=>{
+    clearTimeout(timer);
+    timer=setTimeout(()=>{
+      try{ if(typeof window.generateWaReport==='function') window.generateWaReport(); }catch(_){}
+    },60);
+  };
+  const isMurojaahField=id=>/^(mur_(?:surah|iqro|start|end)_\d+_|tgl_)/.test(id);
+  document.addEventListener('input',e=>{
+    if(isMurojaahField(String(e.target?.id||''))) schedule();
+  },true);
+  document.addEventListener('change',e=>{
+    if(isMurojaahField(String(e.target?.id||''))) schedule();
+  },true);
+  window.rqRefreshLiveMurojaah=schedule;
 })();
 </script>
 
