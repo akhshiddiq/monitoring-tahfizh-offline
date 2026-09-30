@@ -8906,3 +8906,236 @@ html.dark #rqSafetyBackupBox #rqSafetyBackupLocation b{color:#ecfdf5 !important}
   new MutationObserver(run).observe(document.body||document.documentElement,{childList:true,subtree:true});
 })();
 </script>
+
+<script id="rq-auto-target-sync-v6">
+/* ============================================================
+   AUTO TARGET SYNC V6
+   Hanya menyinkronkan TARGET dengan kolom input Hafalan/Muroja'ah.
+   Tidak mengubah penyimpanan history, format laporan, atau fitur lain.
+
+   Aturan:
+   - Surat target mengikuti surat yang sedang diinput.
+   - Nomor Target Ayat DIISI MANUAL oleh pengguna.
+   - Target Ayat tidak boleh di bawah ayat terakhir yang diinput di kelas.
+   - Contoh input 1-10 => target manual minimal 10; boleh 11, 12, dst.
+   - Sistem tidak mengisi nomor Target Ayat secara otomatis.
+   - Hafalan mendukung beberapa surat melalui items.
+   - Muroja'ah tetap memakai target satu surat seperti UI yang ada.
+   ============================================================ */
+(function(){
+  const KEY='rq_target_hafalan_murojaah_v2';
+  let timer=0;
+
+  const norm=s=>String(s??'').trim().toLowerCase().replace(/[’‘`´]/g,"'").replace(/\s+/g,' ');
+  const findSurah=value=>{
+    const v=norm(value);
+    return (window.surahList||[]).find(x=>norm(x?.name)===v) || null;
+  };
+  const readDB=()=>{try{return JSON.parse(localStorage.getItem(KEY)||'{}')||{};}catch(_){return {};}};
+  const writeDB=db=>{try{localStorage.setItem(KEY,JSON.stringify(db));}catch(_){} };
+
+  function sourceRows(type,name){
+    const out=[];
+    for(let slot=1;slot<=3;slot++){
+      let mode=window.itemSourceMode?.[`${name}_${type}_${slot}`]||'quran';
+      if(mode!=='iqro') mode='quran';
+      if(mode!=='quran') continue;
+      const item=String(document.getElementById(`${type}_surah_${slot}_${name}`)?.value||
+                         document.getElementById(`${type}_surah_search_${slot}_${name}`)?.value||'').trim();
+      const start=Number(document.getElementById(`${type}_start_${slot}_${name}`)?.value||0);
+      const endRaw=document.getElementById(`${type}_end_${slot}_${name}`)?.value;
+      const end=Number(endRaw||start||0);
+      const q=findSurah(item);
+      if(!q || !Number.isFinite(start) || start<1) continue;
+      const safeEnd=Math.max(start,Number.isFinite(end)&&end>=start?end:start);
+      out.push({surat:q.name,no:Number(q.no)||0,start,end:safeEnd,ayatMax:Number(q.ayat)||0,slot});
+    }
+    return out;
+  }
+
+  function groupedRows(type,name){
+    const rows=sourceRows(type,name), map=new Map();
+    for(const r of rows){
+      const k=norm(r.surat);
+      const old=map.get(k);
+      if(!old) map.set(k,{...r});
+      else {
+        old.start=Math.min(old.start,r.start);
+        old.end=Math.max(old.end,r.end);
+        old.slot=Math.min(old.slot,r.slot);
+      }
+    }
+    return [...map.values()].sort((a,b)=>a.slot-b.slot);
+  }
+
+  function targetIds(type,name,slot='legacy'){
+    const p=type==='hafalan'?'Hafalan':'Murojaah';
+    const suf=type==='hafalan'?(slot==='jangkaPendek'?'JangkaPendek':slot==='akanDatang'?'AkanDatang':''):'';
+    const base=`inputTarget${p}${suf}`;
+    return {j:`${base}Juz_${name}`,s:`${base}Surat_${name}`,a:`${base}Ayat_${name}`,q:`${base}SuratSearch_${name}`};
+  }
+
+  function fillTargetForm(type,name,slot,rows){
+    if(!rows.length) return;
+    const x=targetIds(type,name,slot), row=rows[0];
+    const s=document.getElementById(x.s), q=document.getElementById(x.q), a=document.getElementById(x.a), j=document.getElementById(x.j);
+    if(!s||!a) return;
+    s.value=row.surat;
+    if(q) q.value=`${row.no}. ${row.surat}`;
+    const highest=Math.min(row.ayatMax||row.end,Math.max(row.end,1));
+    // Nomor Target Ayat tetap DIISI MANUAL. Sistem hanya menetapkan batas minimum.
+    a.min=String(Math.max(1,highest));
+    a.dataset.rqTargetMin=String(Math.max(1,highest));
+    a.title=`Target minimal ${Math.max(1,highest)} ayat sesuai ayat terakhir di kelas.`;
+    const infoId=`${x.a}_minInfo`;
+    let info=document.getElementById(infoId);
+    if(!info){
+      info=document.createElement('div');
+      info.id=infoId;
+      info.className='text-[9px] font-bold text-amber-600 mt-1';
+      a.parentElement?.appendChild(info);
+    }
+    info.textContent=`Minimal target: ${Math.max(1,highest)} ayat (sesuai ayat terakhir di kelas)`;
+    if(j){
+      try{
+        const jf=window.rqTargetJuzForSurah;
+        if(typeof jf==='function') j.value=jf(row.no,Number(a.value||highest));
+        else if(typeof window.setJuz==='function') window.setJuz(type,name,slot);
+      }catch(_){}
+    }
+    try{ window.onInlineTargetSurahChange?.(type,name,slot); }catch(_){}
+  }
+
+  function syncHafalan(name){
+    const rows=groupedRows('haf',name);
+    if(!rows.length) return;
+    // Surat target mengikuti input Hafalan Baru. Nomor target ayat tetap manual.
+    fillTargetForm('hafalan',name,'jangkaPendek',rows);
+    const db=readDB();
+    const old=db.hafalan?.[name]?.jangkaPendek;
+    if(old){
+      db.hafalan[name].jangkaPendek={...old,surat:rows[0].surat,autoSync:true,updatedAt:new Date().toISOString()};
+      writeDB(db);
+    }
+  }
+
+  function syncMurojaah(name){
+    const rows=groupedRows('mur',name);
+    if(!rows.length) return;
+    // Surat target mengikuti input Murojaah di kelas. Nomor target ayat tetap manual.
+    const row=rows[0];
+    fillTargetForm('murojaah',name,'legacy',[row]);
+    const db=readDB();
+    const old=db.murojaah?.[name];
+    if(old){
+      db.murojaah[name]={...old,surat:row.surat,autoSync:true,updatedAt:new Date().toISOString()};
+      writeDB(db);
+    }
+  }
+
+  function sync(name,type){
+    try{
+      if(type==='haf') syncHafalan(name);
+      if(type==='mur') syncMurojaah(name);
+      // Refresh hanya bagian target/report yang memang terkait.
+      window.refreshInlineTargets?.();
+      window.generateWaReport?.();
+    }catch(_){}
+  }
+
+  function schedule(name,type){
+    clearTimeout(timer);
+    timer=setTimeout(()=>sync(name,type),80);
+  }
+
+  function match(id,type){
+    return new RegExp(`^${type}_(?:surah_search|surah|start|end)_([1-3])_(.+)$`).exec(id||'');
+  }
+
+  document.addEventListener('input',e=>{
+    const id=String(e.target?.id||'');
+    let m=match(id,'haf');
+    if(m){ schedule(m[2],'haf'); return; }
+    m=match(id,'mur');
+    if(m){ schedule(m[2],'mur'); }
+  },true);
+
+  document.addEventListener('change',e=>{
+    const id=String(e.target?.id||'');
+    let m=match(id,'haf');
+    if(m){ schedule(m[2],'haf'); return; }
+    m=match(id,'mur');
+    if(m){ schedule(m[2],'mur'); }
+  },true);
+
+  function currentMinFor(sourceType,name){
+    const rows=groupedRows(sourceType,name);
+    if(!rows.length) return 0;
+    return Math.max(...rows.map(r=>Number(r.end)||0));
+  }
+
+  function validateTargetMin(type,name,slot='legacy'){
+    const sourceType=type==='hafalan'?'haf':'mur';
+    const min=currentMinFor(sourceType,name);
+    if(!min) return true;
+    const x=targetIds(type,name,slot), a=document.getElementById(x.a);
+    if(!a) return true;
+    const value=Number(a.value||0);
+    if(!Number.isInteger(value)||value<min){
+      a.setCustomValidity(`Target ayat minimal ${min} ayat sesuai ayat terakhir yang diinput di kelas.`);
+      a.reportValidity?.();
+      window.showToast?.(`Target ayat tidak boleh di bawah ${min}.`, 'error');
+      return false;
+    }
+    a.setCustomValidity('');
+    return true;
+  }
+
+  // Saat nomor target sedang diketik, batas minimum mengikuti ayat terakhir di kelas.
+  document.addEventListener('input',e=>{
+    const id=String(e.target?.id||'');
+    const m=/^inputTarget(Hafalan)(JangkaPendek|AkanDatang)?Ayat_(.+)$/.exec(id);
+    const mm=/^inputTarget(Murojaah)Ayat_(.+)$/.exec(id);
+    if(m || mm){
+      const type=m?'hafalan':'murojaah';
+      const name=m?m[3]:mm[2];
+      const slot=m?(m[2]==='AkanDatang'?'akanDatang':'jangkaPendek'):'legacy';
+      const min=currentMinFor(type==='hafalan'?'haf':'mur',name);
+      if(min){
+        e.target.min=String(min);
+        e.target.dataset.rqTargetMin=String(min);
+        // Tetap manual: pengguna boleh mengetik sendiri angka target.
+        // Jika kurang dari minimum, penyimpanan akan ditolak.
+        if(Number(e.target.value||0)>0 && Number(e.target.value)<min){
+          e.target.setCustomValidity(`Target ayat minimal ${min} ayat.`);
+        }else{
+          e.target.setCustomValidity('');
+        }
+      } else {
+        e.target.setCustomValidity('');
+      }
+    }
+  },true);
+
+  const oldSaveInputTarget=window.saveInputTarget;
+  if(typeof oldSaveInputTarget==='function'){
+    window.saveInputTarget=function(type,name,slot='legacy'){
+      // Hanya Target Jangka Pendek dan Target Murojaah yang mengikuti input kelas.
+      if(type==='hafalan' && slot==='jangkaPendek' && !validateTargetMin(type,name,slot)) return;
+      if(type==='murojaah' && !validateTargetMin(type,name,'legacy')) return;
+      return oldSaveInputTarget.apply(this,arguments);
+    };
+  }
+
+  // Setelah form selesai dirender / data cache masuk, sinkronkan sekali.
+  function initial(){
+    try{(window.santriList||[]).forEach(s=>{
+      const n=String(s?.name||'').trim();
+      if(document.getElementById(`haf_surah_search_1_${n}`)) sync(n,'haf');
+      if(document.getElementById(`mur_surah_search_1_${n}`)) sync(n,'mur');
+    });}catch(_){}
+  }
+  setTimeout(initial,1200);
+  setTimeout(initial,2500);
+})();
+</script>
