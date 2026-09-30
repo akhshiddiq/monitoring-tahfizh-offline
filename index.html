@@ -3196,6 +3196,10 @@
                 const badge = document.getElementById(`save_badge_murojaah_${name}`);
                 if (badge) { badge.classList.remove('hidden'); setTimeout(() => badge.classList.add('hidden'), 3000); }
                 window.showToast("💾 Alhamdulillah sudah di input", "success");
+                // Pastikan Live Laporan WA membaca history Muroja'ah terbaru setelah simpan.
+                if (sectionType === 'murojaah') {
+                    setTimeout(() => { try { window.generateWaReport?.(); window.refreshInlineTargets?.(); } catch (_) {} }, 30);
+                }
             } 
             else if (sectionType === 'tugas') {
                 const tugasVal = document.getElementById(`tug_detail_${name}`)?.value.trim() || '-';
@@ -6406,12 +6410,6 @@
     overflow:visible!important;pointer-events:none!important;
   }
   #appHeader.rq-final-mobile > .max-w-7xl{width:100%!important;height:100%!important;padding:0!important;margin:0!important;display:block!important;overflow:visible!important}
-  /* Saat tertutup: hanya kotak launcher yang terlihat. */
-  #appHeader.rq-final-mobile:not(.rq-final-open) > .max-w-7xl > div:first-child,
-  #appHeader.rq-final-mobile:not(.rq-final-open) > .max-w-7xl > div:nth-child(2){
-    display:none!important;
-  }
-  #appHeader.rq-final-mobile:not(.rq-final-open) .rq-final-close{display:none!important;}
   #appHeader.rq-final-mobile .rq-final-launcher{
     display:flex!important;position:fixed!important;top:8px!important;right:8px!important;
     width:58px!important;height:58px!important;align-items:center!important;justify-content:center!important;
@@ -7824,7 +7822,7 @@ html.dark #rqSafetyBackupBox #rqSafetyBackupLocation b{color:#ecfdf5 !important}
   const slotMatches=(sl,t)=>{const ts=norm(t?.surat), item=norm(sl?.item);return !ts||item===ts||item.includes(ts)||ts.includes(item);};
   const rowMatches=(row,t)=>{const ss=slots(row);if(ss.length)return ss.some(sl=>slotMatches(sl,t));return !t?.surat||norm(row?.detail).includes(norm(t.surat));};
   const inPeriod=(row,t)=>{const a=dateKey(t?.mulai),b=dateKey(t?.selesai),d=rowDate(row);return !!(a&&b&&d&&d>=a&&d<=b);};
-  const rowsFor=(type,name,t)=>{const created=targetCreated(t);return histories(type,name).filter(row=>{if(!inPeriod(row,t)||!rowMatches(row,t))return false;const rt=rowTime(row);return !(created&&rt&&rt<created);}).sort((a,b)=>rowTime(a)-rowTime(b));};
+  const rowsFor=(type,name,t)=>{const created=targetCreated(t);return histories(type,name).filter(row=>{if(!inPeriod(row,t)||!rowMatches(row,t))return false;const rt=rowTime(row);if(type==='hafalan')return !(created&&rt&&rt<created);return true;}).sort((a,b)=>rowTime(a)-rowTime(b));};
   const addRange=(set,a,b)=>{if(!Number.isFinite(a)||a<1)return;if(Number.isFinite(b)&&b>=a){for(let n=a;n<=b;n++)set.add(n);}else set.add(a);};
   const fallbackNumbers=row=>{const d=String(row?.detail||''),set=new Set(),re=/(?:ayat|ay)[^0-9]*(\d+)(?:\s*[-–]\s*(\d+))?/gi;let m;while((m=re.exec(d))){const a=+m[1],b=m[2]?+m[2]:a;addRange(set,a,b);}return set;};
   const targetItems=t=>{
@@ -7849,14 +7847,9 @@ html.dark #rqSafetyBackupBox #rqSafetyBackupLocation b{color:#ecfdf5 !important}
           }
         }else if(norm(row?.detail).includes(targetSurat)){ fallbackNumbers(row).forEach(n=>set.add(n)); }
       }
-      // Target hafalan adalah target "sampai ayat N".
-      // Progress hanya menghitung ayat yang tersambung mulai dari ayat 1,
-      // sehingga ayat yang lompat tidak membuat progress terlihat lebih tinggi.
       for(const n of [...set]) if(n>target)set.delete(n);
-      let real=0;
-      while(real<target && set.has(real+1)) real++;
-      const pct=target?Math.min(100,Math.round(real/target*100)):0;
-      const last=real;
+      const real=Math.min(target,set.size), pct=target?Math.min(100,Math.round(real/target*100)):0;
+      const last=target?Math.min(target,set.size?Math.max(...set):0):0;
       totalReal+=real; if(last>lastAyat)lastAyat=last;
       itemProgress.push({surat:item.surat,ayatTarget:target,ayatReal:real,pct,lastAyat:last,juz:item.juz||''});
       for(const row of rows){
@@ -8352,7 +8345,85 @@ html.dark #rqSafetyBackupBox #rqSafetyBackupLocation b{color:#ecfdf5 !important}
     } catch (_) {}
 </script>
 
+<script id="rq-mobile-header-pop-v2">
+(function(){
+  function initMobileHeaderPop(){
+    var header=document.getElementById('appHeader');
+    if(!header || !header.querySelector('.max-w-7xl')) return;
+    if(document.getElementById('rqMobileHeaderLauncher')) return;
 
+    header.classList.add('rq-mobile-collapsed');
+
+    var launcher=document.createElement('button');
+    launcher.id='rqMobileHeaderLauncher';
+    launcher.type='button';
+    launcher.setAttribute('aria-label','Buka menu Monitoring Tahfizh');
+    launcher.setAttribute('title','Buka menu');
+    launcher.innerHTML='<span class="rq-launcher-icon"><i></i><i></i><i></i><i></i></span>';
+    document.body.appendChild(launcher);
+
+    function isMobile(){ return window.matchMedia('(max-width: 767px)').matches; }
+    function setExpanded(open){
+      if(!isMobile()) return;
+      header.classList.toggle('rq-mobile-expanded', !!open);
+      header.classList.toggle('rq-mobile-collapsed', !open);
+      launcher.style.display=open ? 'none' : 'flex';
+      document.body.classList.toggle('rq-mobile-header-open', !!open);
+    }
+
+    launcher.addEventListener('click', function(e){
+      e.preventDefault();
+      e.stopPropagation();
+      setExpanded(true);
+    });
+
+    // Tambahkan tombol tutup tanpa mengubah tombol/fungsi menu existing.
+    var brandRow=header.querySelector('.max-w-7xl > div:first-child');
+    if(brandRow && !document.getElementById('rqMobileHeaderClose')){
+      var close=document.createElement('button');
+      close.id='rqMobileHeaderClose';
+      close.type='button';
+      close.setAttribute('aria-label','Tutup menu');
+      close.title='Tutup menu';
+      close.innerHTML='<i class="fa-solid fa-xmark"></i>';
+      close.style.cssText='display:none;flex:0 0 auto;width:38px;height:38px;border:1px solid rgba(167,243,208,.35);border-radius:11px;background:rgba(255,255,255,.10);color:#fff;align-items:center;justify-content:center;font-size:16px;';
+      brandRow.appendChild(close);
+      close.addEventListener('click',function(e){
+        e.preventDefault(); e.stopPropagation(); setExpanded(false);
+      });
+    }
+
+    function syncClose(){
+      var close=document.getElementById('rqMobileHeaderClose');
+      if(close) close.style.display=(isMobile() && header.classList.contains('rq-mobile-expanded'))?'flex':'none';
+    }
+
+    var oldSetExpanded=setExpanded;
+    setExpanded=function(open){ oldSetExpanded(open); syncClose(); };
+
+    document.addEventListener('click',function(e){
+      if(!isMobile() || !header.classList.contains('rq-mobile-expanded')) return;
+      if(header.contains(e.target)) return;
+      setExpanded(false);
+    }, true);
+
+    window.addEventListener('resize',function(){
+      if(!isMobile()){
+        header.classList.remove('rq-mobile-expanded','rq-mobile-collapsed');
+        launcher.style.display='none';
+      }else{
+        if(!header.classList.contains('rq-mobile-expanded')) header.classList.add('rq-mobile-collapsed');
+        launcher.style.display=header.classList.contains('rq-mobile-expanded')?'none':'flex';
+        syncClose();
+      }
+    });
+
+    if(!isMobile()) launcher.style.display='none';
+  }
+
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',initMobileHeaderPop); else initMobileHeaderPop();
+})();
+</script>
 
 <script id="rq-mobile-final-fix-js">
 (function(){
@@ -8379,14 +8450,6 @@ html.dark #rqSafetyBackupBox #rqSafetyBackupLocation b{color:#ecfdf5 !important}
     launcher.addEventListener('click',function(e){e.preventDefault();e.stopPropagation();open(true)});
     close.addEventListener('click',function(e){e.preventDefault();e.stopPropagation();open(false)});
 
-    // Setelah memilih menu, panel otomatis kembali menjadi kotak kecil.
-    // Hanya tombol navigasi utama di header yang ditutup; kontrol lain tidak disentuh.
-    h.addEventListener('click',function(e){
-      if(!mobile() || !h.classList.contains('rq-final-open')) return;
-      var nav=e.target.closest('button[id^=\"btnTab-\"]');
-      if(nav) open(false);
-    },false);
-
     // MOBILE ONLY: jika panel header sudah terbuka, ketuk 2x pada area header
     // untuk kembali menjadi kotak kecil. Tidak mengganggu tombol/menu di dalamnya.
     h.addEventListener('dblclick',function(e){
@@ -8409,7 +8472,8 @@ html.dark #rqSafetyBackupBox #rqSafetyBackupLocation b{color:#ecfdf5 !important}
 })();
 </script>
 
-<script id="rq-target-multi-surah-logic">
+</body>
+</html>\n<script id="rq-target-multi-surah-logic">
 (function(){
   const esc=v=>String(v??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');
   const key='rq_target_hafalan_murojaah_v2';
@@ -8506,7 +8570,7 @@ html.dark #rqSafetyBackupBox #rqSafetyBackupLocation b{color:#ecfdf5 !important}
     oldEngine.calc=function(type,name,t){
       if(type!=='hafalan'||!Array.isArray(t?.items)||!t.items.length)return oldCalc(type,name,t);
       const rows=oldEngine.rowsFor(type,name,t)||[], items=t.items, norm2=norm; let totalTarget=0,totalReal=0,lastAyat=0;
-      const itemProgress=items.map(item=>{const target=Number(item.ayat)||0,totalSet=new Set();for(const row of rows){const ss=Array.isArray(row?.slots)?row.slots:[];if(ss.length){ss.forEach(sl=>{const n=norm2(sl?.item),tar=norm2(item.surat);if(n===tar){const a=Number(sl.start),b=Number(sl.end);if(Number.isFinite(a)&&a>=1){if(Number.isFinite(b)&&b>=a){for(let x=a;x<=b;x++)totalSet.add(x)}else totalSet.add(a)}}})}else if(norm2(row?.detail).split(/[,;|·\n]/).map(x=>norm2(x)).some(x=>x===norm2(item.surat))){const m=String(row.detail||'').matchAll(/(?:ayat|ay)[^0-9]*(\d+)(?:\s*[-–]\s*(\d+))?/gi);for(const z of m){const a=Number(z[1]),b=Number(z[2]||z[1]);if(Number.isFinite(a)&&a>=1&&Number.isFinite(b)&&b>=a)for(let x=a;x<=b;x++)totalSet.add(x)}}}for(const x of [...totalSet])if(x>target)totalSet.delete(x);let real=0;while(real<target&&totalSet.has(real+1))real++;const pct=target?Math.min(100,Math.round(real/target*100)):0,last=real;totalTarget+=target;totalReal+=real;return {surat:item.surat,ayatTarget:target,ayatReal:real,pct,lastAyat:last,juz:item.juz||''}});
+      const itemProgress=items.map(item=>{const target=Number(item.ayat)||0,totalSet=new Set();for(const row of rows){const ss=Array.isArray(row?.slots)?row.slots:[];if(ss.length){ss.forEach(sl=>{const n=norm2(sl?.item),tar=norm2(item.surat);if(n===tar){const a=Number(sl.start),b=Number(sl.end);if(Number.isFinite(a)&&a>=1){if(Number.isFinite(b)&&b>=a){for(let x=a;x<=b;x++)totalSet.add(x)}else totalSet.add(a)}}})}else if(norm2(row?.detail).split(/[,;|·\n]/).map(x=>norm2(x)).some(x=>x===norm2(item.surat))){const m=String(row.detail||'').matchAll(/(?:ayat|ay)[^0-9]*(\d+)(?:\s*[-–]\s*(\d+))?/gi);for(const z of m){const a=Number(z[1]),b=Number(z[2]||z[1]);if(Number.isFinite(a)&&a>=1&&Number.isFinite(b)&&b>=a)for(let x=a;x<=b;x++)totalSet.add(x)}}}for(const x of [...totalSet])if(x>target)totalSet.delete(x);const real=Math.min(target,totalSet.size),pct=target?Math.min(100,Math.round(real/target*100)):0,last=target?Math.min(target,totalSet.size?Math.max(...totalSet):0):0;totalTarget+=target;totalReal+=real;return {surat:item.surat,ayatTarget:target,ayatReal:real,pct,lastAyat:last,juz:item.juz||''}});
       const ayatPct=totalTarget?Math.min(100,Math.round(totalReal/totalTarget*100)):0; return {ayatReal:totalReal,ayatTarget:totalTarget,ayatPct,pct:ayatPct,ayatCount:totalReal,lastAyat,rows,itemProgress,setoranReal:rows.length,setoranTarget:0,setoranPct:0,completeDate:''};
     };
   }
@@ -8662,5 +8726,3 @@ html.dark #rqSafetyBackupBox #rqSafetyBackupLocation b{color:#ecfdf5 !important}
   new MutationObserver(run).observe(document.body||document.documentElement,{childList:true,subtree:true});
 })();
 </script>
-</body>
-</html>
