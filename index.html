@@ -2863,7 +2863,6 @@
                                             <label class="text-xs sm:text-sm font-black text-slate-500">Juz Otomatis<input id="inputTargetMurojaahJuz_${s.name}" type="text" placeholder="Otomatis dari surat/ayat" readonly class="rq-target-juz-auto mt-1 w-full p-4 rounded-2xl border-2 border-emerald-300 dark:border-emerald-700 text-sm sm:text-base font-black min-h-[60px]"></label>
                                             <label class="text-xs sm:text-sm font-black text-slate-500">Nama Surat — Otomatis<select id="inputTargetMurojaahSurat_${s.name}" onchange="window.onInlineTargetSurahChange('murojaah','${s.name}')" class="mt-1 w-full p-4 rounded-2xl border-2 bg-white dark:bg-slate-900 text-sm sm:text-base font-black min-h-[60px]"><option value="">-- Pilih Surat --</option>${window.surahList.map(x => `<option value="${x.name}">${x.no}. ${x.name} (${x.ayat} ayat)</option>`).join('')}</select></label><div class="rq-target-surah-manual"><label class="text-xs sm:text-sm font-black text-slate-500">Nama Surat — Manual / Cari<input type="text" id="inputTargetMurojaahSuratSearch_${s.name}" placeholder="Ketik nama surat..." autocomplete="off" class="mt-1 w-full p-4 rounded-2xl border-2 bg-white dark:bg-slate-900 text-sm sm:text-base font-black min-h-[60px]" oninput="window.searchInlineTargetSurah('murojaah','${s.name}','legacy',this.value)" onfocus="window.searchInlineTargetSurah('murojaah','${s.name}','legacy',this.value)"><div id="inputTargetMurojaahSuratSearch_${s.name}_dropdown" class="hidden mt-1 max-h-56 overflow-y-auto bg-white dark:bg-slate-900 border-2 border-slate-300 dark:border-slate-700 rounded-xl shadow-xl"></div></label></div>
                                             <label class="text-xs sm:text-sm font-black text-slate-500">Target ayat<input id="inputTargetMurojaahAyat_${s.name}" type="number" min="1" inputmode="numeric" placeholder="Jumlah ayat" class="mt-1 w-full p-4 rounded-2xl border-2 bg-white dark:bg-slate-900 text-sm sm:text-base font-black min-h-[60px]"></label>
-                                            <label class="text-xs sm:text-sm font-black text-slate-500">Target setoran<input id="inputTargetMurojaahKali_${s.name}" type="number" min="1" inputmode="numeric" placeholder="Jumlah setoran" class="mt-1 w-full p-4 rounded-2xl border-2 bg-white dark:bg-slate-900 text-sm sm:text-base font-black min-h-[60px]"></label>
                                             <div class="grid grid-cols-1 gap-3"><label class="text-xs sm:text-sm font-black text-slate-500">Tanggal mulai<input id="inputTargetMurojaahMulai_${s.name}" type="date" class="mt-1 w-full p-4 rounded-2xl border-2 bg-white dark:bg-slate-900 text-sm sm:text-base font-black min-h-[60px]"></label><label class="text-xs sm:text-sm font-black text-slate-500">Tanggal selesai<input id="inputTargetMurojaahSelesai_${s.name}" type="date" class="mt-1 w-full p-4 rounded-2xl border-2 bg-white dark:bg-slate-900 text-sm sm:text-base font-black min-h-[60px]"></label></div>
                                         </div>
                                         <div id="inputTargetMurojaahInfo_${s.name}" class="text-[9px] font-bold text-slate-500"></div>
@@ -3466,11 +3465,63 @@
                 personalSections.push(section);
             }
 
+            // Target Tab 1 bersifat opsional. Jika checkbox dicentang,
+            // target ditempatkan tepat setelah bagian yang bersangkutan:
+            // Hafalan -> Target Hafalan, Muroja'ah -> Target Muroja'ah.
+            // Target Yang Akan Datang tetap hanya berada di Tab 2.
+            const includeTargetInLiveTab1 = localStorage.getItem('rq_inline_live_tab1_include_target') === '1';
+            const targetDbForLive = (() => { try { return JSON.parse(localStorage.getItem('rq_target_hafalan_murojaah_v2') || '{}') || {}; } catch (_) { return {}; } })();
+            const targetLabelForLive = (t) => Array.isArray(t?.items) && t.items.length
+                ? t.items.map(x => `${x.surat || '-'} (${Number(x.ayat) || 0} ayat)`).join(' · ')
+                : (t?.surat ? `${t.surat} (${Number(t.ayat) || 0} ayat)` : 'Belum ditentukan');
+            const targetJuzForLive = (t) => Array.isArray(t?.items) && t.items.length
+                ? [...new Set(t.items.map(x => String(x?.juz || '').trim()).filter(Boolean))].join(', ')
+                : String(t?.juz || '').trim();
+            const periodeForLive = (mulai, selesai) => {
+                if (!mulai || !selesai) return '-';
+                const d1 = new Date(`${mulai}T00:00:00`), d2 = new Date(`${selesai}T00:00:00`);
+                const hari = Math.max(0, Math.round((d2 - d1) / 86400000));
+                const f = v => { const d = new Date(`${v}T00:00:00`); const m = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des']; return `${d.getDate()} ${m[d.getMonth()]}`; };
+                return `${f(mulai)} s.d ${f(selesai)} ( ${hari} Hari )`;
+            };
+            const currentHafalanTarget = targetDbForLive?.hafalan?.[s.name]?.jangkaPendek || null;
+            const murojaahTarget = targetDbForLive?.murojaah?.[s.name] || null;
+            const targetHafalanLive = (() => {
+                if (!includeTargetInLiveTab1 || !currentHafalanTarget) return '';
+                const q = window.rqTargetEngine?.calc('hafalan', s.name, currentHafalanTarget) || {};
+                const desc = targetLabelForLive(currentHafalanTarget);
+                const juz = targetJuzForLive(currentHafalanTarget);
+                return [
+                    `🎯 *Target Hafalan*`,
+                    `• *Target Saat ini:* ${desc}`,
+                    juz ? `• *Juz:* ${juz}` : '',
+                    `• *Total Target Ayat:* ${Number(q.ayatTarget) || 0}`,
+                    `• *Total Realisasi Ayat:* ${Number(q.ayatReal) || 0}`,
+                    `• *Progress:* ${Number(q.ayatPct) || 0}%`,
+                    `• *Periode:* ${periodeForLive(currentHafalanTarget.mulai, currentHafalanTarget.selesai)}`
+                ].filter(Boolean).join('\n');
+            })();
+            const targetMurojaahLive = (() => {
+                if (!includeTargetInLiveTab1 || !murojaahTarget) return '';
+                const q = window.rqTargetEngine?.calc('murojaah', s.name, murojaahTarget) || {};
+                const desc = targetLabelForLive(murojaahTarget);
+                const juz = targetJuzForLive(murojaahTarget);
+                return [
+                    `🎯 *Target Muroja’ah:* ${desc}`,
+                    juz ? `• *Juz:* ${juz}` : '',
+                    `• *Total Target Ayat:* ${Number(q.ayatTarget) || 0}`,
+                    `• *Total Realisasi Ayat:* ${Number(q.ayatReal) || 0}`,
+                    `• *Progress:* ${Number(q.pct) || 0}%`,
+                    `• *Periode:* ${periodeForLive(murojaahTarget.mulai, murojaahTarget.selesai)}`
+                ].filter(Boolean).join('\n');
+            })();
+
             if (isValidText(hafalanVal)) {
                 let section = `⭐ *Hafalan Baru:*\n${waOneLine(hafalanVal)}`;
                 if (isValidText(hafalanStat)) section += `\n- Nilai: ${waOneLine(hafalanStat)}`;
                 if (isValidText(hafalanProgressStatus)) section += `\n- ${waOneLine(hafalanProgressStatus)}`;
                 if (isValidText(hafalanCat)) section += `\n- Catatan: ${waOneLine(hafalanCat)}`;
+                if (targetHafalanLive) section += `\n${targetHafalanLive}`;
                 personalSections.push(section);
             }
 
@@ -3479,6 +3530,7 @@
                 if (isValidText(murojaahStat)) section += `\n- Nilai: ${waOneLine(murojaahStat)}`;
                 if (isValidText(murojaahProgressStatus)) section += `\n- ${waOneLine(murojaahProgressStatus)}`;
                 if (isValidText(murojaahCat)) section += `\n- Catatan: ${waOneLine(murojaahCat)}`;
+                if (targetMurojaahLive) section += `\n${targetMurojaahLive}`;
                 personalSections.push(section);
             }
 
@@ -3489,7 +3541,7 @@
             }
 
             // Tab 1 hanya laporan Bacaan, Hafalan, Muroja'ah, dan Tugas.
-            // Target sengaja TIDAK dimasukkan ke Tab 1; target hanya tampil di Tab 2.
+            // Target Tab 1 hanya muncul jika checkbox di bawah laporan dicentang.
             const bagianSetoran = personalSections.join('\n========\n');
             const reportHeader = `========\n*LAPORAN PRESTASI SANTRI*\n*Rumah Qur'an Al-Khansa*\n========\n🪪 *Nama:* *${waOneLine(s.name)}*\n🏛️ *Kelas:* *${waOneLine(s.class)}*\n✍️ *Pengajar:* ${waOneLine(s.teacher)}\n========`;
             const reportFooter = `\n.\n🚀🚀🚀\n\nJazakumullah khairan katsiran atas perhatian dan bimbingan Ayah/Bunda di rumah. Semoga ananda senantiasa istiqomah menghafal Al-Qur'an dan Belajar Al Quran . Aamiin.`;
@@ -3499,20 +3551,25 @@
             // Tab 2 = Target Saat Ini dan Target Yang Akan Datang.
             // Materi/Materi Tambahan TIDAK dimasukkan ke WA Personal.
             // LIVE WA dibuat benar-benar terpisah menjadi 2 tab.
-            // Tab 1 HANYA Bacaan + Hafalan + Muroja'ah + Tugas.
-            // Tab 2 HANYA Target Saat Ini + Target Yang Akan Datang.
-            // Jangan pernah menambahkan blok target ke Tab 1.
+            // Tab 1 tetap Bacaan + Hafalan + Muroja'ah + Tugas, dengan target opsional
+            // ditempel tepat pada bagian Hafalan dan Muroja'ah. Tab 2 tetap target penuh.
             const tab1Msg = reportHeader + (bagianSetoran ? `\n${bagianSetoran}` : '') + reportFooter;
             const targetOnlyBlock = window.getTargetReportBlock ? window.getTargetReportBlock(s.name) : '';
             const tab2Msg = targetOnlyBlock || '';
+            // Target sudah ditempatkan pada bagian Hafalan/Muroja'ah di atas.
+            // Tab 2 tetap memakai blok target penuh seperti sebelumnya.
+            const tab1LiveMsg = tab1Msg;
             const liveTabRaw = Number(window.inlineLiveReportTab || localStorage.getItem('rq_inline_live_report_tab') || 1);
             const liveTab = liveTabRaw === 2 ? 2 : 1;
-            const liveFullMsg = liveTab === 2 ? tab2Msg : tab1Msg;
+            const liveFullMsg = liveTab === 2 ? tab2Msg : tab1LiveMsg;
 
             const previewEl = document.getElementById('waMessagePreview');
             const inlinePreviewEl = document.getElementById('waMessagePreviewInline');
-            // Preview laporan WA lama tetap memakai Tab 1 / laporan setoran.
+            // Preview laporan WA lama tetap memakai format lama; perubahan target hanya untuk LIVE WA.
             if (previewEl) previewEl.value = tab1Msg;
+            // Sinkronkan status checkbox tanpa mengubah Tab 2.
+            const includeTargetCheckbox = document.getElementById('inlineLiveIncludeTargetTab1');
+            if (includeTargetCheckbox) includeTargetCheckbox.checked = includeTargetInLiveTab1;
             // Live Laporan hanya menampilkan isi tab yang sedang dipilih.
             if (inlinePreviewEl) {
                 inlinePreviewEl.value = '';
@@ -3588,6 +3645,11 @@
             const inactive = 'px-2.5 py-2 rounded-lg text-[9px] sm:text-[10px] font-black text-slate-700 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-800 leading-tight';
             b1.className = window.inlineLiveReportTab === 1 ? active : inactive;
             b2.className = window.inlineLiveReportTab === 2 ? active : inactive;
+        };
+
+        window.toggleInlineLiveTargetInTab1 = function(checked) {
+            localStorage.setItem('rq_inline_live_tab1_include_target', checked ? '1' : '0');
+            if (typeof window.generateWaReport === 'function') window.generateWaReport();
         };
 
         window.switchInlineLiveReportTab = function(tab) {
@@ -4451,7 +4513,7 @@
         };
         window.rqImportTargetText = function(name, t, label) {
             if (!t) return '';
-            return [name, label, t.juz ? `Juz ${t.juz}` : '', t.surat || '', t.ayat ? `sampai ayat ${t.ayat}` : '', t.kali ? `target ${t.kali} setoran` : '', t.mulai && t.selesai ? `${t.mulai} s.d ${t.selesai}` : ''].filter(Boolean).join(' — ');
+            return [name, label, t.juz ? `Juz ${t.juz}` : '', t.surat || '', t.ayat ? `sampai ayat ${t.ayat}` : '', t.mulai && t.selesai ? `${t.mulai} s.d ${t.selesai}` : ''].filter(Boolean).join(' — ');
         };
         window.buildImportDetailedReport = function(mode, imported, importedSantri, targetInfo) {
             const esc = window.rqEscImportHtml;
@@ -6644,6 +6706,10 @@
                             <button onclick="window.sendWaReportDirect()" class="px-3 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-black text-[10px] shadow-md active:scale-95"><i class="fa-brands fa-whatsapp"></i> Kirim WA</button>
                         </div>
                         <button onclick="window.refreshWaReport()" class="w-full px-3 py-2.5 bg-white dark:bg-slate-700 border border-emerald-300 text-emerald-700 dark:text-emerald-300 rounded-xl font-black text-[10px] active:scale-95"><i class="fa-solid fa-rotate"></i> Refresh Data Lokal</button>
+                        <label class="mt-2 flex items-center gap-2 px-3 py-2.5 rounded-xl border border-emerald-300 dark:border-emerald-700 bg-emerald-50/70 dark:bg-emerald-950/30 cursor-pointer select-none">
+                            <input type="checkbox" id="inlineLiveIncludeTargetTab1" onchange="window.toggleInlineLiveTargetInTab1(this.checked)" class="w-5 h-5 accent-emerald-600 shrink-0">
+                            <span class="text-[10px] sm:text-[11px] font-black text-emerald-800 dark:text-emerald-200 leading-tight">Tampilkan Target Hafalan &amp; Muroja'ah di Tab 1</span>
+                        </label>
                     </div>
                 </aside>
             </div>
@@ -7809,6 +7875,12 @@ html.dark #rqSafetyBackupBox #rqSafetyBackupLocation b{color:#ecfdf5 !important}
         if(t&&t.ayat&&!t.jangkaPendek&&!t.akanDatang)cur.hafalan[name]={jangkaPendek:t,akanDatang:null};
       }
     }
+    // Migrasi ringan: field lama 'kali' pada Target Muroja'ah tidak lagi dipakai.
+    if(cur.murojaah){
+      for(const name of Object.keys(cur.murojaah)){
+        if(cur.murojaah[name] && typeof cur.murojaah[name]==='object') delete cur.murojaah[name].kali;
+      }
+    }
     return cur;
   }catch(_){return {}}};
   const histories=(type,name)=>{
@@ -7847,9 +7919,13 @@ html.dark #rqSafetyBackupBox #rqSafetyBackupLocation b{color:#ecfdf5 !important}
           }
         }else if(norm(row?.detail).includes(targetSurat)){ fallbackNumbers(row).forEach(n=>set.add(n)); }
       }
-      for(const n of [...set]) if(n>target)set.delete(n);
-      const real=Math.min(target,set.size), pct=target?Math.min(100,Math.round(real/target*100)):0;
-      const last=target?Math.min(target,set.size?Math.max(...set):0):0;
+      // Target ayat berarti target berurutan mulai dari ayat 1.
+      // Ayat yang lompat tidak dihitung melewati ayat yang masih kosong.
+      for(const n of [...set]) if(n>target) set.delete(n);
+      let real=0;
+      while(real<target && set.has(real+1)) real++;
+      const pct=target?Math.min(100,Math.round(real/target*100)):0;
+      const last=real;
       totalReal+=real; if(last>lastAyat)lastAyat=last;
       itemProgress.push({surat:item.surat,ayatTarget:target,ayatReal:real,pct,lastAyat:last,juz:item.juz||''});
       for(const row of rows){
@@ -7860,10 +7936,12 @@ html.dark #rqSafetyBackupBox #rqSafetyBackupLocation b{color:#ecfdf5 !important}
     }
     const ayatTarget=totalTarget, ayatReal=Math.min(ayatTarget,totalReal), ayatCount=totalReal;
     const ayatPct=ayatTarget?Math.min(100,Math.round(ayatReal/ayatTarget*100)):0;
-    const setoranTarget=Math.max(0,Number(t.kali)||0);
-    const setoranReal=type==='murojaah'?Math.min(setoranTarget||rows.length,rows.length):rows.length;
-    const setoranPct=setoranTarget?Math.min(100,Math.round(setoranReal/setoranTarget*100)):0;
-    const pct=type==='murojaah'?(ayatTarget&&setoranTarget?Math.min(ayatPct,setoranPct):ayatTarget?ayatPct:setoranPct):ayatPct;
+    // Target Muroja'ah hanya berdasarkan target ayat.
+    // Tidak ada lagi target jumlah setoran/kali.
+    const setoranTarget=0;
+    const setoranReal=type==='murojaah'?rows.length:0;
+    const setoranPct=0;
+    const pct=ayatPct;
     const contrib=[...contributing].sort((a,b)=>rowTime(a)-rowTime(b));
     const completeDate=pct>=100&&contrib.length?rowDate(contrib[contrib.length-1]):'';
     return {ayatReal,ayatTarget,ayatPct,setoranReal,setoranTarget,setoranPct,pct,ayatCount,lastAyat,rows,completeDate,itemProgress};
@@ -8029,18 +8107,18 @@ html.dark #rqSafetyBackupBox #rqSafetyBackupLocation b{color:#ecfdf5 !important}
  const targetAyatSet=(rows,t)=>{const set=new Set(),targetSurat=normSurat(t?.surat);rows.forEach(row=>{const slots=rowSlots(row);if(slots.length){slots.forEach(sl=>{if(!targetSurat||slotMatchesTarget(sl,t))addSlotAyatToSet(set,sl);});}else if(!targetSurat||rowMatchesTarget(row,t)){const d=String(row?.detail||'');const re=/(?:ayat|ay)[^0-9]*(\d+)(?:\s*[-–]\s*(\d+))?/gi;let m;while((m=re.exec(d))){const a=+m[1],b=m[2]?+m[2]:a;if(Number.isFinite(a)&&a>=1&&Number.isFinite(b)&&b>=a){for(let n=a;n<=b;n++)set.add(n);}}}});return set};
  const calc=(type,name,t)=>window.rqTargetEngine?.calc(type,name,t)||{ayatReal:0,ayatTarget:0,ayatPct:0,setoranReal:0,setoranTarget:0,setoranPct:0,pct:0,ayatCount:0,lastAyat:0,rows:[],completeDate:''};
  const targetStatus=(t,q)=>{if(!t)return 'Belum Ada';const today=dateKey(new Date()),mulai=dateKey(t.mulai),selesai=dateKey(t.selesai);if(!mulai||!selesai)return 'Belum Lengkap';if(today<mulai)return 'Belum Mulai';if(Number.isFinite(Number(q?.pct))&&Number(q.pct)>=100)return 'Selesai';if(today>selesai)return 'Terlewat';return 'Sedang Berjalan'};
- const ids=(type,name,slot='legacy')=>{const p=type==='hafalan'?'Hafalan':'Murojaah',suf=type==='hafalan'?(slot==='jangkaPendek'?'JangkaPendek':slot==='akanDatang'?'AkanDatang':''):'',base=`inputTarget${p}${suf}`;return {j:`${base}Juz_${name}`,s:`${base}Surat_${name}`,a:`${base}Ayat_${name}`,k:type==='murojaah'?`inputTargetMurojaahKali_${name}`:'',mulai:`${base}Mulai_${name}`,selesai:`${base}Selesai_${name}`,i:`${base}Info_${name}`,p:`${base}Progress_${name}`}};
+ const ids=(type,name,slot='legacy')=>{const p=type==='hafalan'?'Hafalan':'Murojaah',suf=type==='hafalan'?(slot==='jangkaPendek'?'JangkaPendek':slot==='akanDatang'?'AkanDatang':''):'',base=`inputTarget${p}${suf}`;return {j:`${base}Juz_${name}`,s:`${base}Surat_${name}`,a:`${base}Ayat_${name}`,mulai:`${base}Mulai_${name}`,selesai:`${base}Selesai_${name}`,i:`${base}Info_${name}`,p:`${base}Progress_${name}`}};
  const getTarget=(name,type,slot)=>{const d=getDB();const t=d[type]?.[name];if(type==='hafalan'){if(t?.jangkaPendek||t?.akanDatang)return slot==='akanDatang'?t.akanDatang:t.jangkaPendek;return t?.ayat?t:null;}return t||null};
  const limit=(type,name,slot='legacy')=>{const x=ids(type,name,slot),s=document.getElementById(x.s),a=document.getElementById(x.a),i=document.getElementById(x.i);if(!s||!a)return;const q=(window.surahList||[]).find(z=>String(z.name)===String(s.value));if(q){a.max=q.ayat;a.min=1;a.placeholder=`1-${q.ayat}`;if(a.value!==''&&(!Number.isInteger(Number(a.value))||Number(a.value)<1||Number(a.value)>Number(q.ayat)))a.value='';if(i)i.innerHTML=`Surat ${q.no}. <b>${esc(q.name)}</b> memiliki ${q.ayat} ayat. Target maksimal ${q.ayat} ayat.`}else{a.removeAttribute('max');a.min=1;a.placeholder='Pilih surat';if(i)i.textContent='Pilih surat agar batas target ayat mengikuti jumlah ayat asli.'}};
- const render=(type,name,slot='legacy')=>{const x=ids(type,name,slot),b=document.getElementById(x.p);if(!b)return;const t=getTarget(name,type,slot);if(!t){b.innerHTML='<div class="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border text-[9px] font-bold text-slate-500">Belum ada target tersimpan.</div>';return}const q=calc(type,name,t),periode=t.mulai&&t.selesai?`${t.mulai} s.d. ${t.selesai}`:'',pct=Number.isFinite(q.pct)?q.pct:0,detail=type==='murojaah'?`${q.ayatReal} / ${q.ayatTarget} ayat · ${q.setoranReal} / ${q.setoranTarget} setoran`:`${q.ayatReal} / ${q.ayatTarget} ayat`,status=type==='hafalan'?targetStatus(t,q):'';b.innerHTML=`<div class="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border"><div class="flex justify-between text-[9px] font-black"><span>Progress ${type==='hafalan'?(slot==='akanDatang'?'Yang Akan Datang':'Jangka Pendek'):'Muroja’ah'}</span><span class="${type==='hafalan'?'text-emerald-600':'text-sky-600'}">${pct}%</span></div><div class="mt-1.5 h-2 rounded-full bg-slate-200 overflow-hidden"><div class="h-full ${type==='hafalan'?'bg-emerald-500':'bg-sky-500'} rounded-full" style="width:${pct}%"></div></div><div class="mt-1.5 text-[9px] font-bold text-slate-500">${detail} · ${esc(t.juz?`Juz ${t.juz}`:'Juz -')} · ${esc(t.surat||'')}</div>${periode?`<div class="mt-1 text-[9px] font-bold text-slate-500">Periode: ${esc(periode)}</div>`:''}${status?`<div class="mt-1 text-[9px] font-black ${status==='Sedang Berjalan'?'text-emerald-600':status==='Belum Mulai'?'text-sky-600':status==='Selesai'?'text-emerald-700':status==='Terlewat'?'text-rose-600':'text-slate-500'}">Status: ${status}</div>`:''}<button type="button" onclick='window.deleteInputTarget(${JSON.stringify(type)},${JSON.stringify(name)},${JSON.stringify(slot)})' class="mt-1.5 text-[9px] font-black text-rose-600">Hapus target</button></div>`};
- const load=(type,name,slot='legacy')=>{const x=ids(type,name,slot),t=getTarget(name,type,slot)||{},j=document.getElementById(x.j),s=document.getElementById(x.s),a=document.getElementById(x.a),k=x.k?document.getElementById(x.k):null,mulai=document.getElementById(x.mulai),selesai=document.getElementById(x.selesai);if(j)j.value=t.juz||'';if(s)s.value=t.surat||'';if(a)a.value=(Number(t.ayat)>0?Number(t.ayat):'');if(k)k.value=(Number(t.kali)>0?Number(t.kali):'');if(mulai)mulai.value=t.mulai||'';if(selesai)selesai.value=t.selesai||'';limit(type,name,slot);render(type,name,slot)};
+ const render=(type,name,slot='legacy')=>{const x=ids(type,name,slot),b=document.getElementById(x.p);if(!b)return;const t=getTarget(name,type,slot);if(!t){b.innerHTML='<div class="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border text-[9px] font-bold text-slate-500">Belum ada target tersimpan.</div>';return}const q=calc(type,name,t),periode=t.mulai&&t.selesai?`${t.mulai} s.d. ${t.selesai}`:'',pct=Number.isFinite(q.pct)?q.pct:0,detail=`${q.ayatReal} / ${q.ayatTarget} ayat`,status=type==='hafalan'?targetStatus(t,q):'';b.innerHTML=`<div class="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border"><div class="flex justify-between text-[9px] font-black"><span>Progress ${type==='hafalan'?(slot==='akanDatang'?'Yang Akan Datang':'Jangka Pendek'):'Muroja’ah'}</span><span class="${type==='hafalan'?'text-emerald-600':'text-sky-600'}">${pct}%</span></div><div class="mt-1.5 h-2 rounded-full bg-slate-200 overflow-hidden"><div class="h-full ${type==='hafalan'?'bg-emerald-500':'bg-sky-500'} rounded-full" style="width:${pct}%"></div></div><div class="mt-1.5 text-[9px] font-bold text-slate-500">${detail} · ${esc(t.juz?`Juz ${t.juz}`:'Juz -')} · ${esc(t.surat||'')}</div>${periode?`<div class="mt-1 text-[9px] font-bold text-slate-500">Periode: ${esc(periode)}</div>`:''}${status?`<div class="mt-1 text-[9px] font-black ${status==='Sedang Berjalan'?'text-emerald-600':status==='Belum Mulai'?'text-sky-600':status==='Selesai'?'text-emerald-700':status==='Terlewat'?'text-rose-600':'text-slate-500'}">Status: ${status}</div>`:''}<button type="button" onclick='window.deleteInputTarget(${JSON.stringify(type)},${JSON.stringify(name)},${JSON.stringify(slot)})' class="mt-1.5 text-[9px] font-black text-rose-600">Hapus target</button></div>`};
+ const load=(type,name,slot='legacy')=>{const x=ids(type,name,slot),t=getTarget(name,type,slot)||{},j=document.getElementById(x.j),s=document.getElementById(x.s),a=document.getElementById(x.a),mulai=document.getElementById(x.mulai),selesai=document.getElementById(x.selesai);if(j)j.value=t.juz||'';if(s)s.value=t.surat||'';if(a)a.value=(Number(t.ayat)>0?Number(t.ayat):'');if(mulai)mulai.value=t.mulai||'';if(selesai)selesai.value=t.selesai||'';limit(type,name,slot);render(type,name,slot)};
  window.onInlineTargetSurahChange=(type,name,slot='legacy')=>limit(type,name,slot);
- window.saveInputTarget=(type,name,slot='legacy')=>{const x=ids(type,name,slot),j=String(document.getElementById(x.j)?.value||'').trim(),surat=String(document.getElementById(x.s)?.value||'').trim(),aEl=document.getElementById(x.a),ayat=Number(aEl?.value||0),kEl=x.k?document.getElementById(x.k):null,kali=Number(kEl?.value||0),mulai=String(document.getElementById(x.mulai)?.value||'').trim(),selesai=String(document.getElementById(x.selesai)?.value||'').trim(),q=(window.surahList||[]).find(z=>String(z.name)===surat);if(!q)return window.showToast?.('Pilih nama surat untuk target.','error');if(!Number.isInteger(ayat)||ayat<1||ayat>Number(q.ayat))return window.showToast?.(`Target ayat harus 1–${q.ayat} untuk ${q.name}.`,'error');if(type==='murojaah'&&(!Number.isInteger(kali)||kali<1))return window.showToast?.('Isi target setoran minimal 1.','error');if(!mulai||!selesai)return window.showToast?.('Isi tanggal mulai dan tanggal selesai.','error');if(selesai<mulai)return window.showToast?.('Tanggal selesai tidak boleh sebelum tanggal mulai.','error');const db=getDB();db[type]=db[type]||{};if(type==='hafalan'){const prev=db.hafalan?.[name]||{};const legacy=prev.ayat&&!prev.jangkaPendek&&!prev.akanDatang?prev:null;const short=prev.jangkaPendek||legacy||null,future=prev.akanDatang||null;const prevSlot=slot==='jangkaPendek'?short:future;const sameTarget=!!(prevSlot&&String(prevSlot.surat||'').trim()===surat&&String(prevSlot.juz||'').trim()===j&&String(prevSlot.mulai||'')===mulai&&String(prevSlot.selesai||'')===selesai);const createdAt=sameTarget?(prevSlot.createdAt||prevSlot.updatedAt||new Date().toISOString()):new Date().toISOString();const newTarget={juz:j,surat,ayat,kali:0,mulai,selesai,createdAt,updatedAt:new Date().toISOString()};const other=slot==='jangkaPendek'?future:short;if(other?.mulai&&other?.selesai){const a=dateKey(mulai),b=dateKey(selesai),oa=dateKey(other.mulai),ob=dateKey(other.selesai);if(a<=ob&&oa<=b)return window.showToast?.('Periode target tidak boleh tumpang tindih. Pisahkan Target Jangka Pendek dan Target Yang Akan Datang.','error');}db.hafalan[name]={jangkaPendek:slot==='jangkaPendek'?newTarget:short,akanDatang:slot==='akanDatang'?newTarget:future};}else{db[type][name]={juz:j,surat,ayat,kali:type==='murojaah'?kali:0,mulai,selesai,updatedAt:new Date().toISOString()};}putDB(db);load(type,name,slot);window.showToast?.(`Target ${type==='hafalan'?(slot==='akanDatang'?'Yang Akan Datang':'Jangka Pendek'):'Muroja’ah'} berhasil disimpan.`,'success')};
+ window.saveInputTarget=(type,name,slot='legacy')=>{const x=ids(type,name,slot),j=String(document.getElementById(x.j)?.value||'').trim(),surat=String(document.getElementById(x.s)?.value||'').trim(),aEl=document.getElementById(x.a),ayat=Number(aEl?.value||0),mulai=String(document.getElementById(x.mulai)?.value||'').trim(),selesai=String(document.getElementById(x.selesai)?.value||'').trim(),q=(window.surahList||[]).find(z=>String(z.name)===surat);if(!q)return window.showToast?.('Pilih nama surat untuk target.','error');if(!Number.isInteger(ayat)||ayat<1||ayat>Number(q.ayat))return window.showToast?.(`Target ayat harus 1–${q.ayat} untuk ${q.name}.`,'error');if(!mulai||!selesai)return window.showToast?.('Isi tanggal mulai dan tanggal selesai.','error');if(selesai<mulai)return window.showToast?.('Tanggal selesai tidak boleh sebelum tanggal mulai.','error');const db=getDB();db[type]=db[type]||{};if(type==='hafalan'){const prev=db.hafalan?.[name]||{};const legacy=prev.ayat&&!prev.jangkaPendek&&!prev.akanDatang?prev:null;const short=prev.jangkaPendek||legacy||null,future=prev.akanDatang||null;const prevSlot=slot==='jangkaPendek'?short:future;const sameTarget=!!(prevSlot&&String(prevSlot.surat||'').trim()===surat&&String(prevSlot.juz||'').trim()===j&&String(prevSlot.mulai||'')===mulai&&String(prevSlot.selesai||'')===selesai);const createdAt=sameTarget?(prevSlot.createdAt||prevSlot.updatedAt||new Date().toISOString()):new Date().toISOString();const newTarget={juz:j,surat,ayat,kali:0,mulai,selesai,createdAt,updatedAt:new Date().toISOString()};const other=slot==='jangkaPendek'?future:short;if(other?.mulai&&other?.selesai){const a=dateKey(mulai),b=dateKey(selesai),oa=dateKey(other.mulai),ob=dateKey(other.selesai);if(a<=ob&&oa<=b)return window.showToast?.('Periode target tidak boleh tumpang tindih. Pisahkan Target Jangka Pendek dan Target Yang Akan Datang.','error');}db.hafalan[name]={jangkaPendek:slot==='jangkaPendek'?newTarget:short,akanDatang:slot==='akanDatang'?newTarget:future};}else{db[type][name]={juz:j,surat,ayat,mulai,selesai,updatedAt:new Date().toISOString()};}putDB(db);load(type,name,slot);window.showToast?.(`Target ${type==='hafalan'?(slot==='akanDatang'?'Yang Akan Datang':'Jangka Pendek'):'Muroja’ah'} berhasil disimpan.`,'success')};
  window.deleteInputTarget=(type,name,slot='legacy')=>{const db=getDB();if(type==='hafalan'&&(slot==='jangkaPendek'||slot==='akanDatang')){if(db.hafalan?.[name])db.hafalan[name][slot]=null;}else if(db[type])delete db[type][name];putDB(db);load(type,name,slot);window.showToast?.('Target dihapus.','success')};
  const targetItemList=t=>Array.isArray(t?.items)&&t.items.length?t.items:(t&&String(t.surat||'').trim()&&Number(t.ayat)>0?[{surat:t.surat,ayat:Number(t.ayat),juz:t.juz||''}]:[]);
  const targetItemsLabel=t=>targetItemList(t).map(x=>`${x.surat||'-'} (${Number(x.ayat)||0} ayat)`).join(' · ');
  const targetItemsJuz=t=>[...new Set(targetItemList(t).map(x=>String(x.juz||'').trim()).filter(Boolean))].join(', ');
- window.getTargetReportText=(type,name)=>{const fmtPeriode=(mulai,selesai)=>{if(!mulai||!selesai)return '-';const d1=new Date(`${mulai}T00:00:00`),d2=new Date(`${selesai}T00:00:00`),hari=Math.max(0,Math.round((d2-d1)/86400000));const f=v=>{const d=new Date(`${v}T00:00:00`),m=['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];return `${d.getDate()} ${m[d.getMonth()]}`};return `${f(mulai)} s.d ${f(selesai)} ( ${hari} Hari )`};if(type==='hafalan'){const d=getDB().hafalan?.[name];if(!d)return '';const a=d.jangkaPendek||null,b=d.akanDatang||null;const f=(label,t)=>{if(!t)return '';const q=calc('hafalan',name,t),desc=targetItemsLabel(t),juz=targetItemsJuz(t);return [`• *${label}:* ${desc||'Belum ditentukan'}`,juz?`• *Juz:* ${juz}`:'',`• *Total Target Ayat:* ${q.ayatTarget}`,`• *Total Realisasi Ayat:* ${q.ayatReal}`,`• *Progress:* ${q.ayatPct}%`,`• *Periode:*  ${fmtPeriode(t.mulai,t.selesai)}`].filter(Boolean).join('\n')};return [f('Target Saat ini',a),f('Target Yang Akan Datang',b)].filter(Boolean).join('\n\n');}const t=getDB()[type]?.[name];if(!t)return '';const q=calc(type,name,t),desc=targetItemsLabel(t),juz=targetItemsJuz(t);return [`• *Target Saat ini:* ${desc||'Belum ditentukan'}`,juz?`• *Juz:* ${juz}`:'',`• *Total Target Ayat:* ${q.ayatTarget}`,`• *Total Realisasi Ayat:* ${q.ayatReal}`,`• *Progress:* ${q.pct}%`,q.setoranTarget?`• *Target Setoran:* ${q.setoranTarget}`:'',q.setoranReal?`• *Realisasi Setoran:* ${q.setoranReal}`:'',`• *Periode:*  ${fmtPeriode(t.mulai,t.selesai)}`].filter(Boolean).join('\n');};
+ window.getTargetReportText=(type,name)=>{const fmtPeriode=(mulai,selesai)=>{if(!mulai||!selesai)return '-';const d1=new Date(`${mulai}T00:00:00`),d2=new Date(`${selesai}T00:00:00`),hari=Math.max(0,Math.round((d2-d1)/86400000));const f=v=>{const d=new Date(`${v}T00:00:00`),m=['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];return `${d.getDate()} ${m[d.getMonth()]}`};return `${f(mulai)} s.d ${f(selesai)} ( ${hari} Hari )`};if(type==='hafalan'){const d=getDB().hafalan?.[name];if(!d)return '';const a=d.jangkaPendek||null,b=d.akanDatang||null;const f=(label,t)=>{if(!t)return '';const q=calc('hafalan',name,t),desc=targetItemsLabel(t),juz=targetItemsJuz(t);return [`• *${label}:* ${desc||'Belum ditentukan'}`,juz?`• *Juz:* ${juz}`:'',`• *Total Target Ayat:* ${q.ayatTarget}`,`• *Total Realisasi Ayat:* ${q.ayatReal}`,`• *Progress:* ${q.ayatPct}%`,`• *Periode:*  ${fmtPeriode(t.mulai,t.selesai)}`].filter(Boolean).join('\n')};return [f('Target Saat ini',a),f('Target Yang Akan Datang',b)].filter(Boolean).join('\n\n');}const t=getDB()[type]?.[name];if(!t)return '';const q=calc(type,name,t),desc=targetItemsLabel(t),juz=targetItemsJuz(t);return [`• *Target Saat ini:* ${desc||'Belum ditentukan'}`,juz?`• *Juz:* ${juz}`:'',`• *Total Target Ayat:* ${q.ayatTarget}`,`• *Total Realisasi Ayat:* ${q.ayatReal}`,`• *Progress:* ${q.pct}%`,`• *Periode:*  ${fmtPeriode(t.mulai,t.selesai)}`].filter(Boolean).join('\n');};
  window.getTargetReportBlock=name=>{
   const db=getDB();
   const fmtP=(mulai,selesai)=>{if(!mulai||!selesai)return '-';const d1=new Date(`${mulai}T00:00:00`),d2=new Date(`${selesai}T00:00:00`),hari=Math.max(0,Math.round((d2-d1)/86400000));const f=v=>{const d=new Date(`${v}T00:00:00`),m=['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];return `${d.getDate()} ${m[d.getMonth()]}`};return `${f(mulai)} s.d ${f(selesai)} ( ${hari} Hari )`};
