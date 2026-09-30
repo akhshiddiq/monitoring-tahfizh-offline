@@ -4046,8 +4046,18 @@
 
                 // Simpan master santri yang sedang aktif agar hasil impor dapat
                 // membawa kembali daftar santri yang dipakai saat ekspor.
-                if (Array.isArray(window.santriList)) {
-                    rows.push(['santriList', '__santriList', JSON.stringify(window.santriList)]);
+                // Pastikan Master Santri selalu ikut file, bahkan jika daftar
+                // pada window belum tersedia saat tombol Download ditekan.
+                let masterSantri = Array.isArray(window.santriList) ? window.santriList : null;
+                if (!masterSantri) {
+                    try {
+                        const rawMaster = localStorage.getItem('rq_santri_master');
+                        const parsedMaster = rawMaster ? JSON.parse(rawMaster) : null;
+                        if (Array.isArray(parsedMaster)) masterSantri = parsedMaster;
+                    } catch (_) {}
+                }
+                if (Array.isArray(masterSantri)) {
+                    rows.push(['santriList', '__santriList', JSON.stringify(masterSantri)]);
                 }
 
                 for (let i = 0; i < localStorage.length; i++) {
@@ -4265,8 +4275,12 @@
                     }
                 }
 
-                if (!formatOk || !version) throw new Error('CSV bukan file data offline RQ Al-Khansa.');
+                if (!formatOk || version !== '1') throw new Error('CSV bukan file data offline RQ Al-Khansa atau versinya tidak didukung.');
                 if (!Object.keys(imported).length && !Array.isArray(importedSantri)) throw new Error('CSV tidak berisi data aplikasi.');
+                if (Array.isArray(importedSantri)) {
+                    const invalidMaster = importedSantri.some(x => !x || typeof x !== 'object' || Array.isArray(x));
+                    if (invalidMaster) throw new Error('Data Master Santri dalam CSV tidak valid.');
+                }
 
                 const modeLabel = mode === 'merge' ? 'GABUNGKAN' : 'GANTI';
                 const jumlah = Object.keys(imported).length;
@@ -4374,6 +4388,9 @@
                     if (Array.isArray(importedSantri)) {
                         window.santriList = importedSantri;
                         localStorage.setItem('rq_santri_master', JSON.stringify(importedSantri));
+                    } else {
+                        window.santriList = [];
+                        localStorage.removeItem('rq_santri_master');
                     }
                 } else {
                     for (const [key, incomingValue] of Object.entries(imported)) {
@@ -8653,6 +8670,95 @@ html.dark #rqSafetyBackupBox #rqSafetyBackupLocation b{color:#ecfdf5 !important}
 </script>
 
 </body>
+
+<script>
+/* ============================================================
+   TARGET MINIMUM GUARD V7
+   Patch kecil: memastikan SEMUA jalur Save Target, termasuk
+   Hafalan Jangka Pendek, Hafalan Yang Akan Datang, dan Muroja'ah,
+   menolak target ayat yang lebih kecil dari ayat terakhir di kelas.
+   Nomor target tetap manual. Tidak mengubah mesin progress/history.
+   ============================================================ */
+(function(){
+  const norm=s=>String(s??'').trim().toLowerCase().replace(/[’‘`´]/g,"'").replace(/\s+/g,' ');
+  const findSurah=v=>(window.surahList||[]).find(x=>norm(x?.name)===norm(v))||null;
+  function sourceRows(type,name){
+    const out=[];
+    for(let slot=1;slot<=3;slot++){
+      let mode=window.itemSourceMode?.[`${name}_${type}_${slot}`]||'quran';
+      if(mode!=='quran') continue;
+      const item=String(document.getElementById(`${type}_surah_${slot}_${name}`)?.value||
+                         document.getElementById(`${type}_surah_search_${slot}_${name}`)?.value||'').trim();
+      const start=Number(document.getElementById(`${type}_start_${slot}_${name}`)?.value||0);
+      const endRaw=document.getElementById(`${type}_end_${slot}_${name}`)?.value;
+      const end=Number(endRaw||start||0);
+      const q=findSurah(item);
+      if(!q||!Number.isFinite(start)||start<1) continue;
+      out.push({surat:q.name,start,end:Math.max(start,Number.isFinite(end)&&end>=start?end:start)});
+    }
+    return out;
+  }
+  function maxBySurah(type,name){
+    const m=new Map();
+    for(const r of sourceRows(type,name)){
+      const k=norm(r.surat), old=m.get(k)||0;
+      m.set(k,Math.max(old,Number(r.end)||0));
+    }
+    return m;
+  }
+  function getTargetItems(name,slot){
+    const p=slot==='jangkaPendek'?'JangkaPendek':'AkanDatang',base=`inputTargetHafalan${p}`;
+    const items=[];
+    const s=document.getElementById(`${base}Surat_${name}`)?.value||'';
+    const a=Number(document.getElementById(`${base}Ayat_${name}`)?.value||0);
+    if(s&&a>0)items.push({surat:s,ayat:a});
+    const c=document.getElementById(`inputTargetHafalan${p}Multi_${name}`);
+    c?.querySelectorAll('.rq-target-multi-row').forEach(row=>{
+      const surat=row.querySelector('[data-rq-surah]')?.value||'';
+      const ayat=Number(row.querySelector('[data-rq-ayat]')?.value||0);
+      if(surat&&ayat>0)items.push({surat,ayat});
+    });
+    const seen=new Set();
+    return items.filter(x=>{const k=norm(x.surat);if(seen.has(k))return false;seen.add(k);return true;});
+  }
+  function guard(type,name,slot){
+    const sourceType=type==='hafalan'?'haf':'mur';
+    const bySurah=maxBySurah(sourceType,name);
+    if(!bySurah.size) return true;
+
+    if(type==='hafalan'){
+      const items=getTargetItems(name,slot);
+      if(!items.length) return true;
+      for(const item of items){
+        const min=bySurah.get(norm(item.surat));
+        if(!min) continue;
+        if(!Number.isInteger(Number(item.ayat)) || Number(item.ayat)<min){
+          window.showToast?.(`Target ${item.surat} tidak boleh di bawah ayat ${min} yang sudah diinput di kelas.`,'error');
+          return false;
+        }
+      }
+      return true;
+    }
+
+    const base='inputTargetMurojaah', surat=document.getElementById(`${base}Surat_${name}`)?.value||'', ayat=Number(document.getElementById(`${base}Ayat_${name}`)?.value||0);
+    if(!surat||!ayat) return true;
+    const min=bySurah.get(norm(surat));
+    if(min && (!Number.isInteger(ayat)||ayat<min)){
+      window.showToast?.(`Target ${surat} tidak boleh di bawah ayat ${min} yang sudah diinput di kelas.`,'error');
+      return false;
+    }
+    return true;
+  }
+  const previous=window.saveInputTarget;
+  if(typeof previous==='function'){
+    window.saveInputTarget=function(type,name,slot='legacy'){
+      if(!guard(type,name,slot)) return;
+      return previous.apply(this,arguments);
+    };
+  }
+})();
+</script>
+
 </html>\n<script id="rq-target-multi-surah-logic">
 (function(){
   const esc=v=>String(v??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');
