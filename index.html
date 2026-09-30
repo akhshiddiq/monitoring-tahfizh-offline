@@ -6394,6 +6394,71 @@
   .dark .rq-add-santri-card{ border-color:rgb(7 89 133); background:rgba(8,47,73,.28); }
 </style>
 
+
+<style id="rq-mobile-final-fix">
+@media (max-width:767px){
+  /* MOBILE ONLY: header selalu tersedia, termasuk menu Data/Export */
+  #appHeader.rq-final-mobile{
+    position:fixed!important;top:8px!important;right:8px!important;left:auto!important;
+    width:58px!important;height:58px!important;min-height:58px!important;
+    padding:0!important;margin:0!important;background:transparent!important;
+    border:0!important;box-shadow:none!important;z-index:99999!important;
+    overflow:visible!important;pointer-events:none!important;
+  }
+  #appHeader.rq-final-mobile > .max-w-7xl{width:100%!important;height:100%!important;padding:0!important;margin:0!important;display:block!important;overflow:visible!important}
+  #appHeader.rq-final-mobile .rq-final-launcher{
+    display:flex!important;position:fixed!important;top:8px!important;right:8px!important;
+    width:58px!important;height:58px!important;align-items:center!important;justify-content:center!important;
+    border:2px solid rgba(167,243,208,.55)!important;border-radius:17px!important;
+    background:#065f46!important;color:#fff!important;box-shadow:0 7px 24px rgba(0,0,0,.28)!important;
+    z-index:100000!important;pointer-events:auto!important;cursor:pointer!important;
+  }
+  #appHeader.rq-final-mobile .rq-final-launcher i{font-size:23px!important}
+  #appHeader.rq-final-mobile.rq-final-open{
+    width:calc(100vw - 16px)!important;height:auto!important;max-width:430px!important;
+    background:#065f46!important;border:1px solid rgba(167,243,208,.45)!important;
+    border-radius:19px!important;box-shadow:0 14px 38px rgba(0,0,0,.30)!important;
+    pointer-events:auto!important;overflow:hidden!important;
+  }
+  #appHeader.rq-final-mobile.rq-final-open .rq-final-launcher{display:none!important}
+  #appHeader.rq-final-mobile.rq-final-open > .max-w-7xl{height:auto!important;min-height:0!important;padding:12px!important;display:block!important}
+  #appHeader.rq-final-mobile.rq-final-open > .max-w-7xl > div:first-child{
+    display:flex!important;width:100%!important;min-height:64px!important;align-items:center!important;
+    justify-content:space-between!important;gap:8px!important;margin:0!important;
+  }
+  #appHeader.rq-final-mobile.rq-final-open #appLogo,
+  #appHeader.rq-final-mobile.rq-final-open #defaultLogoIcon{width:43px!important;height:43px!important}
+  #appHeader.rq-final-mobile.rq-final-open h1{font-size:18px!important;line-height:1.2!important;letter-spacing:-.02em!important;display:flex!important;align-items:center!important;gap:5px!important;flex-wrap:wrap!important}
+  #appHeader.rq-final-mobile.rq-final-open h1 span:first-child{font-size:18px!important}
+  #appHeader.rq-final-mobile.rq-final-open h1 span:nth-child(2){font-size:11px!important;padding:3px 6px!important}
+  #appHeader.rq-final-mobile.rq-final-open #storageInfoLabel{font-size:11px!important}
+  #appHeader.rq-final-mobile.rq-final-open #syncDotIndicator{width:9px!important;height:9px!important}
+  #appHeader.rq-final-mobile .rq-final-close{
+    display:flex!important;flex:0 0 auto!important;width:40px!important;height:40px!important;
+    align-items:center!important;justify-content:center!important;border:1px solid rgba(167,243,208,.4)!important;
+    border-radius:11px!important;background:rgba(255,255,255,.10)!important;color:#fff!important;
+    font-size:18px!important;cursor:pointer!important;
+  }
+  #appHeader.rq-final-mobile.rq-final-open > .max-w-7xl > div:nth-child(2){
+    display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;width:100%!important;
+    padding:9px 0 0!important;margin:0!important;gap:7px!important;overflow:visible!important;
+  }
+  #appHeader.rq-final-mobile.rq-final-open > .max-w-7xl > div:nth-child(2) > button{
+    width:100%!important;min-width:0!important;min-height:45px!important;height:auto!important;
+    padding:10px 7px!important;border-radius:12px!important;font-size:12px!important;line-height:1.2!important;
+    white-space:normal!important;text-align:center!important;display:flex!important;align-items:center!important;justify-content:center!important;
+  }
+  /* Search + hasil santri: HP saja */
+  #santriQuickSearch{min-height:66px!important;height:66px!important;padding:17px 50px 17px 47px!important;font-size:17px!important;line-height:1.4!important;border-radius:16px!important}
+  #santriKotakContainer{gap:9px!important;max-height:52vh!important;padding:3px!important}
+  #santriKotakContainer > button{min-height:70px!important;padding:12px 14px!important;border-width:2px!important;border-radius:15px!important;font-size:16px!important;line-height:1.3!important}
+  #santriKotakContainer > button > span:first-child{font-size:17px!important;line-height:1.35!important}
+  #santriKotakContainer > button > span:last-child{margin-top:5px!important;font-size:13px!important;line-height:1.2!important}
+  #santriKotakContainer > div{min-height:60px!important;padding:14px!important;font-size:15px!important}
+}
+@media (min-width:768px){#appHeader .rq-final-launcher,#appHeader .rq-final-close{display:none!important}}
+</style>
+
 </head>
 <body class="bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 min-h-full flex flex-col antialiased transition-colors duration-200">
     <div id="toastContainer" class="fixed top-4 right-4 z-[20000] space-y-2 w-[min(92vw,420px)] pointer-events-none"></div>
@@ -8355,6 +8420,54 @@ html.dark #rqSafetyBackupBox #rqSafetyBackupLocation b{color:#ecfdf5 !important}
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',initMobileHeaderPop); else initMobileHeaderPop();
 })();
 </script>
+
+<script id="rq-mobile-final-fix-js">
+(function(){
+  function setup(){
+    var h=document.getElementById('appHeader');
+    if(!h || h.dataset.rqFinalReady==='1') return;
+    h.dataset.rqFinalReady='1';
+    h.classList.add('rq-final-mobile');
+    var launcher=document.createElement('button');
+    launcher.type='button'; launcher.className='rq-final-launcher'; launcher.setAttribute('aria-label','Buka menu');
+    launcher.innerHTML='<i class="fa-solid fa-grip-vertical"></i>';
+    h.appendChild(launcher);
+    var row=h.querySelector('.max-w-7xl > div:first-child');
+    var close=document.createElement('button');
+    close.type='button'; close.className='rq-final-close'; close.setAttribute('aria-label','Tutup menu');
+    close.innerHTML='<i class="fa-solid fa-xmark"></i>';
+    if(row) row.appendChild(close);
+    function mobile(){return window.matchMedia('(max-width:767px)').matches}
+    function open(v){
+      if(!mobile()) return;
+      h.classList.toggle('rq-final-open',v);
+      launcher.setAttribute('aria-expanded',v?'true':'false');
+    }
+    launcher.addEventListener('click',function(e){e.preventDefault();e.stopPropagation();open(true)});
+    close.addEventListener('click',function(e){e.preventDefault();e.stopPropagation();open(false)});
+
+    // MOBILE ONLY: jika panel header sudah terbuka, ketuk 2x pada area header
+    // untuk kembali menjadi kotak kecil. Tidak mengganggu tombol/menu di dalamnya.
+    h.addEventListener('dblclick',function(e){
+      if(!mobile() || !h.classList.contains('rq-final-open')) return;
+      if(e.target.closest('button, a, input, select, textarea, label')) return;
+      e.preventDefault();
+      e.stopPropagation();
+      open(false);
+    });
+
+    document.addEventListener('click',function(e){
+      if(!mobile()||!h.classList.contains('rq-final-open')) return;
+      if(h.contains(e.target)) return;
+      open(false);
+    },true);
+    window.addEventListener('resize',function(){if(!mobile()) h.classList.remove('rq-final-open')});
+    if(!mobile()) h.classList.remove('rq-final-open');
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',setup); else setup();
+})();
+</script>
+
 </body>
 </html>\n<script id="rq-target-multi-surah-logic">
 (function(){
