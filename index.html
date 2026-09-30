@@ -178,6 +178,149 @@
 
         /* Dashboard Santri: tetap tersedia sebagai menu utama. */
         #btnTab-dashboard { display: inline-flex !important; visibility: visible !important; }
+
+
+        /* ============================================================
+           MOBILE UI ONLY — 2026-09-30
+           Tidak mengubah JavaScript, database, localStorage, atau fungsi.
+           Laptop/tablet >= 768px tidak disentuh oleh aturan ini.
+           ============================================================ */
+        @media (max-width: 767px) {
+            /* Header/branding besar di HP disembunyikan. */
+            #appHeader {
+                position: fixed !important;
+                top: 0 !important;
+                right: 0 !important;
+                width: 0 !important;
+                height: 0 !important;
+                min-height: 0 !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                background: transparent !important;
+                border: 0 !important;
+                box-shadow: none !important;
+                z-index: 9999 !important;
+                pointer-events: none !important;
+            }
+
+            #appHeader > .max-w-7xl {
+                width: 0 !important;
+                height: 0 !important;
+                min-height: 0 !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                display: block !important;
+            }
+
+            /* Bagian logo, nama aplikasi, status, dark-mode, dan Sync tidak tampil di HP. */
+            #appHeader > .max-w-7xl > div:first-child {
+                display: none !important;
+            }
+
+            /* Menu menjadi pop kecil sticky/fixed di pojok kanan atas. */
+            #appHeader > .max-w-7xl > div:nth-child(2) {
+                position: fixed !important;
+                top: 8px !important;
+                right: 8px !important;
+                width: auto !important;
+                max-width: min(76vw, 230px) !important;
+                min-width: 0 !important;
+                padding: 4px !important;
+                margin: 0 !important;
+                display: flex !important;
+                flex-wrap: nowrap !important;
+                align-items: center !important;
+                gap: 3px !important;
+                overflow-x: auto !important;
+                overflow-y: hidden !important;
+                background: rgba(6, 95, 70, .96) !important;
+                border: 1px solid rgba(167, 243, 208, .32) !important;
+                border-radius: 13px !important;
+                box-shadow: 0 5px 18px rgba(0,0,0,.20) !important;
+                -webkit-backdrop-filter: blur(8px);
+                backdrop-filter: blur(8px);
+                scrollbar-width: none !important;
+                pointer-events: auto !important;
+                z-index: 10000 !important;
+            }
+
+            #appHeader > .max-w-7xl > div:nth-child(2)::-webkit-scrollbar {
+                display: none !important;
+            }
+
+            /* Tombol menu kecil, tetap menggunakan onclick/ID existing. */
+            #appHeader > .max-w-7xl > div:nth-child(2) > button {
+                flex: 0 0 auto !important;
+                min-width: 0 !important;
+                min-height: 30px !important;
+                height: 30px !important;
+                padding: 5px 8px !important;
+                border-radius: 9px !important;
+                font-size: 9px !important;
+                line-height: 1 !important;
+                white-space: nowrap !important;
+                box-shadow: none !important;
+            }
+
+            /* Pencarian nama di HP dibuat lebih besar secara vertikal. */
+            #santriQuickSearch {
+                min-height: 60px !important;
+                height: 60px !important;
+                padding-top: 17px !important;
+                padding-bottom: 17px !important;
+                padding-left: 42px !important;
+                padding-right: 44px !important;
+                font-size: 15px !important;
+                line-height: 1.35 !important;
+                border-width: 2px !important;
+                border-radius: 14px !important;
+            }
+
+            #santriQuickSearch + #santriQuickSearchClear {
+                width: 34px !important;
+                height: 34px !important;
+                right: 10px !important;
+                border-radius: 10px !important;
+                font-size: 14px !important;
+            }
+
+            /* Hasil nama santri dibuat lebih besar dan lebih mudah disentuh. */
+            #santriKotakContainer {
+                gap: 7px !important;
+                max-height: 46vh !important;
+                padding: 3px !important;
+            }
+
+            #santriKotakContainer > button {
+                min-height: 58px !important;
+                padding: 10px 12px !important;
+                border-width: 2px !important;
+                border-radius: 13px !important;
+                font-size: 14px !important;
+                line-height: 1.25 !important;
+            }
+
+            #santriKotakContainer > button > span:first-child {
+                font-size: 14px !important;
+                line-height: 1.3 !important;
+            }
+
+            #santriKotakContainer > button > span:last-child {
+                margin-top: 4px !important;
+                font-size: 11px !important;
+                line-height: 1.2 !important;
+            }
+
+            #santriKotakContainer > div {
+                min-height: 52px !important;
+                display: flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                padding: 12px !important;
+                font-size: 13px !important;
+            }
+        }
+
 </style>
     <script>
         window.santriList = [
