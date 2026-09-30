@@ -7924,49 +7924,52 @@ html.dark #rqSafetyBackupBox #rqSafetyBackupLocation b{color:#ecfdf5 !important}
     if(String(t.surat||'').trim()&&Number(t.ayat)>0)return [{surat:t.surat,ayat:Number(t.ayat),juz:t.juz||''}];
     return [];
   };
+  // Normalisasi nama surat khusus untuk target. Nilai dropdown dapat berupa
+  // '78. An-Naba' (40 Ayat)' sedangkan target menyimpan 'An-Naba''. Keduanya
+  // harus dianggap surat yang sama. Jangan mengubah nilai yang tersimpan.
+  const normTargetSurah=v=>String(v??'').trim().toLowerCase()
+    .normalize('NFKC')
+    .replace(/[‘’‚‛′`´]/g,"'")
+    .replace(/[‐‑‒–—]/g,'-').replace(/^[0-9]+\.\s*/,'')
+    .replace(/\s*\(\s*[0-9]+\s*ayat\s*\)$/i,'')
+    .replace(/\s+/g,' ');
+  const targetSurahMatch=(a,b)=>{
+    const x=normTargetSurah(a), y=normTargetSurah(b);
+    if(!x||!y)return false;
+    return x===y || x.includes(y) || y.includes(x);
+  };
   const liveMurojaahRow=(name,t)=>{
-    // Live Laporan membaca FORM MUROJA'AH yang sedang aktif.
-    // Sumber utama memakai extractSlotsStructured(), sama seperti proses Simpan.
+    // Live Laporan dan kartu Progress membaca FORM MUROJA'AH aktif secara langsung.
+    // Ini sengaja tidak bergantung pada proses Simpan History.
     if(typeof document==='undefined'||!t||!dateKey(t.mulai)||!dateKey(t.selesai))return null;
     const tanggal=String(document.getElementById(`tgl_${name}`)?.value||'').trim()||dateKey(new Date());
     const d=dateKey(tanggal),a=dateKey(t.mulai),b=dateKey(t.selesai);
     if(!d||d<a||d>b)return null;
 
-    let sourceSlots=[];
-    try{
-      if(typeof window.extractSlotsStructured==='function'){
-        sourceSlots=window.extractSlotsStructured('mur',name)||[];
-      }
-    }catch(_){sourceSlots=[];}
-
-    // Fallback hanya jika fungsi sumber belum tersedia saat kalkulasi pertama.
-    if(!Array.isArray(sourceSlots)||!sourceSlots.length){
-      sourceSlots=[];
-      for(let slot=1;slot<=3;slot++){
-        const mode=window.itemSourceMode?.[`${name}_mur_${slot}`]||'quran';
-        const item=mode==='iqro'
-          ? String(document.getElementById(`mur_iqro_${slot}_${name}`)?.value||'').trim()
-          : String(document.getElementById(`mur_surah_${slot}_${name}`)?.value||'').trim();
-        const start=String(document.getElementById(`mur_start_${slot}_${name}`)?.value||'').trim();
-        const end=String(document.getElementById(`mur_end_${slot}_${name}`)?.value||'').trim();
-        sourceSlots.push({item,start,end,mode});
-      }
+    const sourceSlots=[];
+    for(let slot=1;slot<=3;slot++){
+      let mode=window.itemSourceMode?.[`${name}_mur_${slot}`]||'quran';
+      if(mode!=='iqro')mode='quran';
+      const item=mode==='iqro'
+        ? String(document.getElementById(`mur_iqro_${slot}_${name}`)?.value||'').trim()
+        : String(document.getElementById(`mur_surah_${slot}_${name}`)?.value||'').trim();
+      const start=String(document.getElementById(`mur_start_${slot}_${name}`)?.value||'').trim();
+      const end=String(document.getElementById(`mur_end_${slot}_${name}`)?.value||'').trim();
+      if(item&&item!=='-'&&start&&start!=='-')sourceSlots.push({item,start,end,mode});
     }
-
-    const slots=sourceSlots
-      .map(x=>({
-        item:String(x?.item||'').trim(),
-        start:String(x?.start||'').trim(),
-        end:String(x?.end||'').trim(),
-        mode:String(x?.mode||'quran').trim()||'quran'
-      }))
-      .filter(x=>x.item&&x.item!=='-'&&x.start&&x.start!=='-');
-
-    if(!slots.length)return null;
+    try{
+      const extracted=window.extractSlotsStructured?.('mur',name)||[];
+      extracted.forEach(x=>{
+        const item=String(x?.item||'').trim(),start=String(x?.start||'').trim(),end=String(x?.end||'').trim();
+        if(item&&item!=='-'&&start&&start!=='-' && !sourceSlots.some(y=>String(y.item)===item&&String(y.start)===start&&String(y.end)===end))
+          sourceSlots.push({item,start,end,mode:String(x?.mode||'quran')});
+      });
+    }catch(_){}
+    if(!sourceSlots.length)return null;
     return {
       name,tanggal,rawTime:Date.now(),
-      detail:slots.map(x=>`${x.item} ${x.start}${x.end&&x.end!==x.start?`-${x.end}`:''}`).join(', '),
-      slots
+      detail:sourceSlots.map(x=>`${x.item} ${x.start}${x.end&&x.end!==x.start?`-${x.end}`:''}`).join(', '),
+      slots:sourceSlots
     };
   };
   const calc=(type,name,t)=>{
@@ -7980,15 +7983,15 @@ html.dark #rqSafetyBackupBox #rqSafetyBackupLocation b{color:#ecfdf5 !important}
     let totalTarget=0,totalReal=0,lastAyat=0;
     for(const item of items){
       const target=Math.max(0,Number(item.ayat)||0); totalTarget+=target;
-      const set=new Set(), targetSurat=norm(item.surat);
+      const set=new Set(), targetSurat=normTargetSurah(item.surat);
       for(const row of rows){
         const ss=slots(row);
         if(ss.length){
           for(const sl of ss){
-            const itemName=norm(sl?.item);
-            if(itemName===targetSurat||itemName.includes(targetSurat)||targetSurat.includes(itemName)) addRange(set,Number(sl.start),Number(sl.end));
+            const itemName=normTargetSurah(sl?.item);
+            if(targetSurahMatch(itemName,targetSurat)) addRange(set,Number(sl.start),Number(sl.end));
           }
-        }else if(norm(row?.detail).includes(targetSurat)){ fallbackNumbers(row).forEach(n=>set.add(n)); }
+        }else if(normTargetSurah(row?.detail).includes(targetSurat)){ fallbackNumbers(row).forEach(n=>set.add(n)); }
       }
       // Target ayat berarti target berurutan mulai dari ayat 1.
       // Ayat yang lompat tidak dihitung melewati ayat yang masih kosong.
@@ -8001,7 +8004,7 @@ html.dark #rqSafetyBackupBox #rqSafetyBackupLocation b{color:#ecfdf5 !important}
       itemProgress.push({surat:item.surat,ayatTarget:target,ayatReal:real,pct,lastAyat:last,juz:item.juz||''});
       for(const row of rows){
         const ss=slots(row);
-        const hit=ss.length?ss.some(sl=>{const n=norm(sl?.item);return n===targetSurat||n.includes(targetSurat)||targetSurat.includes(n)}):norm(row?.detail).includes(targetSurat);
+        const hit=ss.length?ss.some(sl=>{const n=normTargetSurah(sl?.item);return targetSurahMatch(n,targetSurat)}):norm(row?.detail).includes(targetSurat);
         if(hit)contributing.add(row);
       }
     }
@@ -8034,8 +8037,11 @@ html.dark #rqSafetyBackupBox #rqSafetyBackupLocation b{color:#ecfdf5 !important}
   const schedule=()=>{
     clearTimeout(timer);
     timer=setTimeout(()=>{
-      try{ if(typeof window.generateWaReport==='function') window.generateWaReport(); }catch(_){}
-    },60);
+      try{
+        if(typeof window.generateWaReport==='function') window.generateWaReport();
+        if(typeof window.refreshInlineTargets==='function') window.refreshInlineTargets();
+      }catch(_){}
+    },80);
   };
   const isMurojaahField=id=>/^(mur_(?:surah|iqro|start|end)_\d+_|tgl_)/.test(id);
   document.addEventListener('input',e=>{
@@ -8209,8 +8215,8 @@ html.dark #rqSafetyBackupBox #rqSafetyBackupLocation b{color:#ecfdf5 !important}
  const render=(type,name,slot='legacy')=>{const x=ids(type,name,slot),b=document.getElementById(x.p);if(!b)return;const t=getTarget(name,type,slot);if(!t){b.innerHTML='<div class="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border text-[9px] font-bold text-slate-500">Belum ada target tersimpan.</div>';return}const q=calc(type,name,t),periode=t.mulai&&t.selesai?`${t.mulai} s.d. ${t.selesai}`:'',pct=Number.isFinite(q.pct)?q.pct:0,detail=`${q.ayatReal} / ${q.ayatTarget} ayat`,status=type==='hafalan'?targetStatus(t,q):'';b.innerHTML=`<div class="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border"><div class="flex justify-between text-[9px] font-black"><span>Progress ${type==='hafalan'?(slot==='akanDatang'?'Yang Akan Datang':'Jangka Pendek'):'Muroja’ah'}</span><span class="${type==='hafalan'?'text-emerald-600':'text-sky-600'}">${pct}%</span></div><div class="mt-1.5 h-2 rounded-full bg-slate-200 overflow-hidden"><div class="h-full ${type==='hafalan'?'bg-emerald-500':'bg-sky-500'} rounded-full" style="width:${pct}%"></div></div><div class="mt-1.5 text-[9px] font-bold text-slate-500">${detail} · ${esc(t.juz?`Juz ${t.juz}`:'Juz -')} · ${esc(t.surat||'')}</div>${periode?`<div class="mt-1 text-[9px] font-bold text-slate-500">Periode: ${esc(periode)}</div>`:''}${status?`<div class="mt-1 text-[9px] font-black ${status==='Sedang Berjalan'?'text-emerald-600':status==='Belum Mulai'?'text-sky-600':status==='Selesai'?'text-emerald-700':status==='Terlewat'?'text-rose-600':'text-slate-500'}">Status: ${status}</div>`:''}<button type="button" onclick='window.deleteInputTarget(${JSON.stringify(type)},${JSON.stringify(name)},${JSON.stringify(slot)})' class="mt-1.5 text-[9px] font-black text-rose-600">Hapus target</button></div>`};
  const load=(type,name,slot='legacy')=>{const x=ids(type,name,slot),t=getTarget(name,type,slot)||{},j=document.getElementById(x.j),s=document.getElementById(x.s),a=document.getElementById(x.a),mulai=document.getElementById(x.mulai),selesai=document.getElementById(x.selesai);if(j)j.value=t.juz||'';if(s)s.value=t.surat||'';if(a)a.value=(Number(t.ayat)>0?Number(t.ayat):'');if(mulai)mulai.value=t.mulai||'';if(selesai)selesai.value=t.selesai||'';limit(type,name,slot);render(type,name,slot)};
  window.onInlineTargetSurahChange=(type,name,slot='legacy')=>limit(type,name,slot);
- window.saveInputTarget=(type,name,slot='legacy')=>{const x=ids(type,name,slot),j=String(document.getElementById(x.j)?.value||'').trim(),surat=String(document.getElementById(x.s)?.value||'').trim(),aEl=document.getElementById(x.a),ayat=Number(aEl?.value||0),mulai=String(document.getElementById(x.mulai)?.value||'').trim(),selesai=String(document.getElementById(x.selesai)?.value||'').trim(),q=(window.surahList||[]).find(z=>String(z.name)===surat);if(!q)return window.showToast?.('Pilih nama surat untuk target.','error');if(!Number.isInteger(ayat)||ayat<1||ayat>Number(q.ayat))return window.showToast?.(`Target ayat harus 1–${q.ayat} untuk ${q.name}.`,'error');if(!mulai||!selesai)return window.showToast?.('Isi tanggal mulai dan tanggal selesai.','error');if(selesai<mulai)return window.showToast?.('Tanggal selesai tidak boleh sebelum tanggal mulai.','error');const db=getDB();db[type]=db[type]||{};if(type==='hafalan'){const prev=db.hafalan?.[name]||{};const legacy=prev.ayat&&!prev.jangkaPendek&&!prev.akanDatang?prev:null;const short=prev.jangkaPendek||legacy||null,future=prev.akanDatang||null;const prevSlot=slot==='jangkaPendek'?short:future;const sameTarget=!!(prevSlot&&String(prevSlot.surat||'').trim()===surat&&String(prevSlot.juz||'').trim()===j&&String(prevSlot.mulai||'')===mulai&&String(prevSlot.selesai||'')===selesai);const createdAt=sameTarget?(prevSlot.createdAt||prevSlot.updatedAt||new Date().toISOString()):new Date().toISOString();const newTarget={juz:j,surat,ayat,kali:0,mulai,selesai,createdAt,updatedAt:new Date().toISOString()};const other=slot==='jangkaPendek'?future:short;if(other?.mulai&&other?.selesai){const a=dateKey(mulai),b=dateKey(selesai),oa=dateKey(other.mulai),ob=dateKey(other.selesai);if(a<=ob&&oa<=b)return window.showToast?.('Periode target tidak boleh tumpang tindih. Pisahkan Target Jangka Pendek dan Target Yang Akan Datang.','error');}db.hafalan[name]={jangkaPendek:slot==='jangkaPendek'?newTarget:short,akanDatang:slot==='akanDatang'?newTarget:future};}else{db[type][name]={juz:j,surat,ayat,mulai,selesai,updatedAt:new Date().toISOString()};}putDB(db);load(type,name,slot);window.showToast?.(`Target ${type==='hafalan'?(slot==='akanDatang'?'Yang Akan Datang':'Jangka Pendek'):'Muroja’ah'} berhasil disimpan.`,'success')};
- window.deleteInputTarget=(type,name,slot='legacy')=>{const db=getDB();if(type==='hafalan'&&(slot==='jangkaPendek'||slot==='akanDatang')){if(db.hafalan?.[name])db.hafalan[name][slot]=null;}else if(db[type])delete db[type][name];putDB(db);load(type,name,slot);window.showToast?.('Target dihapus.','success')};
+ window.saveInputTarget=(type,name,slot='legacy')=>{const x=ids(type,name,slot),j=String(document.getElementById(x.j)?.value||'').trim(),surat=String(document.getElementById(x.s)?.value||'').trim(),aEl=document.getElementById(x.a),ayat=Number(aEl?.value||0),mulai=String(document.getElementById(x.mulai)?.value||'').trim(),selesai=String(document.getElementById(x.selesai)?.value||'').trim(),q=(window.surahList||[]).find(z=>String(z.name)===surat);if(!q)return window.showToast?.('Pilih nama surat untuk target.','error');if(!Number.isInteger(ayat)||ayat<1||ayat>Number(q.ayat))return window.showToast?.(`Target ayat harus 1–${q.ayat} untuk ${q.name}.`,'error');if(!mulai||!selesai)return window.showToast?.('Isi tanggal mulai dan tanggal selesai.','error');if(selesai<mulai)return window.showToast?.('Tanggal selesai tidak boleh sebelum tanggal mulai.','error');const db=getDB();db[type]=db[type]||{};if(type==='hafalan'){const prev=db.hafalan?.[name]||{};const legacy=prev.ayat&&!prev.jangkaPendek&&!prev.akanDatang?prev:null;const short=prev.jangkaPendek||legacy||null,future=prev.akanDatang||null;const prevSlot=slot==='jangkaPendek'?short:future;const sameTarget=!!(prevSlot&&String(prevSlot.surat||'').trim()===surat&&String(prevSlot.juz||'').trim()===j&&String(prevSlot.mulai||'')===mulai&&String(prevSlot.selesai||'')===selesai);const createdAt=sameTarget?(prevSlot.createdAt||prevSlot.updatedAt||new Date().toISOString()):new Date().toISOString();const newTarget={juz:j,surat,ayat,kali:0,mulai,selesai,createdAt,updatedAt:new Date().toISOString()};const other=slot==='jangkaPendek'?future:short;if(other?.mulai&&other?.selesai){const a=dateKey(mulai),b=dateKey(selesai),oa=dateKey(other.mulai),ob=dateKey(other.selesai);if(a<=ob&&oa<=b)return window.showToast?.('Periode target tidak boleh tumpang tindih. Pisahkan Target Jangka Pendek dan Target Yang Akan Datang.','error');}db.hafalan[name]={jangkaPendek:slot==='jangkaPendek'?newTarget:short,akanDatang:slot==='akanDatang'?newTarget:future};}else{db[type][name]={juz:j,surat,ayat,mulai,selesai,updatedAt:new Date().toISOString()};}putDB(db);load(type,name,slot);window.showToast?.(`Target ${type==='hafalan'?(slot==='akanDatang'?'Yang Akan Datang':'Jangka Pendek'):'Muroja’ah'} berhasil disimpan.`,'success');setTimeout(()=>{try{window.generateWaReport?.();window.refreshInlineTargets?.();}catch(_){ }},30)};
+ window.deleteInputTarget=(type,name,slot='legacy')=>{const db=getDB();if(type==='hafalan'&&(slot==='jangkaPendek'||slot==='akanDatang')){if(db.hafalan?.[name])db.hafalan[name][slot]=null;}else if(db[type])delete db[type][name];putDB(db);load(type,name,slot);window.showToast?.('Target dihapus.','success');setTimeout(()=>{try{window.generateWaReport?.();window.refreshInlineTargets?.();}catch(_){ }},30)};
  const targetItemList=t=>Array.isArray(t?.items)&&t.items.length?t.items:(t&&String(t.surat||'').trim()&&Number(t.ayat)>0?[{surat:t.surat,ayat:Number(t.ayat),juz:t.juz||''}]:[]);
  const targetItemsLabel=t=>targetItemList(t).map(x=>`${x.surat||'-'} (${Number(x.ayat)||0} ayat)`).join(' · ');
  const targetItemsJuz=t=>[...new Set(targetItemList(t).map(x=>String(x.juz||'').trim()).filter(Boolean))].join(', ');
