@@ -181,143 +181,235 @@
 
 
         /* ============================================================
-           MOBILE UI ONLY — 2026-09-30
-           Tidak mengubah JavaScript, database, localStorage, atau fungsi.
-           Laptop/tablet >= 768px tidak disentuh oleh aturan ini.
+           MOBILE UI ONLY — 2026-09-30 / v2
+           HP SAJA. Desktop >=768px tidak disentuh.
+           Header HP = tombol pop kecil, bisa diperbesar saat ditekan.
            ============================================================ */
         @media (max-width: 767px) {
-            /* Header/branding besar di HP disembunyikan. */
+            /* Header tetap hidup di HP agar tidak hilang saat menu Data/Export dibuka. */
             #appHeader {
                 position: fixed !important;
-                top: 0 !important;
-                right: 0 !important;
-                width: 0 !important;
-                height: 0 !important;
-                min-height: 0 !important;
+                top: 8px !important;
+                right: 8px !important;
+                left: auto !important;
+                width: 54px !important;
+                height: 54px !important;
+                min-height: 54px !important;
                 padding: 0 !important;
                 margin: 0 !important;
                 background: transparent !important;
                 border: 0 !important;
                 box-shadow: none !important;
-                z-index: 9999 !important;
+                z-index: 20000 !important;
                 pointer-events: none !important;
+                overflow: visible !important;
             }
 
             #appHeader > .max-w-7xl {
-                width: 0 !important;
-                height: 0 !important;
+                width: 100% !important;
+                height: 100% !important;
                 min-height: 0 !important;
                 padding: 0 !important;
                 margin: 0 !important;
                 display: block !important;
+                overflow: visible !important;
             }
 
-            /* Bagian logo, nama aplikasi, status, dark-mode, dan Sync tidak tampil di HP. */
-            #appHeader > .max-w-7xl > div:first-child {
-                display: none !important;
-            }
-
-            /* Menu menjadi pop kecil sticky/fixed di pojok kanan atas. */
-            #appHeader > .max-w-7xl > div:nth-child(2) {
+            /* Tombol launcher dibuat oleh JS. */
+            #rqMobileHeaderLauncher {
                 position: fixed !important;
                 top: 8px !important;
                 right: 8px !important;
-                width: auto !important;
-                max-width: min(76vw, 230px) !important;
-                min-width: 0 !important;
-                padding: 4px !important;
-                margin: 0 !important;
+                width: 54px !important;
+                height: 54px !important;
+                border: 1px solid rgba(167,243,208,.45) !important;
+                border-radius: 16px !important;
+                background: rgba(6,95,70,.97) !important;
+                color: #fff !important;
+                box-shadow: 0 6px 22px rgba(0,0,0,.22) !important;
                 display: flex !important;
-                flex-wrap: nowrap !important;
                 align-items: center !important;
-                gap: 3px !important;
-                overflow-x: auto !important;
-                overflow-y: hidden !important;
-                background: rgba(6, 95, 70, .96) !important;
-                border: 1px solid rgba(167, 243, 208, .32) !important;
-                border-radius: 13px !important;
-                box-shadow: 0 5px 18px rgba(0,0,0,.20) !important;
-                -webkit-backdrop-filter: blur(8px);
-                backdrop-filter: blur(8px);
-                scrollbar-width: none !important;
+                justify-content: center !important;
                 pointer-events: auto !important;
-                z-index: 10000 !important;
+                z-index: 20002 !important;
+                font-size: 22px !important;
+                -webkit-backdrop-filter: blur(10px);
+                backdrop-filter: blur(10px);
+                transition: transform .18s ease, opacity .18s ease;
+            }
+            #rqMobileHeaderLauncher:active { transform: scale(.94); }
+            #rqMobileHeaderLauncher .rq-launcher-icon {
+                line-height: 1;
+                display: grid;
+                grid-template-columns: repeat(2, 7px);
+                gap: 5px;
+            }
+            #rqMobileHeaderLauncher .rq-launcher-icon i {
+                display: block;
+                width: 7px;
+                height: 7px;
+                border: 2px solid currentColor;
+                border-radius: 2px;
             }
 
-            #appHeader > .max-w-7xl > div:nth-child(2)::-webkit-scrollbar {
+            /* Saat tertutup: seluruh isi header disembunyikan, launcher tetap terlihat. */
+            #appHeader.rq-mobile-collapsed > .max-w-7xl > div:first-child,
+            #appHeader.rq-mobile-collapsed > .max-w-7xl > div:nth-child(2) {
                 display: none !important;
             }
 
-            /* Tombol menu kecil, tetap menggunakan onclick/ID existing. */
-            #appHeader > .max-w-7xl > div:nth-child(2) > button {
-                flex: 0 0 auto !important;
-                min-width: 0 !important;
-                min-height: 30px !important;
-                height: 30px !important;
-                padding: 5px 8px !important;
-                border-radius: 9px !important;
-                font-size: 9px !important;
-                line-height: 1 !important;
-                white-space: nowrap !important;
+            /* Saat dibuka: panel header membesar dan menampilkan identitas + menu. */
+            #appHeader.rq-mobile-expanded {
+                top: 8px !important;
+                right: 8px !important;
+                width: calc(100vw - 16px) !important;
+                max-width: 430px !important;
+                height: auto !important;
+                min-height: 0 !important;
+                background: linear-gradient(145deg, rgba(6,95,70,.99), rgba(4,78,57,.99)) !important;
+                border: 1px solid rgba(167,243,208,.35) !important;
+                border-radius: 18px !important;
+                box-shadow: 0 12px 34px rgba(0,0,0,.28) !important;
+                pointer-events: auto !important;
+                overflow: hidden !important;
+                -webkit-backdrop-filter: blur(12px);
+                backdrop-filter: blur(12px);
+            }
+
+            #appHeader.rq-mobile-expanded > .max-w-7xl {
+                width: 100% !important;
+                height: auto !important;
+                padding: 12px !important;
+                display: block !important;
+            }
+
+            #appHeader.rq-mobile-expanded > .max-w-7xl > div:first-child {
+                display: flex !important;
+                width: 100% !important;
+                min-height: 62px !important;
+                align-items: center !important;
+                justify-content: space-between !important;
+                gap: 10px !important;
+                margin: 0 !important;
+            }
+
+            #appHeader.rq-mobile-expanded > .max-w-7xl > div:first-child > div:first-child {
+                gap: 10px !important;
+            }
+            #appHeader.rq-mobile-expanded #appLogo,
+            #appHeader.rq-mobile-expanded #defaultLogoIcon {
+                width: 42px !important;
+                height: 42px !important;
+            }
+            #appHeader.rq-mobile-expanded h1 {
+                font-size: 17px !important;
+                line-height: 1.15 !important;
+                letter-spacing: -.02em !important;
+            }
+            #appHeader.rq-mobile-expanded h1 span:first-child {
+                font-size: 17px !important;
+            }
+            #appHeader.rq-mobile-expanded h1 span:nth-child(2) {
+                font-size: 11px !important;
+                padding: 3px 6px !important;
+            }
+            #appHeader.rq-mobile-expanded #storageInfoLabel {
+                font-size: 11px !important;
+            }
+            #appHeader.rq-mobile-expanded #syncDotIndicator {
+                width: 9px !important;
+                height: 9px !important;
+            }
+
+            /* Tombol dark/sync dirapikan dan dibesarkan. */
+            #appHeader.rq-mobile-expanded > .max-w-7xl > div:first-child > div:nth-child(2) {
+                gap: 5px !important;
+            }
+            #appHeader.rq-mobile-expanded > .max-w-7xl > div:first-child button {
+                min-width: 38px !important;
+                min-height: 38px !important;
+                padding: 8px !important;
+                border-radius: 11px !important;
+                font-size: 11px !important;
+            }
+
+            /* Menu utama: bukan lagi bar tipis, tetapi pop menu yang rapi. */
+            #appHeader.rq-mobile-expanded > .max-w-7xl > div:nth-child(2) {
+                display: grid !important;
+                grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+                width: 100% !important;
+                max-width: none !important;
+                padding: 8px 0 0 !important;
+                margin: 0 !important;
+                gap: 6px !important;
+                overflow: visible !important;
+                background: transparent !important;
+                border: 0 !important;
                 box-shadow: none !important;
             }
-
-            /* Pencarian nama di HP dibuat lebih besar secara vertikal. */
-            #santriQuickSearch {
-                min-height: 60px !important;
-                height: 60px !important;
-                padding-top: 17px !important;
-                padding-bottom: 17px !important;
-                padding-left: 42px !important;
-                padding-right: 44px !important;
-                font-size: 15px !important;
-                line-height: 1.35 !important;
-                border-width: 2px !important;
-                border-radius: 14px !important;
+            #appHeader.rq-mobile-expanded > .max-w-7xl > div:nth-child(2) > button {
+                width: 100% !important;
+                min-width: 0 !important;
+                min-height: 42px !important;
+                height: auto !important;
+                padding: 9px 8px !important;
+                border-radius: 11px !important;
+                font-size: 11px !important;
+                line-height: 1.15 !important;
+                white-space: normal !important;
+                box-shadow: none !important;
+                text-align: center !important;
+            }
+            #appHeader.rq-mobile-expanded > .max-w-7xl > div:nth-child(2) > button#btnTab-setoran {
+                font-size: 12px !important;
             }
 
+            /* Search: khusus HP, lebih tinggi dan nyaman disentuh. */
+            #santriQuickSearch {
+                min-height: 64px !important;
+                height: 64px !important;
+                padding-top: 18px !important;
+                padding-bottom: 18px !important;
+                padding-left: 46px !important;
+                padding-right: 48px !important;
+                font-size: 16px !important;
+                line-height: 1.4 !important;
+                border-width: 2px !important;
+                border-radius: 15px !important;
+            }
             #santriQuickSearch + #santriQuickSearchClear {
-                width: 34px !important;
-                height: 34px !important;
+                width: 36px !important;
+                height: 36px !important;
                 right: 10px !important;
                 border-radius: 10px !important;
                 font-size: 14px !important;
             }
-
-            /* Hasil nama santri dibuat lebih besar dan lebih mudah disentuh. */
             #santriKotakContainer {
-                gap: 7px !important;
-                max-height: 46vh !important;
+                gap: 8px !important;
+                max-height: 50vh !important;
                 padding: 3px !important;
             }
-
             #santriKotakContainer > button {
-                min-height: 58px !important;
-                padding: 10px 12px !important;
+                min-height: 64px !important;
+                padding: 11px 13px !important;
                 border-width: 2px !important;
-                border-radius: 13px !important;
-                font-size: 14px !important;
-                line-height: 1.25 !important;
-            }
-
-            #santriKotakContainer > button > span:first-child {
-                font-size: 14px !important;
+                border-radius: 14px !important;
+                font-size: 15px !important;
                 line-height: 1.3 !important;
             }
-
+            #santriKotakContainer > button > span:first-child {
+                font-size: 15px !important;
+                line-height: 1.35 !important;
+            }
             #santriKotakContainer > button > span:last-child {
-                margin-top: 4px !important;
-                font-size: 11px !important;
+                margin-top: 5px !important;
+                font-size: 12px !important;
                 line-height: 1.2 !important;
             }
-
             #santriKotakContainer > div {
-                min-height: 52px !important;
-                display: flex !important;
-                align-items: center !important;
-                justify-content: center !important;
-                padding: 12px !important;
-                font-size: 13px !important;
+                min-height: 56px !important;
+                padding: 13px !important;
+                font-size: 14px !important;
             }
         }
 
@@ -8182,6 +8274,86 @@ html.dark #rqSafetyBackupBox #rqSafetyBackupLocation b{color:#ecfdf5 !important}
         const d=document.getElementById('rqImportOperatorDevice'); if(d) d.value=savedDevice;
         window.renderImportHistory?.();
     } catch (_) {}
+</script>
+
+<script id="rq-mobile-header-pop-v2">
+(function(){
+  function initMobileHeaderPop(){
+    var header=document.getElementById('appHeader');
+    if(!header || !header.querySelector('.max-w-7xl')) return;
+    if(document.getElementById('rqMobileHeaderLauncher')) return;
+
+    header.classList.add('rq-mobile-collapsed');
+
+    var launcher=document.createElement('button');
+    launcher.id='rqMobileHeaderLauncher';
+    launcher.type='button';
+    launcher.setAttribute('aria-label','Buka menu Monitoring Tahfizh');
+    launcher.setAttribute('title','Buka menu');
+    launcher.innerHTML='<span class="rq-launcher-icon"><i></i><i></i><i></i><i></i></span>';
+    document.body.appendChild(launcher);
+
+    function isMobile(){ return window.matchMedia('(max-width: 767px)').matches; }
+    function setExpanded(open){
+      if(!isMobile()) return;
+      header.classList.toggle('rq-mobile-expanded', !!open);
+      header.classList.toggle('rq-mobile-collapsed', !open);
+      launcher.style.display=open ? 'none' : 'flex';
+      document.body.classList.toggle('rq-mobile-header-open', !!open);
+    }
+
+    launcher.addEventListener('click', function(e){
+      e.preventDefault();
+      e.stopPropagation();
+      setExpanded(true);
+    });
+
+    // Tambahkan tombol tutup tanpa mengubah tombol/fungsi menu existing.
+    var brandRow=header.querySelector('.max-w-7xl > div:first-child');
+    if(brandRow && !document.getElementById('rqMobileHeaderClose')){
+      var close=document.createElement('button');
+      close.id='rqMobileHeaderClose';
+      close.type='button';
+      close.setAttribute('aria-label','Tutup menu');
+      close.title='Tutup menu';
+      close.innerHTML='<i class="fa-solid fa-xmark"></i>';
+      close.style.cssText='display:none;flex:0 0 auto;width:38px;height:38px;border:1px solid rgba(167,243,208,.35);border-radius:11px;background:rgba(255,255,255,.10);color:#fff;align-items:center;justify-content:center;font-size:16px;';
+      brandRow.appendChild(close);
+      close.addEventListener('click',function(e){
+        e.preventDefault(); e.stopPropagation(); setExpanded(false);
+      });
+    }
+
+    function syncClose(){
+      var close=document.getElementById('rqMobileHeaderClose');
+      if(close) close.style.display=(isMobile() && header.classList.contains('rq-mobile-expanded'))?'flex':'none';
+    }
+
+    var oldSetExpanded=setExpanded;
+    setExpanded=function(open){ oldSetExpanded(open); syncClose(); };
+
+    document.addEventListener('click',function(e){
+      if(!isMobile() || !header.classList.contains('rq-mobile-expanded')) return;
+      if(header.contains(e.target)) return;
+      setExpanded(false);
+    }, true);
+
+    window.addEventListener('resize',function(){
+      if(!isMobile()){
+        header.classList.remove('rq-mobile-expanded','rq-mobile-collapsed');
+        launcher.style.display='none';
+      }else{
+        if(!header.classList.contains('rq-mobile-expanded')) header.classList.add('rq-mobile-collapsed');
+        launcher.style.display=header.classList.contains('rq-mobile-expanded')?'none':'flex';
+        syncClose();
+      }
+    });
+
+    if(!isMobile()) launcher.style.display='none';
+  }
+
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',initMobileHeaderPop); else initMobileHeaderPop();
+})();
 </script>
 </body>
 </html>\n<script id="rq-target-multi-surah-logic">
