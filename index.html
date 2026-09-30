@@ -6406,6 +6406,12 @@
     overflow:visible!important;pointer-events:none!important;
   }
   #appHeader.rq-final-mobile > .max-w-7xl{width:100%!important;height:100%!important;padding:0!important;margin:0!important;display:block!important;overflow:visible!important}
+  /* Saat tertutup: hanya kotak launcher yang terlihat. */
+  #appHeader.rq-final-mobile:not(.rq-final-open) > .max-w-7xl > div:first-child,
+  #appHeader.rq-final-mobile:not(.rq-final-open) > .max-w-7xl > div:nth-child(2){
+    display:none!important;
+  }
+  #appHeader.rq-final-mobile:not(.rq-final-open) .rq-final-close{display:none!important;}
   #appHeader.rq-final-mobile .rq-final-launcher{
     display:flex!important;position:fixed!important;top:8px!important;right:8px!important;
     width:58px!important;height:58px!important;align-items:center!important;justify-content:center!important;
@@ -7064,28 +7070,28 @@
                 </div>
 
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-3.5 pt-1">
-                    <a href="https://akhshiddiq.github.io/presensi-rq/" target="_blank" class="p-4 bg-slate-50 dark:bg-slate-900 hover:bg-emerald-50 dark:hover:bg-slate-800 border-2 rounded-2xl flex flex-col justify-between space-y-3 transition shadow-xs group">
+                    <a href="https://akhshiddiq.github.io/presensi-rq/" target="_blank" class="p-6 bg-slate-50 dark:bg-slate-900 hover:bg-emerald-50 dark:hover:bg-slate-800 border-2 rounded-2xl flex flex-col justify-between space-y-4 transition shadow-xs group">
                         <div>
-                            <span class="text-[10px] font-black text-emerald-600 uppercase tracking-wider">Presensi</span>
-                            <h4 class="font-black text-xs sm:text-sm text-slate-800 dark:text-white mt-1 group-hover:text-emerald-700">Web Presensi</h4>
+                            <span class="text-xs font-black text-emerald-600 uppercase tracking-wider">Presensi</span>
+                            <h4 class="font-black text-lg sm:text-xl text-slate-800 dark:text-white mt-1.5 group-hover:text-emerald-700 leading-tight">Web Presensi</h4>
                         </div>
-                        <span class="text-xs font-bold text-emerald-700 dark:text-emerald-400 flex items-center gap-1.5">Buka Web <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i></span>
+                        <span class="text-base sm:text-lg font-black text-emerald-700 dark:text-emerald-400 flex items-center gap-2">Buka Web <i class="fa-solid fa-arrow-up-right-from-square text-sm"></i></span>
                     </a>
                     
-                    <a href="https://akhshiddiq.github.io/murojaahmanzili/" target="_blank" class="p-4 bg-slate-50 dark:bg-slate-900 hover:bg-amber-50 dark:hover:bg-slate-800 border-2 rounded-2xl flex flex-col justify-between space-y-3 transition shadow-xs group">
+                    <a href="https://akhshiddiq.github.io/murojaahmanzili/" target="_blank" class="p-6 bg-slate-50 dark:bg-slate-900 hover:bg-amber-50 dark:hover:bg-slate-800 border-2 rounded-2xl flex flex-col justify-between space-y-4 transition shadow-xs group">
                         <div>
-                            <span class="text-[10px] font-black text-amber-600 uppercase tracking-wider">Muroja'ah</span>
-                            <h4 class="font-black text-xs sm:text-sm text-slate-800 dark:text-white mt-1 group-hover:text-amber-700">Web tugas muroja'ah manzili</h4>
+                            <span class="text-xs font-black text-amber-600 uppercase tracking-wider">Muroja'ah</span>
+                            <h4 class="font-black text-lg sm:text-xl text-slate-800 dark:text-white mt-1.5 group-hover:text-amber-700 leading-tight">Web tugas muroja'ah manzili</h4>
                         </div>
-                        <span class="text-xs font-bold text-amber-700 dark:text-amber-400 flex items-center gap-1.5">Buka Web <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i></span>
+                        <span class="text-base sm:text-lg font-black text-amber-700 dark:text-amber-400 flex items-center gap-2">Buka Web <i class="fa-solid fa-arrow-up-right-from-square text-sm"></i></span>
                     </a>
 
-                    <a href="https://akhshiddiq.github.io/monitoring-tahfizh/" target="_blank" class="p-4 bg-slate-50 dark:bg-slate-900 hover:bg-sky-50 dark:hover:bg-slate-800 border-2 rounded-2xl flex flex-col justify-between space-y-3 transition shadow-xs group">
+                    <a href="https://akhshiddiq.github.io/monitoring-tahfizh/" target="_blank" class="p-6 bg-slate-50 dark:bg-slate-900 hover:bg-sky-50 dark:hover:bg-slate-800 border-2 rounded-2xl flex flex-col justify-between space-y-4 transition shadow-xs group">
                         <div>
-                            <span class="text-[10px] font-black text-sky-600 uppercase tracking-wider">Tahfizh</span>
-                            <h4 class="font-black text-xs sm:text-sm text-slate-800 dark:text-white mt-1 group-hover:text-sky-700">Web Monitoring bacaan hafalan</h4>
+                            <span class="text-xs font-black text-sky-600 uppercase tracking-wider">Tahfizh</span>
+                            <h4 class="font-black text-lg sm:text-xl text-slate-800 dark:text-white mt-1.5 group-hover:text-sky-700 leading-tight">Web Monitoring bacaan hafalan</h4>
                         </div>
-                        <span class="text-xs font-bold text-sky-700 dark:text-sky-400 flex items-center gap-1.5">Buka Web <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i></span>
+                        <span class="text-base sm:text-lg font-black text-sky-700 dark:text-sky-400 flex items-center gap-2">Buka Web <i class="fa-solid fa-arrow-up-right-from-square text-sm"></i></span>
                     </a>
                 </div>
 
@@ -8341,85 +8347,7 @@ html.dark #rqSafetyBackupBox #rqSafetyBackupLocation b{color:#ecfdf5 !important}
     } catch (_) {}
 </script>
 
-<script id="rq-mobile-header-pop-v2">
-(function(){
-  function initMobileHeaderPop(){
-    var header=document.getElementById('appHeader');
-    if(!header || !header.querySelector('.max-w-7xl')) return;
-    if(document.getElementById('rqMobileHeaderLauncher')) return;
 
-    header.classList.add('rq-mobile-collapsed');
-
-    var launcher=document.createElement('button');
-    launcher.id='rqMobileHeaderLauncher';
-    launcher.type='button';
-    launcher.setAttribute('aria-label','Buka menu Monitoring Tahfizh');
-    launcher.setAttribute('title','Buka menu');
-    launcher.innerHTML='<span class="rq-launcher-icon"><i></i><i></i><i></i><i></i></span>';
-    document.body.appendChild(launcher);
-
-    function isMobile(){ return window.matchMedia('(max-width: 767px)').matches; }
-    function setExpanded(open){
-      if(!isMobile()) return;
-      header.classList.toggle('rq-mobile-expanded', !!open);
-      header.classList.toggle('rq-mobile-collapsed', !open);
-      launcher.style.display=open ? 'none' : 'flex';
-      document.body.classList.toggle('rq-mobile-header-open', !!open);
-    }
-
-    launcher.addEventListener('click', function(e){
-      e.preventDefault();
-      e.stopPropagation();
-      setExpanded(true);
-    });
-
-    // Tambahkan tombol tutup tanpa mengubah tombol/fungsi menu existing.
-    var brandRow=header.querySelector('.max-w-7xl > div:first-child');
-    if(brandRow && !document.getElementById('rqMobileHeaderClose')){
-      var close=document.createElement('button');
-      close.id='rqMobileHeaderClose';
-      close.type='button';
-      close.setAttribute('aria-label','Tutup menu');
-      close.title='Tutup menu';
-      close.innerHTML='<i class="fa-solid fa-xmark"></i>';
-      close.style.cssText='display:none;flex:0 0 auto;width:38px;height:38px;border:1px solid rgba(167,243,208,.35);border-radius:11px;background:rgba(255,255,255,.10);color:#fff;align-items:center;justify-content:center;font-size:16px;';
-      brandRow.appendChild(close);
-      close.addEventListener('click',function(e){
-        e.preventDefault(); e.stopPropagation(); setExpanded(false);
-      });
-    }
-
-    function syncClose(){
-      var close=document.getElementById('rqMobileHeaderClose');
-      if(close) close.style.display=(isMobile() && header.classList.contains('rq-mobile-expanded'))?'flex':'none';
-    }
-
-    var oldSetExpanded=setExpanded;
-    setExpanded=function(open){ oldSetExpanded(open); syncClose(); };
-
-    document.addEventListener('click',function(e){
-      if(!isMobile() || !header.classList.contains('rq-mobile-expanded')) return;
-      if(header.contains(e.target)) return;
-      setExpanded(false);
-    }, true);
-
-    window.addEventListener('resize',function(){
-      if(!isMobile()){
-        header.classList.remove('rq-mobile-expanded','rq-mobile-collapsed');
-        launcher.style.display='none';
-      }else{
-        if(!header.classList.contains('rq-mobile-expanded')) header.classList.add('rq-mobile-collapsed');
-        launcher.style.display=header.classList.contains('rq-mobile-expanded')?'none':'flex';
-        syncClose();
-      }
-    });
-
-    if(!isMobile()) launcher.style.display='none';
-  }
-
-  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',initMobileHeaderPop); else initMobileHeaderPop();
-})();
-</script>
 
 <script id="rq-mobile-final-fix-js">
 (function(){
@@ -8446,6 +8374,14 @@ html.dark #rqSafetyBackupBox #rqSafetyBackupLocation b{color:#ecfdf5 !important}
     launcher.addEventListener('click',function(e){e.preventDefault();e.stopPropagation();open(true)});
     close.addEventListener('click',function(e){e.preventDefault();e.stopPropagation();open(false)});
 
+    // Setelah memilih menu, panel otomatis kembali menjadi kotak kecil.
+    // Hanya tombol navigasi utama di header yang ditutup; kontrol lain tidak disentuh.
+    h.addEventListener('click',function(e){
+      if(!mobile() || !h.classList.contains('rq-final-open')) return;
+      var nav=e.target.closest('button[id^=\"btnTab-\"]');
+      if(nav) open(false);
+    },false);
+
     // MOBILE ONLY: jika panel header sudah terbuka, ketuk 2x pada area header
     // untuk kembali menjadi kotak kecil. Tidak mengganggu tombol/menu di dalamnya.
     h.addEventListener('dblclick',function(e){
@@ -8468,8 +8404,7 @@ html.dark #rqSafetyBackupBox #rqSafetyBackupLocation b{color:#ecfdf5 !important}
 })();
 </script>
 
-</body>
-</html>\n<script id="rq-target-multi-surah-logic">
+<script id="rq-target-multi-surah-logic">
 (function(){
   const esc=v=>String(v??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');
   const key='rq_target_hafalan_murojaah_v2';
@@ -8722,3 +8657,5 @@ html.dark #rqSafetyBackupBox #rqSafetyBackupLocation b{color:#ecfdf5 !important}
   new MutationObserver(run).observe(document.body||document.documentElement,{childList:true,subtree:true});
 })();
 </script>
+</body>
+</html>
