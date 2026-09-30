@@ -7849,9 +7849,14 @@ html.dark #rqSafetyBackupBox #rqSafetyBackupLocation b{color:#ecfdf5 !important}
           }
         }else if(norm(row?.detail).includes(targetSurat)){ fallbackNumbers(row).forEach(n=>set.add(n)); }
       }
+      // Target hafalan adalah target "sampai ayat N".
+      // Progress hanya menghitung ayat yang tersambung mulai dari ayat 1,
+      // sehingga ayat yang lompat tidak membuat progress terlihat lebih tinggi.
       for(const n of [...set]) if(n>target)set.delete(n);
-      const real=Math.min(target,set.size), pct=target?Math.min(100,Math.round(real/target*100)):0;
-      const last=target?Math.min(target,set.size?Math.max(...set):0):0;
+      let real=0;
+      while(real<target && set.has(real+1)) real++;
+      const pct=target?Math.min(100,Math.round(real/target*100)):0;
+      const last=real;
       totalReal+=real; if(last>lastAyat)lastAyat=last;
       itemProgress.push({surat:item.surat,ayatTarget:target,ayatReal:real,pct,lastAyat:last,juz:item.juz||''});
       for(const row of rows){
@@ -8501,7 +8506,7 @@ html.dark #rqSafetyBackupBox #rqSafetyBackupLocation b{color:#ecfdf5 !important}
     oldEngine.calc=function(type,name,t){
       if(type!=='hafalan'||!Array.isArray(t?.items)||!t.items.length)return oldCalc(type,name,t);
       const rows=oldEngine.rowsFor(type,name,t)||[], items=t.items, norm2=norm; let totalTarget=0,totalReal=0,lastAyat=0;
-      const itemProgress=items.map(item=>{const target=Number(item.ayat)||0,totalSet=new Set();for(const row of rows){const ss=Array.isArray(row?.slots)?row.slots:[];if(ss.length){ss.forEach(sl=>{const n=norm2(sl?.item),tar=norm2(item.surat);if(n===tar){const a=Number(sl.start),b=Number(sl.end);if(Number.isFinite(a)&&a>=1){if(Number.isFinite(b)&&b>=a){for(let x=a;x<=b;x++)totalSet.add(x)}else totalSet.add(a)}}})}else if(norm2(row?.detail).split(/[,;|·\n]/).map(x=>norm2(x)).some(x=>x===norm2(item.surat))){const m=String(row.detail||'').matchAll(/(?:ayat|ay)[^0-9]*(\d+)(?:\s*[-–]\s*(\d+))?/gi);for(const z of m){const a=Number(z[1]),b=Number(z[2]||z[1]);if(Number.isFinite(a)&&a>=1&&Number.isFinite(b)&&b>=a)for(let x=a;x<=b;x++)totalSet.add(x)}}}for(const x of [...totalSet])if(x>target)totalSet.delete(x);const real=Math.min(target,totalSet.size),pct=target?Math.min(100,Math.round(real/target*100)):0,last=target?Math.min(target,totalSet.size?Math.max(...totalSet):0):0;totalTarget+=target;totalReal+=real;return {surat:item.surat,ayatTarget:target,ayatReal:real,pct,lastAyat:last,juz:item.juz||''}});
+      const itemProgress=items.map(item=>{const target=Number(item.ayat)||0,totalSet=new Set();for(const row of rows){const ss=Array.isArray(row?.slots)?row.slots:[];if(ss.length){ss.forEach(sl=>{const n=norm2(sl?.item),tar=norm2(item.surat);if(n===tar){const a=Number(sl.start),b=Number(sl.end);if(Number.isFinite(a)&&a>=1){if(Number.isFinite(b)&&b>=a){for(let x=a;x<=b;x++)totalSet.add(x)}else totalSet.add(a)}}})}else if(norm2(row?.detail).split(/[,;|·\n]/).map(x=>norm2(x)).some(x=>x===norm2(item.surat))){const m=String(row.detail||'').matchAll(/(?:ayat|ay)[^0-9]*(\d+)(?:\s*[-–]\s*(\d+))?/gi);for(const z of m){const a=Number(z[1]),b=Number(z[2]||z[1]);if(Number.isFinite(a)&&a>=1&&Number.isFinite(b)&&b>=a)for(let x=a;x<=b;x++)totalSet.add(x)}}}for(const x of [...totalSet])if(x>target)totalSet.delete(x);let real=0;while(real<target&&totalSet.has(real+1))real++;const pct=target?Math.min(100,Math.round(real/target*100)):0,last=real;totalTarget+=target;totalReal+=real;return {surat:item.surat,ayatTarget:target,ayatReal:real,pct,lastAyat:last,juz:item.juz||''}});
       const ayatPct=totalTarget?Math.min(100,Math.round(totalReal/totalTarget*100)):0; return {ayatReal:totalReal,ayatTarget:totalTarget,ayatPct,pct:ayatPct,ayatCount:totalReal,lastAyat,rows,itemProgress,setoranReal:rows.length,setoranTarget:0,setoranPct:0,completeDate:''};
     };
   }
