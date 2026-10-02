@@ -6588,6 +6588,23 @@
 @media (min-width:768px){#appHeader .rq-final-launcher,#appHeader .rq-final-close{display:none!important}}
 </style>
 
+
+<style id="rq-mobile-hide-top-controls-v27">
+@media (max-width: 767px){
+  /* HP: kontrol Pencarian Kelas + tombol aksi massal cukup tampil di laptop.
+     Mesin pencarian santri di bagian Input tetap dipertahankan. */
+  #topClassSearchBar,
+  #section-setoran > div:first-child{
+    display:none !important;
+  }
+}
+@media (min-width: 768px){
+  #topClassSearchBar,
+  #section-setoran > div:first-child{
+    display:block;
+  }
+}
+</style>
 </head>
 <body class="bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 min-h-full flex flex-col antialiased transition-colors duration-200">
     <div id="toastContainer" class="fixed top-4 right-4 z-[20000] space-y-2 w-[min(92vw,420px)] pointer-events-none"></div>
@@ -8243,17 +8260,10 @@ html.dark #rqSafetyBackupBox #rqSafetyBackupLocation b{color:#ecfdf5 !important}
     });
   }
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',clean); else clean();
-  /* Hindari observer seluruh body: cleanup ini hanya menyentuh item menu.
-     Jalankan sekali setelah DOM siap dan ulangi hanya saat header berubah. */
-  var header=document.getElementById('appHeader');
-  if(header){
-    var cleanQueued=false;
-    new MutationObserver(function(){
-      if(cleanQueued)return;
-      cleanQueued=true;
-      requestAnimationFrame(function(){cleanQueued=false;try{clean();}catch(_){} });
-    }).observe(header,{childList:true,subtree:true});
-  }
+  /* Cleanup legacy UI hanya saat boot.
+     Jangan pasang MutationObserver karena header/menu aplikasi sering berubah
+     dan observer tidak diperlukan untuk elemen yang sudah memiliki CSS guard. */
+  setTimeout(function(){try{clean();}catch(_){}},1200);
 })();
 </script>
 <script>
@@ -8864,6 +8874,13 @@ html.dark #rqSafetyBackupBox #rqSafetyBackupLocation b{color:#ecfdf5 !important}
     z-index:99999!important;overflow:visible!important;pointer-events:none!important;
   }
   #appHeader.rq-mobile-pro > .max-w-7xl{width:100%!important;height:100%!important;padding:0!important;margin:0!important;overflow:visible!important;}
+  /* Saat kotak menu tertutup, SELURUH isi header asli disembunyikan.
+     Yang boleh terlihat hanya launcher kecil yang dibuat terpisah di body.
+     Ini mencegah logo, Sync, tombol X, dan baris header lama keluar/menimpa
+     area pencarian kelas di bagian paling atas halaman. */
+  #appHeader.rq-mobile-pro:not(.rq-mobile-pro-open) > .max-w-7xl{
+    display:none!important;
+  }
 
   #rqMobileHeaderProLauncher{
     position:fixed!important;
@@ -8896,7 +8913,8 @@ html.dark #rqSafetyBackupBox #rqSafetyBackupLocation b{color:#ecfdf5 !important}
     border-radius:20px!important;
     box-shadow:0 15px 40px rgba(0,0,0,.30)!important;
     pointer-events:auto!important;overflow:hidden!important;
-    -webkit-backdrop-filter:blur(14px)!important;backdrop-filter:blur(14px)!important;
+    box-sizing:border-box!important;
+    -webkit-backdrop-filter:none!important;backdrop-filter:none!important;
   }
   #appHeader.rq-mobile-pro.rq-mobile-pro-open > .max-w-7xl{height:auto!important;min-height:0!important;padding:13px!important;display:block!important;}
   #appHeader.rq-mobile-pro.rq-mobile-pro-open > .max-w-7xl > div:first-child{
@@ -8925,6 +8943,55 @@ html.dark #rqSafetyBackupBox #rqSafetyBackupLocation b{color:#ecfdf5 !important}
     padding:11px 8px!important;border-radius:13px!important;font-size:15px!important;line-height:1.25!important;
     font-weight:700!important;white-space:normal!important;text-align:center!important;
     display:flex!important;align-items:center!important;justify-content:center!important;
+  }
+}
+
+/* V25 — tata letak kontrol area Input di HP: tidak boleh melebar keluar layar. */
+@media (max-width:767px){
+  #topClassSearchBar{
+    width:100%!important;
+    box-sizing:border-box!important;
+    overflow:hidden!important;
+  }
+  #topClassSearchBar > div{
+    width:100%!important;
+    min-width:0!important;
+  }
+  #topClassSearchBar label{
+    width:100%!important;
+  }
+  #topClassSearchBar select{
+    width:100%!important;
+    max-width:100%!important;
+    box-sizing:border-box!important;
+  }
+  #section-setoran > div:first-child{
+    width:100%!important;
+    box-sizing:border-box!important;
+    overflow:hidden!important;
+  }
+  #section-setoran > div:first-child > div{
+    width:100%!important;
+    display:grid!important;
+    grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;
+    gap:10px!important;
+  }
+  #section-setoran > div:first-child > div > div:first-child{
+    grid-column:1 / -1!important;
+  }
+  #section-setoran > div:first-child > div > div,
+  #section-setoran > div:first-child > div > button{
+    min-width:0!important;
+    width:100%!important;
+    box-sizing:border-box!important;
+  }
+  #section-setoran > div:first-child > div > div > button{
+    width:100%!important;
+    min-width:0!important;
+    box-sizing:border-box!important;
+    justify-content:center!important;
+    white-space:normal!important;
+    text-align:center!important;
   }
 }
 </style>
@@ -9051,6 +9118,9 @@ html.dark #rqSafetyBackupBox #rqSafetyBackupLocation b{color:#ecfdf5 !important}
     /* Klik di luar panel -> tutup. */
     document.addEventListener('click',function(e){
       if(!mobile()||!h.classList.contains('rq-mobile-pro-open'))return;
+      /* Klik launcher adalah bagian dari aksi membuka panel. Jangan langsung ditutup
+         oleh listener klik global pada event yang sama. */
+      if(e.target===launcher || launcher.contains(e.target))return;
       if(h.contains(e.target))return;
       open(false);
     },true);
@@ -9459,34 +9529,10 @@ html.dark #rqSafetyBackupBox #rqSafetyBackupLocation b{color:#ecfdf5 !important}
   }
   function run(){ try{ cleanLegacyUi(); }catch(_){} }
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',run); else run();
-  /* Freeze guard: jangan mengawasi seluruh BODY terus-menerus.
-     App ini sering melakukan render DOM besar; observer global yang hidup lama
-     bisa membuat callback masuk ribuan kali di HP. Cukup tangkap perubahan
-     awal setelah boot, lalu lepas observer. CSS ID/class di atas tetap menjadi
-     pengaman permanen untuk elemen legacy. */
-  var legacyObserver=null, legacyObserved=false, legacyTimer=0;
-  function scheduleLegacyClean(delay){
-    if(legacyTimer) return;
-    legacyTimer=setTimeout(function(){
-      legacyTimer=0;
-      try{run();}catch(_){}
-    },delay||80);
-  }
-  var root=document.body||document.documentElement;
-  if(root){
-    legacyObserver=new MutationObserver(function(){
-      if(legacyObserved) return;
-      legacyObserved=true;
-      try{legacyObserver.disconnect();}catch(_){}
-      legacyObserver=null;
-      scheduleLegacyClean(80);
-    });
-    legacyObserver.observe(root,{childList:true,subtree:true});
-    setTimeout(function(){
-      if(legacyObserver){try{legacyObserver.disconnect();}catch(_){} legacyObserver=null;}
-      scheduleLegacyClean(0);
-    },1500);
-  }
+  /* Freeze guard: tidak ada MutationObserver global.
+     Elemen legacy sudah ditahan oleh CSS guard, sehingga cleanup cukup dijalankan
+     pada boot dan satu kali setelah aplikasi selesai melakukan render awal. */
+  setTimeout(function(){try{run();}catch(_){}},1500);
 })();
 </script>
 
