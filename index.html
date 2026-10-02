@@ -1359,7 +1359,9 @@
             // Setelah nama santri dipilih, seluruh 4 form Input langsung terbuka.
             // Tidak ada lagi tombol 'Buka Form'; data/input existing tidak diubah.
             window.renderSantriCardsAndTable();
-            window.selectAndScrollToSantri(student.name);
+            // Setelah nama dipilih dari pencarian, langsung arahkan layar ke bagian BACAAN.
+            // Hanya posisi scroll yang diubah; data/form dan fitur lain tidak disentuh.
+            window.scrollToBacaanSantri(student.name);
         };
 
         window.scrollToSantri = function(santriName) {
@@ -1369,6 +1371,26 @@
                 card.classList.add('ring-4', 'ring-amber-400');
                 setTimeout(() => card.classList.remove('ring-4', 'ring-amber-400'), 2000);
             }
+        };
+
+        // Posisi khusus setelah memilih nama dari pencarian: tepat ke awal FORM BACAAN.
+        // Tidak mengubah perilaku scrollToSantri yang dipakai fitur lain.
+        window.scrollToBacaanSantri = function(santriName) {
+            if (!santriName) return;
+            const target = document.getElementById(`card_section_bacaan_${CSS.escape(santriName)}`);
+            if (!target) {
+                // Render kartu bisa selesai sesaat setelah event klik; coba sekali lagi.
+                setTimeout(() => window.scrollToBacaanSantri(santriName), 80);
+                return;
+            }
+
+            const header = document.querySelector('header');
+            const headerHeight = header ? Math.max(0, header.getBoundingClientRect().height) : 0;
+            const extraTop = window.innerWidth <= 767 ? 10 : 16;
+            const y = Math.max(0, window.scrollY + target.getBoundingClientRect().top - headerHeight - extraTop);
+            window.scrollTo({ top: y, behavior: 'smooth' });
+            target.classList.add('ring-4', 'ring-amber-400');
+            setTimeout(() => target.classList.remove('ring-4', 'ring-amber-400'), 1800);
         };
 
         // Saat operator menggulir daftar kartu Input, Live Laporan WA Personal
@@ -2669,7 +2691,7 @@
                             </div>
 
                             <!-- BACAAN -->
-                            <div class="p-4 sm:p-5 rounded-2xl border-2 border-emerald-500 bg-emerald-50 dark:bg-emerald-950/20 space-y-3.5">
+                            <div id="card_section_bacaan_${s.name}" class="p-4 sm:p-5 rounded-2xl border-2 border-emerald-500 bg-emerald-50 dark:bg-emerald-950/20 space-y-3.5">
                                 <div class="flex items-center justify-between border-b border-emerald-200 dark:border-emerald-800 pb-3 flex-wrap gap-2.5">
                                     <div class="flex items-center gap-2 flex-wrap">
                                         <span class="font-black text-xs sm:text-sm text-emerald-800 dark:text-emerald-300 uppercase flex items-center gap-1.5">
@@ -9068,10 +9090,10 @@ html.dark #rqSafetyBackupBox #rqSafetyBackupLocation b{color:#ecfdf5 !important}
       try{localStorage.setItem(KEY,JSON.stringify(pos));}catch(_){}
     }
     launcher.addEventListener('pointerdown',function(e){
-      if(!mobile() || h.classList.contains('rq-mobile-pro-open')) return;
+      if(!mobile()) return;
       down=true;moved=false;sx=e.clientX;sy=e.clientY;ox=pos.x;oy=pos.y;
       launcher.classList.add('rq-pro-dragging');
-      try{launcher.setPointerCapture(e.pointerId);}catch(_){}
+      try{launcher.setPointerCapture(e.pointerId);}catch(_){ }
     },{passive:true});
     launcher.addEventListener('pointermove',function(e){
       if(!down)return;
@@ -9087,7 +9109,7 @@ html.dark #rqSafetyBackupBox #rqSafetyBackupLocation b{color:#ecfdf5 !important}
       }else{
         if(raf){cancelAnimationFrame(raf);raf=0;}
         pendingX=pendingY=null;
-        open(true);
+        open(!h.classList.contains('rq-mobile-pro-open'));
       }
       launcher.classList.remove('rq-pro-dragging');
       try{launcher.releasePointerCapture(e.pointerId);}catch(_){}
@@ -9102,7 +9124,9 @@ html.dark #rqSafetyBackupBox #rqSafetyBackupLocation b{color:#ecfdf5 !important}
     function open(v){
       if(!mobile())return;
       h.classList.toggle('rq-mobile-pro-open',!!v);
-      launcher.style.display=v?'none':'flex';
+      /* Kotak launcher tetap terlihat saat panel terbuka agar ketukan kedua
+         pada kotak yang sama langsung menutup menu. */
+      launcher.style.display='flex';
       document.body.classList.toggle('rq-mobile-header-open',!!v);
       if(!v) apply();
     }
@@ -9118,8 +9142,7 @@ html.dark #rqSafetyBackupBox #rqSafetyBackupLocation b{color:#ecfdf5 !important}
     /* Klik di luar panel -> tutup. */
     document.addEventListener('click',function(e){
       if(!mobile()||!h.classList.contains('rq-mobile-pro-open'))return;
-      /* Klik launcher adalah bagian dari aksi membuka panel. Jangan langsung ditutup
-         oleh listener klik global pada event yang sama. */
+      /* Ketukan pada kotak launcher ditangani oleh pointerup; jangan dianggap klik luar. */
       if(e.target===launcher || launcher.contains(e.target))return;
       if(h.contains(e.target))return;
       open(false);
