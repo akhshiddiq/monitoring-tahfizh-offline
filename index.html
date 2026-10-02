@@ -6,6 +6,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Monitoring Tahfizh RQ Al-Khansa</title>
+<!-- V15: Input santri terpilih otomatis membuka semua form; tombol Buka Form dihapus. -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -1355,6 +1356,8 @@
             // Ini adalah titik pemilihan santri untuk menu Input.
             // Setelah diklik, hanya santri ini yang dirender pada form.
             window.selectedInputSantriName = student.name;
+            // Setelah nama santri dipilih, seluruh 4 form Input langsung terbuka.
+            // Tidak ada lagi tombol 'Buka Form'; data/input existing tidak diubah.
             window.renderSantriCardsAndTable();
             window.selectAndScrollToSantri(student.name);
         };
@@ -2601,10 +2604,10 @@
                 const defaultTugDetail = window.getFormCache(`${s.name}_tug_detail`, s.lastTugas && s.lastTugas !== '-' ? s.lastTugas : '');
                 const defaultTugCat = window.getFormCache(`${s.name}_tug_cat`, s.cloudTugCat || '');
 
-                const isBacaanOpen = !!window.cardSectionToggleState[`${s.name}_section_bacaan`];
-                const isHafalanOpen = !!window.cardSectionToggleState[`${s.name}_section_hafalan`];
-                const isMurojaahOpen = !!window.cardSectionToggleState[`${s.name}_section_murojaah`];
-                const isTugasOpen = !!window.cardSectionToggleState[`${s.name}_section_tugas`];
+                const isBacaanOpen = true;
+                const isHafalanOpen = true;
+                const isMurojaahOpen = true;
+                const isTugasOpen = true;
 
                 const isBacaanHistoryOpen = !!window.cardHistoryToggleState[`${s.name}_history_Bacaan`];
                 const isHafalanHistoryOpen = !!window.cardHistoryToggleState[`${s.name}_history_Hafalan`];
@@ -2650,19 +2653,15 @@
                                         <tr class="align-top bg-white dark:bg-slate-800">
                                             <td class="p-3 border-t border-slate-200 dark:border-slate-700">
                                                 <div class="font-black ${isTodayBac ? 'text-emerald-600' : 'text-slate-500'}">${isTodayBac ? 'Sudah input hari ini' : 'Belum di input'}</div>
-                                                <button type="button" onclick='window.toggleCardSection(${JSON.stringify(s.name)}, "bacaan")' class="mt-2 px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-black">${isBacaanOpen ? 'Tutup Form' : 'Buka Form'}</button>
                                             </td>
                                             <td class="p-3 border-t border-slate-200 dark:border-slate-700">
                                                 <div class="font-black ${isTodayHaf ? 'text-rose-600' : 'text-slate-500'}">${isTodayHaf ? 'Sudah input hari ini' : 'Belum di input'}</div>
-                                                <button type="button" onclick='window.toggleCardSection(${JSON.stringify(s.name)}, "hafalan")' class="mt-2 px-3 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-black">${isHafalanOpen ? 'Tutup Form' : 'Buka Form'}</button>
                                             </td>
                                             <td class="p-3 border-t border-slate-200 dark:border-slate-700">
                                                 <div class="font-black ${isTodayMur ? 'text-purple-600' : 'text-slate-500'}">${isTodayMur ? 'Sudah input hari ini' : 'Belum di input'}</div>
-                                                <button type="button" onclick='window.toggleCardSection(${JSON.stringify(s.name)}, "murojaah")' class="mt-2 px-3 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl font-black">${isMurojaahOpen ? 'Tutup Form' : 'Buka Form'}</button>
                                             </td>
                                             <td class="p-3 border-t border-slate-200 dark:border-slate-700">
                                                 <div class="font-black ${isTodayTug ? 'text-amber-600' : 'text-slate-500'}">${isTodayTug ? 'Sudah input hari ini' : 'Belum di input'}</div>
-                                                <button type="button" onclick='window.toggleCardSection(${JSON.stringify(s.name)}, "tugas")' class="mt-2 px-3 py-2 bg-amber-700 hover:bg-amber-800 text-white rounded-xl font-black">${isTugasOpen ? 'Tutup Form' : 'Buka Form'}</button>
                                             </td>
                                         </tr>
                                     </tbody>
@@ -2681,12 +2680,10 @@
                                         ${window.getInputSyncBadgeHtml('bacaan', s.name)}
                                     </div>
                                     <div class="w-full flex items-center gap-2">
-                                        <button type="button" id="card_section_btn_bacaan_${s.name}" onclick="window.toggleCardSection('${s.name}', 'bacaan')" class="px-3.5 py-2 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 text-slate-800 dark:text-slate-200 rounded-xl text-xs sm:text-sm font-black shadow-xs transition flex items-center justify-center gap-1.5 w-full">
-                                            <i class="fa-solid ${isBacaanOpen ? 'fa-chevron-up' : 'fa-chevron-down'}"></i> ${isBacaanOpen ? 'Tutup Form' : 'Buka Form'}
                                         </button>
                                     </div>
                                 </div>
-                                <div id="card_section_content_bacaan_${s.name}" class="space-y-3.5 ${!isBacaanOpen ? 'hidden' : ''}">
+                                <div id="card_section_content_bacaan_${s.name}" class="space-y-3.5 ">
                                     ${window.renderTripleInputSlot('bac', s.name, 'border-emerald-500')}
                                     <div class="pt-3.5 border-t border-emerald-200 dark:border-emerald-800 space-y-3">
                                         <div>
@@ -2747,12 +2744,10 @@
                                         ${window.getInputSyncBadgeHtml('hafalan', s.name)}
                                     </div>
                                     <div class="w-full flex items-center gap-2">
-                                        <button type="button" id="card_section_btn_hafalan_${s.name}" onclick="window.toggleCardSection('${s.name}', 'hafalan')" class="px-3.5 py-2 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 text-slate-800 dark:text-slate-200 rounded-xl text-xs sm:text-sm font-black shadow-xs transition flex items-center justify-center gap-1.5 w-full">
-                                            <i class="fa-solid ${isHafalanOpen ? 'fa-chevron-up' : 'fa-chevron-down'}"></i> ${isHafalanOpen ? 'Tutup Form' : 'Buka Form'}
                                         </button>
                                     </div>
                                 </div>
-                                <div id="card_section_content_hafalan_${s.name}" class="space-y-3.5 ${!isHafalanOpen ? 'hidden' : ''}">
+                                <div id="card_section_content_hafalan_${s.name}" class="space-y-3.5 ">
                                     ${window.renderTripleInputSlot('haf', s.name, 'border-rose-500')}
                                     <div class="mt-3 p-3.5 rounded-2xl border border-emerald-200 dark:border-emerald-900/50 bg-white/70 dark:bg-slate-900/30 space-y-4">
                                         <div class="flex items-center justify-between gap-2">
@@ -2849,12 +2844,10 @@
                                         ${window.getInputSyncBadgeHtml('murojaah', s.name)}
                                     </div>
                                     <div class="w-full flex items-center gap-2">
-                                        <button type="button" id="card_section_btn_murojaah_${s.name}" onclick="window.toggleCardSection('${s.name}', 'murojaah')" class="px-3.5 py-2 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 text-slate-800 dark:text-slate-200 rounded-xl text-xs sm:text-sm font-black shadow-xs transition flex items-center justify-center gap-1.5 w-full">
-                                            <i class="fa-solid ${isMurojaahOpen ? 'fa-chevron-up' : 'fa-chevron-down'}"></i> ${isMurojaahOpen ? 'Tutup Form' : 'Buka Form'}
                                         </button>
                                     </div>
                                 </div>
-                                <div id="card_section_content_murojaah_${s.name}" class="space-y-3.5 ${!isMurojaahOpen ? 'hidden' : ''}">
+                                <div id="card_section_content_murojaah_${s.name}" class="space-y-3.5 ">
                                     ${window.renderTripleInputSlot('mur', s.name, 'border-purple-500')}
                                     <div class="mt-3 p-3.5 rounded-2xl border border-sky-200 dark:border-sky-900/50 bg-white/70 dark:bg-slate-900/30 space-y-3">
                                         <div class="flex items-center justify-between gap-2">
@@ -2930,12 +2923,10 @@
                                         ${window.getInputSyncBadgeHtml('tugas', s.name)}
                                     </div>
                                     <div class="w-full flex items-center gap-2">
-                                        <button type="button" id="card_section_btn_tugas_${s.name}" onclick="window.toggleCardSection('${s.name}', 'tugas')" class="px-3.5 py-2 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 text-slate-800 dark:text-slate-200 rounded-xl text-xs sm:text-sm font-black shadow-xs transition flex items-center justify-center gap-1.5 w-full">
-                                            <i class="fa-solid ${isTugasOpen ? 'fa-chevron-up' : 'fa-chevron-down'}"></i> ${isTugasOpen ? 'Tutup Form' : 'Buka Form'}
                                         </button>
                                     </div>
                                 </div>
-                                <div id="card_section_content_tugas_${s.name}" class="space-y-3.5 ${!isTugasOpen ? 'hidden' : ''}">
+                                <div id="card_section_content_tugas_${s.name}" class="space-y-3.5 ">
                                     <input type="text" id="tug_detail_${s.name}" oninput="window.cacheFormInput(this, '${s.name}_tug_detail')" placeholder="Rincian Tugas..." value="${defaultTugDetail}" class="w-full p-4 bg-transparent border-2 border-slate-300 dark:border-slate-700 rounded-2xl font-black text-sm sm:text-base min-h-[60px]">
                                     <input type="text" id="tug_cat_${s.name}" oninput="window.cacheFormInput(this, '${s.name}_tug_cat')" placeholder="Catatan Tugas..." value="${defaultTugCat}" class="w-full p-4 bg-transparent border-2 border-slate-300 dark:border-slate-700 rounded-2xl font-black text-sm sm:text-base min-h-[60px]">
                                     <div class="flex items-center gap-2">
@@ -8829,6 +8820,238 @@ html.dark #rqSafetyBackupBox #rqSafetyBackupLocation b{color:#ecfdf5 !important}
   setTimeout(init,500);setTimeout(init,1500);setTimeout(init,3000);
 })();
 </script>
+
+<style id="rq-mobile-header-pro-v13-css">
+/* ============================================================
+   MOBILE HEADER PRO V13 — HP SAJA
+   - Kotak tertutup transparan
+   - Klik: panel/menu tampil jelas
+   - Ukuran tulisan menu diperbesar
+   - Kotak kecil bisa dipindah dengan drag/tahan
+   - Posisi disimpan di perangkat
+   - Scroll halaman: panel otomatis menutup
+   - DESKTOP >=768px tidak disentuh
+   ============================================================ */
+@media (max-width:767px){
+  /* Sistem launcher lama disembunyikan; gunakan launcher PRO tunggal. */
+  #rqMobileHeaderLauncher{display:none!important;}
+  #appHeader.rq-final-mobile .rq-final-launcher{display:none!important;}
+
+  #appHeader.rq-mobile-pro{
+    position:fixed!important;
+    left:0!important;top:0!important;right:auto!important;bottom:auto!important;
+    width:0!important;height:0!important;min-height:0!important;
+    margin:0!important;padding:0!important;
+    background:transparent!important;border:0!important;box-shadow:none!important;
+    z-index:99999!important;overflow:visible!important;pointer-events:none!important;
+  }
+  #appHeader.rq-mobile-pro > .max-w-7xl{width:100%!important;height:100%!important;padding:0!important;margin:0!important;overflow:visible!important;}
+
+  #rqMobileHeaderProLauncher{
+    position:fixed!important;
+    width:62px!important;height:62px!important;
+    display:flex!important;align-items:center!important;justify-content:center!important;
+    padding:0!important;margin:0!important;
+    border:1px solid rgba(255,255,255,.34)!important;
+    border-radius:18px!important;
+    background:rgba(6,95,70,.28)!important;
+    color:#fff!important;
+    box-shadow:0 8px 25px rgba(0,0,0,.20)!important;
+    -webkit-backdrop-filter:blur(8px)!important;backdrop-filter:blur(8px)!important;
+    z-index:2147483001!important;pointer-events:auto!important;cursor:grab!important;visibility:visible!important;opacity:1!important;
+    touch-action:none!important;
+    user-select:none!important;-webkit-user-select:none!important;
+    transition:transform .16s ease,background .18s ease,box-shadow .18s ease!important;
+  }
+  #rqMobileHeaderProLauncher:active{cursor:grabbing!important;transform:scale(.96)!important;}
+  #rqMobileHeaderProLauncher .rq-pro-icon{font-size:27px!important;line-height:1!important;pointer-events:none!important;}
+  #rqMobileHeaderProLauncher .rq-pro-hint{position:absolute!important;bottom:4px!important;right:7px!important;font-size:8px!important;opacity:.72!important;pointer-events:none!important;}
+
+  #appHeader.rq-mobile-pro.rq-mobile-pro-open{
+    left:8px!important;top:8px!important;right:8px!important;
+    width:calc(100vw - 16px)!important;height:auto!important;max-width:430px!important;
+    background:linear-gradient(145deg,rgba(6,95,70,.99),rgba(4,78,57,.99))!important;
+    border:1px solid rgba(167,243,208,.40)!important;
+    border-radius:20px!important;
+    box-shadow:0 15px 40px rgba(0,0,0,.30)!important;
+    pointer-events:auto!important;overflow:hidden!important;
+    -webkit-backdrop-filter:blur(14px)!important;backdrop-filter:blur(14px)!important;
+  }
+  #appHeader.rq-mobile-pro.rq-mobile-pro-open > .max-w-7xl{height:auto!important;min-height:0!important;padding:13px!important;display:block!important;}
+  #appHeader.rq-mobile-pro.rq-mobile-pro-open > .max-w-7xl > div:first-child{
+    display:flex!important;width:100%!important;min-height:68px!important;align-items:center!important;
+    justify-content:space-between!important;gap:10px!important;margin:0!important;
+  }
+  #appHeader.rq-mobile-pro.rq-mobile-pro-open #appLogo,
+  #appHeader.rq-mobile-pro.rq-mobile-pro-open #defaultLogoIcon{width:46px!important;height:46px!important;}
+  #appHeader.rq-mobile-pro.rq-mobile-pro-open h1{font-size:20px!important;line-height:1.22!important;letter-spacing:-.02em!important;}
+  #appHeader.rq-mobile-pro.rq-mobile-pro-open h1 span:first-child{font-size:20px!important;}
+  #appHeader.rq-mobile-pro.rq-mobile-pro-open h1 span:nth-child(2){font-size:12px!important;padding:4px 7px!important;}
+  #appHeader.rq-mobile-pro.rq-mobile-pro-open #storageInfoLabel{font-size:12px!important;}
+  #appHeader.rq-mobile-pro.rq-mobile-pro-open #syncDotIndicator{width:10px!important;height:10px!important;}
+  #rqMobileHeaderProClose{
+    display:flex!important;flex:0 0 auto!important;width:44px!important;height:44px!important;
+    align-items:center!important;justify-content:center!important;
+    border:1px solid rgba(167,243,208,.45)!important;border-radius:12px!important;
+    background:rgba(255,255,255,.12)!important;color:#fff!important;font-size:20px!important;cursor:pointer!important;
+  }
+  #appHeader.rq-mobile-pro.rq-mobile-pro-open > .max-w-7xl > div:nth-child(2){
+    display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;
+    width:100%!important;padding:10px 0 0!important;margin:0!important;gap:8px!important;
+  }
+  #appHeader.rq-mobile-pro.rq-mobile-pro-open > .max-w-7xl > div:nth-child(2) > button{
+    width:100%!important;min-width:0!important;min-height:52px!important;height:auto!important;
+    padding:11px 8px!important;border-radius:13px!important;font-size:15px!important;line-height:1.25!important;
+    font-weight:700!important;white-space:normal!important;text-align:center!important;
+    display:flex!important;align-items:center!important;justify-content:center!important;
+  }
+}
+</style>
+
+<script id="rq-mobile-header-pro-v13">
+(function(){
+  function init(){
+    var h=document.getElementById('appHeader');
+    if(!h || h.dataset.rqMobileProReady==='1') return;
+    h.dataset.rqMobileProReady='1';
+    h.classList.add('rq-mobile-pro');
+
+    var launcher=document.createElement('button');
+    launcher.id='rqMobileHeaderProLauncher';
+    launcher.type='button';
+    launcher.setAttribute('aria-label','Buka menu Monitoring Tahfizh');
+    launcher.title='Klik untuk membuka menu. Tahan dan geser untuk memindahkan posisi.';
+    launcher.innerHTML='<span class="rq-pro-icon"><i class="fa-solid fa-grip-vertical"></i></span><span class="rq-pro-hint">geser</span>';
+    document.body.appendChild(launcher);
+
+    var row=h.querySelector('.max-w-7xl > div:first-child');
+    var close=document.createElement('button');
+    close.id='rqMobileHeaderProClose';
+    close.type='button';
+    close.setAttribute('aria-label','Tutup menu');
+    close.innerHTML='<i class="fa-solid fa-xmark"></i>';
+    if(row) row.appendChild(close);
+
+    var KEY='rq_mobile_header_pro_position_v13';
+    var pos={side:'right',x:null,y:12};
+    try{ var saved=JSON.parse(localStorage.getItem(KEY)||'null'); if(saved&&typeof saved==='object') pos=Object.assign(pos,saved); }catch(_){ }
+
+    function mobile(){return window.matchMedia('(max-width:767px)').matches;}
+    function clamp(){
+      var w=window.innerWidth,hg=window.innerHeight,sz=62;
+      pos.x=Math.max(8,Math.min(Number(pos.x)||0,w-sz-8));
+      pos.y=Math.max(8,Math.min(Number(pos.y)||0,hg-sz-8));
+    }
+    function apply(){
+      if(!mobile()) return;
+      if(pos.x===null || pos.x===undefined) pos.x=window.innerWidth-70;
+      clamp();
+      launcher.style.left=pos.x+'px';
+      launcher.style.top=pos.y+'px';
+      launcher.style.right='auto';
+      launcher.style.bottom='auto';
+      try{localStorage.setItem(KEY,JSON.stringify(pos));}catch(_){ }
+    }
+    apply();
+
+    var down=false,moved=false,sx=0,sy=0,ox=0,oy=0;
+    launcher.addEventListener('pointerdown',function(e){
+      if(!mobile() || h.classList.contains('rq-mobile-pro-open')) return;
+      down=true;moved=false;sx=e.clientX;sy=e.clientY;ox=pos.x;oy=pos.y;
+      try{launcher.setPointerCapture(e.pointerId);}catch(_){ }
+      e.preventDefault();
+    },{passive:false});
+    launcher.addEventListener('pointermove',function(e){
+      if(!down)return;
+      var dx=e.clientX-sx,dy=e.clientY-sy;
+      if(Math.abs(dx)+Math.abs(dy)>7)moved=true;
+      pos.x=ox+dx;pos.y=oy+dy;apply();
+      e.preventDefault();
+    },{passive:false});
+    launcher.addEventListener('pointerup',function(e){
+      if(!down)return;down=false;
+      if(!moved) open(true);
+      e.preventDefault();
+    },{passive:false});
+    launcher.addEventListener('pointercancel',function(){down=false;});
+
+    function open(v){
+      if(!mobile())return;
+      h.classList.toggle('rq-mobile-pro-open',!!v);
+      launcher.style.display=v?'none':'flex';
+      document.body.classList.toggle('rq-mobile-header-open',!!v);
+      if(!v) apply();
+    }
+    close.addEventListener('click',function(e){e.preventDefault();e.stopPropagation();open(false);});
+
+    /* Pilih menu -> tutup kembali ke kotak kecil. */
+    h.addEventListener('click',function(e){
+      if(!mobile()||!h.classList.contains('rq-mobile-pro-open'))return;
+      var nav=e.target.closest('button[id^="btnTab-"]');
+      if(nav)setTimeout(function(){open(false);},100);
+    },true);
+
+    /* Klik di luar panel -> tutup. */
+    document.addEventListener('click',function(e){
+      if(!mobile()||!h.classList.contains('rq-mobile-pro-open'))return;
+      if(h.contains(e.target))return;
+      open(false);
+    },true);
+
+    /* Scroll halaman -> otomatis tutup. */
+    var lastScroll=0;
+    window.addEventListener('scroll',function(){
+      if(!mobile())return;
+      var now=Date.now();
+      if(now-lastScroll<40)return;
+      lastScroll=now;
+      if(h.classList.contains('rq-mobile-pro-open'))open(false);
+    },{passive:true,capture:true});
+
+    window.addEventListener('resize',function(){
+      if(!mobile()){
+        launcher.style.display='none';
+        h.classList.remove('rq-mobile-pro-open');
+        document.body.classList.remove('rq-mobile-header-open');
+      }else if(!h.classList.contains('rq-mobile-pro-open')){
+        launcher.style.display='flex';
+        launcher.style.visibility='visible';
+        launcher.style.opacity='1';
+        launcher.style.zIndex='2147483001';
+        apply();
+      }
+    },{passive:true});
+
+    /*
+       DATA / EXPORT FIX:
+       Beberapa proses render menu Data dapat mengubah DOM/style di halaman.
+       Launcher mobile harus tetap hidup dan terlihat setelah menu Data dibuka.
+       Observer ini hanya bekerja di HP dan hanya menjaga launcher kecil saat panel tertutup.
+    */
+    var keepLauncherVisible=new MutationObserver(function(){
+      if(!mobile() || h.classList.contains('rq-mobile-pro-open')) return;
+      if(!document.body.contains(launcher)) document.body.appendChild(launcher);
+      launcher.style.display='flex';
+      launcher.style.visibility='visible';
+      launcher.style.opacity='1';
+      launcher.style.pointerEvents='auto';
+      launcher.style.zIndex='2147483001';
+      apply();
+    });
+    keepLauncherVisible.observe(document.body,{childList:true,subtree:true});
+
+    if(mobile()){
+      open(false);
+      launcher.style.display='flex';
+      launcher.style.visibility='visible';
+      launcher.style.opacity='1';
+      launcher.style.zIndex='2147483001';
+    }else launcher.style.display='none';
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
+})();
+</script>
+
 </body>
 
 <script>
