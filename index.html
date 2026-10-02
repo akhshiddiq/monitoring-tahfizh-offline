@@ -2655,39 +2655,9 @@
                         </div>
 
                         <div class="p-4 sm:p-5 space-y-4">
-                            <div class="flex items-center justify-between text-xs sm:text-sm font-bold text-slate-500 bg-slate-100 dark:bg-slate-900 p-3.5 rounded-2xl">
-                                <span>Tanggal: <input type="date" id="tgl_${s.name}" value="${window.getFormCache(`tgl_${s.name}`, todayStr)}" oninput="window.cacheFormInput(this, 'tgl_${s.name}'); window.selectInlineWaSantri('${s.name}', true)" onchange="window.cacheFormInput(this, 'tgl_${s.name}'); window.selectInlineWaSantri('${s.name}', true)" class="p-2.5 bg-white dark:bg-slate-800 border-2 rounded-xl font-bold text-xs sm:text-sm min-h-[46px]"></span>
+                            <div class="flex items-center justify-end text-xs sm:text-sm font-bold text-slate-500 bg-slate-100 dark:bg-slate-900 p-3.5 rounded-2xl">
+                                <input type="hidden" id="tgl_${s.name}" value="${todayStr}">
                                 <span class="text-emerald-700 dark:text-emerald-400 font-black">Form Input Setoran</span>
-                            </div>
-
-                            <!-- TABEL FORM: satu santri terpilih, empat jenis input -->
-                            <div class="overflow-x-auto rounded-2xl border border-slate-200 dark:border-slate-700">
-                                <table class="w-full min-w-[760px] text-xs">
-                                    <thead>
-                                        <tr class="bg-slate-100 dark:bg-slate-900">
-                                            <th class="p-3 text-left font-black text-emerald-800 dark:text-emerald-300">Bacaan</th>
-                                            <th class="p-3 text-left font-black text-rose-800 dark:text-rose-300">Hafalan</th>
-                                            <th class="p-3 text-left font-black text-purple-800 dark:text-purple-300">Muroja'ah</th>
-                                            <th class="p-3 text-left font-black text-amber-800 dark:text-amber-300">Tugas</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <tr class="align-top bg-white dark:bg-slate-800">
-                                            <td class="p-3 border-t border-slate-200 dark:border-slate-700">
-                                                <div class="font-black ${isTodayBac ? 'text-emerald-600' : 'text-slate-500'}">${isTodayBac ? 'Sudah input hari ini' : 'Belum di input'}</div>
-                                            </td>
-                                            <td class="p-3 border-t border-slate-200 dark:border-slate-700">
-                                                <div class="font-black ${isTodayHaf ? 'text-rose-600' : 'text-slate-500'}">${isTodayHaf ? 'Sudah input hari ini' : 'Belum di input'}</div>
-                                            </td>
-                                            <td class="p-3 border-t border-slate-200 dark:border-slate-700">
-                                                <div class="font-black ${isTodayMur ? 'text-purple-600' : 'text-slate-500'}">${isTodayMur ? 'Sudah input hari ini' : 'Belum di input'}</div>
-                                            </td>
-                                            <td class="p-3 border-t border-slate-200 dark:border-slate-700">
-                                                <div class="font-black ${isTodayTug ? 'text-amber-600' : 'text-slate-500'}">${isTodayTug ? 'Sudah input hari ini' : 'Belum di input'}</div>
-                                            </td>
-                                        </tr>
-                                    </tbody>
-                                </table>
                             </div>
 
                             <!-- BACAAN -->
