@@ -6639,24 +6639,28 @@
     <main class="flex-1 max-w-7xl w-full mx-auto p-3 sm:p-5 lg:p-6 space-y-4 relative">
 
 <!-- SECTION: INPUT SETORAN -->
+        <!-- MESIN PENCARIAN KELAS: dipindahkan ke paling atas area kerja -->
+        <div id="topClassSearchBar" class="bg-white dark:bg-slate-800 p-3 sm:p-4 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 mb-4">
+            <div class="flex flex-col sm:flex-row sm:items-center gap-2.5">
+                <label for="classFilterSelect" class="shrink-0 text-xs sm:text-sm font-black text-slate-700 dark:text-slate-300">Pencarian Kelas</label>
+                <select id="classFilterSelect" onchange="window.filterByClass(this.value)" class="w-full sm:flex-1 min-h-[46px] bg-slate-50 dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-700 text-sm sm:text-base font-black rounded-xl px-3.5 py-2.5 outline-none cursor-pointer">
+                    <option value="ALL" selected>Semua Kelas</option>
+                    <option value="Abdurrahman">Abdurrahman</option>
+                    <option value="Abu Ubaidah">Abu Ubaidah</option>
+                    <option value="Zubair">Zubair</option>
+                    <option value="Ali">Ali</option>
+                    <option value="Utsman">Utsman</option>
+                    <option value="Abu Bakar">Abu Bakar</option>
+                    <option value="Bilal">Bilal</option>
+                    <option value="Hamzah">Hamzah</option>
+                    <option value="Fatimah">Fatimah</option>
+                    <option value="Umar">Umar</option>
+                </select>
+            </div>
+        </div>
+
         <section id="section-setoran" class="space-y-4">
-            <div class="bg-white dark:bg-slate-800 p-4 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 flex flex-col sm:flex-row items-center justify-between gap-3.5">
-                <div class="w-full sm:w-auto flex items-center gap-2.5">
-                    <span class="text-xs sm:text-sm font-black text-slate-700 dark:text-slate-300">Pencarian Kelas:</span>
-                    <select id="classFilterSelect" onchange="window.filterByClass(this.value)" class="bg-slate-50 dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-700 text-xs sm:text-sm font-black rounded-xl px-3.5 py-2.5 outline-none cursor-pointer flex-1 sm:flex-none">
-                        <option value="ALL" selected>Semua Kelas</option>
-                        <option value="Abdurrahman">Abdurrahman</option>
-                        <option value="Abu Ubaidah">Abu Ubaidah</option>
-                        <option value="Zubair">Zubair</option>
-                        <option value="Ali">Ali</option>
-                        <option value="Utsman">Utsman</option>
-                        <option value="Abu Bakar">Abu Bakar</option>
-                        <option value="Bilal">Bilal</option>
-                        <option value="Hamzah">Hamzah</option>
-                        <option value="Fatimah">Fatimah</option>
-                        <option value="Umar">Umar</option>
-                    </select>
-                </div>
+            <div class="bg-white dark:bg-slate-800 p-4 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 flex flex-col sm:flex-row items-center justify-end gap-3.5">
                 <div class="flex items-center gap-2.5 w-full sm:w-auto justify-center sm:justify-end flex-wrap">
                     <div class="flex items-center gap-1.5">
                         <button onclick="window.openMurojaahMassalModal()" class="flex items-center gap-1.5 px-4 py-2.5 bg-purple-600 hover:bg-purple-700 text-white font-black rounded-xl text-xs sm:text-sm shadow-sm transition active:scale-95">
@@ -8239,7 +8243,17 @@ html.dark #rqSafetyBackupBox #rqSafetyBackupLocation b{color:#ecfdf5 !important}
     });
   }
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',clean); else clean();
-  new MutationObserver(clean).observe(document.body||document.documentElement,{childList:true,subtree:true});
+  /* Hindari observer seluruh body: cleanup ini hanya menyentuh item menu.
+     Jalankan sekali setelah DOM siap dan ulangi hanya saat header berubah. */
+  var header=document.getElementById('appHeader');
+  if(header){
+    var cleanQueued=false;
+    new MutationObserver(function(){
+      if(cleanQueued)return;
+      cleanQueued=true;
+      requestAnimationFrame(function(){cleanQueued=false;try{clean();}catch(_){} });
+    }).observe(header,{childList:true,subtree:true});
+  }
 })();
 </script>
 <script>
@@ -8584,6 +8598,8 @@ html.dark #rqSafetyBackupBox #rqSafetyBackupLocation b{color:#ecfdf5 !important}
 
 <script id="rq-mobile-header-pop-v2">
 (function(){
+  /* V22: legacy mobile header disabled. The PRO header below is the single active implementation. */
+  return;
   function initMobileHeaderPop(){
     var header=document.getElementById('appHeader');
     if(!header || !header.querySelector('.max-w-7xl')) return;
@@ -8664,6 +8680,8 @@ html.dark #rqSafetyBackupBox #rqSafetyBackupLocation b{color:#ecfdf5 !important}
 
 <script id="rq-mobile-final-fix-js">
 (function(){
+  /* V22: legacy mobile header disabled. The PRO header below is the single active implementation. */
+  return;
   function setup(){
     var h=document.getElementById('appHeader');
     if(!h || h.dataset.rqFinalReady==='1') return;
@@ -8857,13 +8875,16 @@ html.dark #rqSafetyBackupBox #rqSafetyBackupLocation b{color:#ecfdf5 !important}
     background:rgba(6,95,70,.28)!important;
     color:#fff!important;
     box-shadow:0 8px 25px rgba(0,0,0,.20)!important;
-    -webkit-backdrop-filter:blur(8px)!important;backdrop-filter:blur(8px)!important;
     z-index:2147483001!important;pointer-events:auto!important;cursor:grab!important;visibility:visible!important;opacity:1!important;
     touch-action:none!important;
     user-select:none!important;-webkit-user-select:none!important;
+    contain:layout paint style!important;
+    isolation:isolate!important;
+    will-change:left,top,transform!important;
     transition:transform .16s ease,background .18s ease,box-shadow .18s ease!important;
   }
-  #rqMobileHeaderProLauncher:active{cursor:grabbing!important;transform:scale(.96)!important;}
+  #rqMobileHeaderProLauncher:active{cursor:grabbing!important;}
+  #rqMobileHeaderProLauncher.rq-pro-dragging{transition:none!important;cursor:grabbing!important;}
   #rqMobileHeaderProLauncher .rq-pro-icon{font-size:27px!important;line-height:1!important;pointer-events:none!important;}
   #rqMobileHeaderProLauncher .rq-pro-hint{position:absolute!important;bottom:4px!important;right:7px!important;font-size:8px!important;opacity:.72!important;pointer-events:none!important;}
 
@@ -8954,26 +8975,62 @@ html.dark #rqSafetyBackupBox #rqSafetyBackupLocation b{color:#ecfdf5 !important}
     }
     apply();
 
-    var down=false,moved=false,sx=0,sy=0,ox=0,oy=0;
+    /* Drag aman: selama digeser hanya ubah posisi visual.
+       localStorage cukup ditulis sekali saat selesai agar HP tidak terbebani. */
+    var down=false,moved=false,sx=0,sy=0,ox=0,oy=0,pendingX=null,pendingY=null,raf=0;
+    function drawDragPosition(){
+      raf=0;
+      if(pendingX===null)return;
+      var w=window.innerWidth,hg=window.innerHeight,sz=62;
+      var x=Math.max(8,Math.min(pendingX,w-sz-8));
+      var y=Math.max(8,Math.min(pendingY,hg-sz-8));
+      pos.x=x;pos.y=y;
+      launcher.style.left=x+'px';
+      launcher.style.top=y+'px';
+    }
+    function queueDragPosition(x,y){
+      pendingX=x;pendingY=y;
+      if(!raf)raf=requestAnimationFrame(drawDragPosition);
+    }
+    function finishDrag(){
+      if(raf){cancelAnimationFrame(raf);raf=0;}
+      if(pendingX!==null){drawDragPosition();pendingX=pendingY=null;}
+      clamp();
+      launcher.style.left=pos.x+'px';
+      launcher.style.top=pos.y+'px';
+      try{localStorage.setItem(KEY,JSON.stringify(pos));}catch(_){}
+    }
     launcher.addEventListener('pointerdown',function(e){
       if(!mobile() || h.classList.contains('rq-mobile-pro-open')) return;
       down=true;moved=false;sx=e.clientX;sy=e.clientY;ox=pos.x;oy=pos.y;
-      try{launcher.setPointerCapture(e.pointerId);}catch(_){ }
-      e.preventDefault();
-    },{passive:false});
+      launcher.classList.add('rq-pro-dragging');
+      try{launcher.setPointerCapture(e.pointerId);}catch(_){}
+    },{passive:true});
     launcher.addEventListener('pointermove',function(e){
       if(!down)return;
       var dx=e.clientX-sx,dy=e.clientY-sy;
       if(Math.abs(dx)+Math.abs(dy)>7)moved=true;
-      pos.x=ox+dx;pos.y=oy+dy;apply();
-      e.preventDefault();
-    },{passive:false});
+      if(moved) queueDragPosition(ox+dx,oy+dy);
+    },{passive:true});
     launcher.addEventListener('pointerup',function(e){
-      if(!down)return;down=false;
-      if(!moved) open(true);
-      e.preventDefault();
-    },{passive:false});
-    launcher.addEventListener('pointercancel',function(){down=false;});
+      if(!down)return;
+      down=false;
+      if(moved){
+        finishDrag();
+      }else{
+        if(raf){cancelAnimationFrame(raf);raf=0;}
+        pendingX=pendingY=null;
+        open(true);
+      }
+      launcher.classList.remove('rq-pro-dragging');
+      try{launcher.releasePointerCapture(e.pointerId);}catch(_){}
+    },{passive:true});
+    launcher.addEventListener('pointercancel',function(){
+      if(!down)return;
+      down=false;
+      if(moved)finishDrag();else{if(raf){cancelAnimationFrame(raf);raf=0;}pendingX=pendingY=null;}
+      launcher.classList.remove('rq-pro-dragging');
+    });
 
     function open(v){
       if(!mobile())return;
@@ -9028,7 +9085,16 @@ html.dark #rqSafetyBackupBox #rqSafetyBackupLocation b{color:#ecfdf5 !important}
        Launcher mobile harus tetap hidup dan terlihat setelah menu Data dibuka.
        Observer ini hanya bekerja di HP dan hanya menjaga launcher kecil saat panel tertutup.
     */
-    var keepLauncherVisible=new MutationObserver(function(){
+    /* Observer dibuat sangat ringan. Jangan menulis localStorage / memanggil apply()
+       pada setiap perubahan DOM karena menu Data dapat menghasilkan banyak mutation. */
+    /*
+       Jangan mengamati seluruh document.body. Aplikasi ini sering melakukan
+       render DOM besar pada menu Data/Input sehingga MutationObserver global
+       dapat membuat HP berat walaupun callback-nya sudah di-throttle.
+       Launcher dibuat langsung sebagai child body dan tidak perlu diawasi
+       terus-menerus. Cukup lakukan pemeriksaan ringan setelah render awal.
+    */
+    function ensureLauncher(){
       if(!mobile() || h.classList.contains('rq-mobile-pro-open')) return;
       if(!document.body.contains(launcher)) document.body.appendChild(launcher);
       launcher.style.display='flex';
@@ -9036,9 +9102,9 @@ html.dark #rqSafetyBackupBox #rqSafetyBackupLocation b{color:#ecfdf5 !important}
       launcher.style.opacity='1';
       launcher.style.pointerEvents='auto';
       launcher.style.zIndex='2147483001';
-      apply();
-    });
-    keepLauncherVisible.observe(document.body,{childList:true,subtree:true});
+    }
+    setTimeout(ensureLauncher,500);
+    setTimeout(ensureLauncher,1500);
 
     if(mobile()){
       open(false);
@@ -9393,7 +9459,34 @@ html.dark #rqSafetyBackupBox #rqSafetyBackupLocation b{color:#ecfdf5 !important}
   }
   function run(){ try{ cleanLegacyUi(); }catch(_){} }
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',run); else run();
-  new MutationObserver(run).observe(document.body||document.documentElement,{childList:true,subtree:true});
+  /* Freeze guard: jangan mengawasi seluruh BODY terus-menerus.
+     App ini sering melakukan render DOM besar; observer global yang hidup lama
+     bisa membuat callback masuk ribuan kali di HP. Cukup tangkap perubahan
+     awal setelah boot, lalu lepas observer. CSS ID/class di atas tetap menjadi
+     pengaman permanen untuk elemen legacy. */
+  var legacyObserver=null, legacyObserved=false, legacyTimer=0;
+  function scheduleLegacyClean(delay){
+    if(legacyTimer) return;
+    legacyTimer=setTimeout(function(){
+      legacyTimer=0;
+      try{run();}catch(_){}
+    },delay||80);
+  }
+  var root=document.body||document.documentElement;
+  if(root){
+    legacyObserver=new MutationObserver(function(){
+      if(legacyObserved) return;
+      legacyObserved=true;
+      try{legacyObserver.disconnect();}catch(_){}
+      legacyObserver=null;
+      scheduleLegacyClean(80);
+    });
+    legacyObserver.observe(root,{childList:true,subtree:true});
+    setTimeout(function(){
+      if(legacyObserver){try{legacyObserver.disconnect();}catch(_){} legacyObserver=null;}
+      scheduleLegacyClean(0);
+    },1500);
+  }
 })();
 </script>
 
