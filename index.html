@@ -1627,31 +1627,9 @@
         };
 
         window.getInputSyncBadgeHtml = function(category, name) {
-            const state = window.getInputSyncState(category, name);
-            const safe = window.syncInputKey(name);
-            const read = state.read || { status: 'idle', message: 'Menunggu', progress: 0 };
-            const write = state.write || { status: 'idle', message: 'Menunggu', progress: 0 };
-            const chipClass = 'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] sm:text-[11px] font-black border';
-            const readClass = read.status === 'success'
-                ? ' bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700'
-                : read.status === 'active'
-                    ? ' bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300 border-amber-300 dark:border-amber-700 animate-pulse'
-                    : read.status === 'error'
-                        ? ' bg-rose-100 dark:bg-rose-950 text-rose-800 dark:text-rose-300 border-rose-300 dark:border-rose-700'
-                        : ' bg-slate-100 dark:bg-slate-900 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700';
-            const writeClass = write.status === 'success'
-                ? ' bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700'
-                : write.status === 'active'
-                    ? ' bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300 border-amber-300 dark:border-amber-700 animate-pulse'
-                    : write.status === 'error'
-                        ? ' bg-rose-100 dark:bg-rose-950 text-rose-800 dark:text-rose-300 border-rose-300 dark:border-rose-700'
-                        : ' bg-slate-100 dark:bg-slate-900 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700';
-            const readIcon = read.status === 'active' ? 'fa-solid fa-rotate fa-spin' : read.status === 'success' ? 'fa-solid fa-circle-check' : read.status === 'error' ? 'fa-solid fa-circle-xmark' : 'fa-solid fa-circle-dot';
-            const writeIcon = write.status === 'active' ? 'fa-solid fa-cloud-arrow-up fa-bounce' : write.status === 'success' ? 'fa-solid fa-circle-check' : write.status === 'error' ? 'fa-solid fa-circle-xmark' : 'fa-solid fa-circle-dot';
-            return `<div class="flex items-center gap-1.5 flex-wrap" title="Status: Penyimpanan Lokal">
-                <span id="sync_input_read_${category}_${safe}" class="${chipClass}${readClass}"><i id="sync_icon_read_${category}_${safe}" class="${readIcon}"></i><span>READ</span><strong id="sync_pct_read_${category}_${safe}" class="min-w-[28px] text-right">${Math.round(Number(read.progress) || 0)}%</strong><span id="sync_text_read_${category}_${safe}">${read.message || 'Menunggu'}</span></span>
-                <span id="sync_input_write_${category}_${safe}" class="${chipClass}${writeClass}"><i id="sync_icon_write_${category}_${safe}" class="${writeIcon}"></i><span>WRITE</span><strong id="sync_pct_write_${category}_${safe}" class="min-w-[28px] text-right">${Math.round(Number(write.progress) || 0)}%</strong><span id="sync_text_write_${category}_${safe}">${write.message || 'Menunggu'}</span></span>
-            </div>`;
+            // Indikator READ/WRITE disembunyikan dari kartu Input.
+            // State dan fungsi sinkronisasi tetap dipertahankan agar fitur lama tidak rusak.
+            return '';
         };
 
         // ============================================================
@@ -2577,11 +2555,10 @@
                 const isTodayHaf = s.lastHafalanDate === todayStr;
                 const isTodayMur = s.lastMurojaahDate === todayStr;
                 const isTodayTug = s.lastTugasDate === todayStr;
-
-                const badgeBac = isTodayBac ? '<span class="px-2.5 py-1 bg-emerald-100 text-emerald-800 text-[11px] font-black rounded-lg">Alhamdulillah hari ini sudah di input</span>' : '<span class="px-2.5 py-1 bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-[11px] font-black rounded-lg">Belum di input</span>';
-                const badgeHaf = isTodayHaf ? '<span class="px-2.5 py-1 bg-rose-100 text-rose-800 text-[11px] font-black rounded-lg">Alhamdulillah hari ini sudah di input</span>' : '<span class="px-2.5 py-1 bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-[11px] font-black rounded-lg">Belum di input</span>';
-                const badgeMur = isTodayMur ? '<span class="px-2.5 py-1 bg-purple-100 text-purple-800 text-[11px] font-black rounded-lg">Alhamdulillah hari ini sudah di input</span>' : '<span class="px-2.5 py-1 bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-[11px] font-black rounded-lg">Belum di input</span>';
-                const badgeTug = isTodayTug ? '<span class="px-2.5 py-1 bg-amber-100 text-amber-800 text-[11px] font-black rounded-lg">Alhamdulillah hari ini sudah di input</span>' : '<span class="px-2.5 py-1 bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-[11px] font-black rounded-lg">Belum di input</span>';
+                const badgeBac = '';
+                const badgeHaf = '';
+                const badgeMur = '';
+                const badgeTug = '';
 
                 const defaultBacStat = window.getFormCache(`${s.name}_bac_stat`, s.cloudBacStat || '');
                 const defaultHafStat = window.getFormCache(`${s.name}_haf_stat`, s.cloudHafStat || '');
