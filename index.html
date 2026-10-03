@@ -4416,7 +4416,35 @@
                         localStorage.removeItem('rq_santri_master');
                     }
                 } else {
+                    // MERGE aman antar-perangkat:
+                    // Jangan membawa data yang memang bersifat lokal/perangkat ke perangkat lain.
+                    // Khususnya rq_undo_snapshots_v1 dapat berukuran MB dan bila ikut digabung
+                    // dapat membuat Local Storage penuh sehingga proses Merge terlihat gagal.
+                    const deviceLocalOnlyKeys = new Set([
+                        'rq_undo_snapshots_v1',
+                        'rq_import_history_v1',
+                        'rq_activity_log_v1',
+                        'rq_import_operator_name',
+                        'rq_import_operator_device',
+                        'rq_backend_device_id_v2',
+                        'rq_mobile_header_pro_position_v13',
+                        'rq_gs_url',
+                        'rq_current_teacher',
+                        'currentTeacher',
+                        'selectedTeacher',
+                        'teacherName',
+                        'rq_offline_panel_open',
+                        'rq_dark_mode',
+                        'rq_tracker_dark',
+                        'rq_live_report_font_size',
+                        'rq_inline_live_report_tab',
+                        'rq_inline_live_report_open',
+                        'rq_inline_live_report_type',
+                        'rq_inline_live_tab1_include_target',
+                        'rq_safety_backup_enabled'
+                    ]);
                     for (const [key, incomingValue] of Object.entries(imported)) {
+                        if (deviceLocalOnlyKeys.has(key)) continue;
                         const currentValue = readLocal(key);
                         const incomingJson = parseJson(incomingValue);
                         const currentJson = parseJson(currentValue);
@@ -4439,7 +4467,7 @@
                     }
                 }
 
-                const targetAfter = parseJson(imported['rq_target_hafalan_murojaah_v2']);
+                const targetAfter = parseJson(readLocal('rq_target_hafalan_murojaah_v2')) || {};
                 const targetAfterH = targetAfter?.hafalan && typeof targetAfter.hafalan === 'object' ? Object.keys(targetAfter.hafalan).length : 0;
                 const targetAfterM = targetAfter?.murojaah && typeof targetAfter.murojaah === 'object' ? Object.keys(targetAfter.murojaah).length : 0;
                 const resultBox = document.getElementById('rqOfflineCsvImportStatus');
