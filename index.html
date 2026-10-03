@@ -1,3 +1,4 @@
+<!-- V33 FIX: Target Muroja'ah Juz otomatis memakai pemetaan Juz, bukan nomor surat. -->
 <!DOCTYPE html>
 <html lang="id" class="h-full">
 <head>
@@ -1359,7 +1360,9 @@
             // Setelah nama santri dipilih, seluruh 4 form Input langsung terbuka.
             // Tidak ada lagi tombol 'Buka Form'; data/input existing tidak diubah.
             window.renderSantriCardsAndTable();
-            window.selectAndScrollToSantri(student.name);
+            // Setelah nama dipilih dari pencarian, langsung arahkan layar ke bagian BACAAN.
+            // Hanya posisi scroll yang diubah; data/form dan fitur lain tidak disentuh.
+            window.scrollToBacaanSantri(student.name);
         };
 
         window.scrollToSantri = function(santriName) {
@@ -1369,6 +1372,26 @@
                 card.classList.add('ring-4', 'ring-amber-400');
                 setTimeout(() => card.classList.remove('ring-4', 'ring-amber-400'), 2000);
             }
+        };
+
+        // Posisi khusus setelah memilih nama dari pencarian: tepat ke awal FORM BACAAN.
+        // Tidak mengubah perilaku scrollToSantri yang dipakai fitur lain.
+        window.scrollToBacaanSantri = function(santriName) {
+            if (!santriName) return;
+            const target = document.getElementById(`card_section_bacaan_${CSS.escape(santriName)}`);
+            if (!target) {
+                // Render kartu bisa selesai sesaat setelah event klik; coba sekali lagi.
+                setTimeout(() => window.scrollToBacaanSantri(santriName), 80);
+                return;
+            }
+
+            const header = document.querySelector('header');
+            const headerHeight = header ? Math.max(0, header.getBoundingClientRect().height) : 0;
+            const extraTop = window.innerWidth <= 767 ? 10 : 16;
+            const y = Math.max(0, window.scrollY + target.getBoundingClientRect().top - headerHeight - extraTop);
+            window.scrollTo({ top: y, behavior: 'smooth' });
+            target.classList.add('ring-4', 'ring-amber-400');
+            setTimeout(() => target.classList.remove('ring-4', 'ring-amber-400'), 1800);
         };
 
         // Saat operator menggulir daftar kartu Input, Live Laporan WA Personal
@@ -1605,31 +1628,9 @@
         };
 
         window.getInputSyncBadgeHtml = function(category, name) {
-            const state = window.getInputSyncState(category, name);
-            const safe = window.syncInputKey(name);
-            const read = state.read || { status: 'idle', message: 'Menunggu', progress: 0 };
-            const write = state.write || { status: 'idle', message: 'Menunggu', progress: 0 };
-            const chipClass = 'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] sm:text-[11px] font-black border';
-            const readClass = read.status === 'success'
-                ? ' bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700'
-                : read.status === 'active'
-                    ? ' bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300 border-amber-300 dark:border-amber-700 animate-pulse'
-                    : read.status === 'error'
-                        ? ' bg-rose-100 dark:bg-rose-950 text-rose-800 dark:text-rose-300 border-rose-300 dark:border-rose-700'
-                        : ' bg-slate-100 dark:bg-slate-900 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700';
-            const writeClass = write.status === 'success'
-                ? ' bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700'
-                : write.status === 'active'
-                    ? ' bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300 border-amber-300 dark:border-amber-700 animate-pulse'
-                    : write.status === 'error'
-                        ? ' bg-rose-100 dark:bg-rose-950 text-rose-800 dark:text-rose-300 border-rose-300 dark:border-rose-700'
-                        : ' bg-slate-100 dark:bg-slate-900 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700';
-            const readIcon = read.status === 'active' ? 'fa-solid fa-rotate fa-spin' : read.status === 'success' ? 'fa-solid fa-circle-check' : read.status === 'error' ? 'fa-solid fa-circle-xmark' : 'fa-solid fa-circle-dot';
-            const writeIcon = write.status === 'active' ? 'fa-solid fa-cloud-arrow-up fa-bounce' : write.status === 'success' ? 'fa-solid fa-circle-check' : write.status === 'error' ? 'fa-solid fa-circle-xmark' : 'fa-solid fa-circle-dot';
-            return `<div class="flex items-center gap-1.5 flex-wrap" title="Status: Penyimpanan Lokal">
-                <span id="sync_input_read_${category}_${safe}" class="${chipClass}${readClass}"><i id="sync_icon_read_${category}_${safe}" class="${readIcon}"></i><span>READ</span><strong id="sync_pct_read_${category}_${safe}" class="min-w-[28px] text-right">${Math.round(Number(read.progress) || 0)}%</strong><span id="sync_text_read_${category}_${safe}">${read.message || 'Menunggu'}</span></span>
-                <span id="sync_input_write_${category}_${safe}" class="${chipClass}${writeClass}"><i id="sync_icon_write_${category}_${safe}" class="${writeIcon}"></i><span>WRITE</span><strong id="sync_pct_write_${category}_${safe}" class="min-w-[28px] text-right">${Math.round(Number(write.progress) || 0)}%</strong><span id="sync_text_write_${category}_${safe}">${write.message || 'Menunggu'}</span></span>
-            </div>`;
+            // Indikator READ/WRITE disembunyikan dari kartu Input.
+            // State dan fungsi sinkronisasi tetap dipertahankan agar fitur lama tidak rusak.
+            return '';
         };
 
         // ============================================================
@@ -2555,11 +2556,10 @@
                 const isTodayHaf = s.lastHafalanDate === todayStr;
                 const isTodayMur = s.lastMurojaahDate === todayStr;
                 const isTodayTug = s.lastTugasDate === todayStr;
-
-                const badgeBac = isTodayBac ? '<span class="px-2.5 py-1 bg-emerald-100 text-emerald-800 text-[11px] font-black rounded-lg">Alhamdulillah hari ini sudah di input</span>' : '<span class="px-2.5 py-1 bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-[11px] font-black rounded-lg">Belum di input</span>';
-                const badgeHaf = isTodayHaf ? '<span class="px-2.5 py-1 bg-rose-100 text-rose-800 text-[11px] font-black rounded-lg">Alhamdulillah hari ini sudah di input</span>' : '<span class="px-2.5 py-1 bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-[11px] font-black rounded-lg">Belum di input</span>';
-                const badgeMur = isTodayMur ? '<span class="px-2.5 py-1 bg-purple-100 text-purple-800 text-[11px] font-black rounded-lg">Alhamdulillah hari ini sudah di input</span>' : '<span class="px-2.5 py-1 bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-[11px] font-black rounded-lg">Belum di input</span>';
-                const badgeTug = isTodayTug ? '<span class="px-2.5 py-1 bg-amber-100 text-amber-800 text-[11px] font-black rounded-lg">Alhamdulillah hari ini sudah di input</span>' : '<span class="px-2.5 py-1 bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-[11px] font-black rounded-lg">Belum di input</span>';
+                const badgeBac = '';
+                const badgeHaf = '';
+                const badgeMur = '';
+                const badgeTug = '';
 
                 const defaultBacStat = window.getFormCache(`${s.name}_bac_stat`, s.cloudBacStat || '');
                 const defaultHafStat = window.getFormCache(`${s.name}_haf_stat`, s.cloudHafStat || '');
@@ -2633,43 +2633,13 @@
                         </div>
 
                         <div class="p-4 sm:p-5 space-y-4">
-                            <div class="flex items-center justify-between text-xs sm:text-sm font-bold text-slate-500 bg-slate-100 dark:bg-slate-900 p-3.5 rounded-2xl">
-                                <span>Tanggal: <input type="date" id="tgl_${s.name}" value="${window.getFormCache(`tgl_${s.name}`, todayStr)}" oninput="window.cacheFormInput(this, 'tgl_${s.name}'); window.selectInlineWaSantri('${s.name}', true)" onchange="window.cacheFormInput(this, 'tgl_${s.name}'); window.selectInlineWaSantri('${s.name}', true)" class="p-2.5 bg-white dark:bg-slate-800 border-2 rounded-xl font-bold text-xs sm:text-sm min-h-[46px]"></span>
+                            <div class="flex items-center justify-end text-xs sm:text-sm font-bold text-slate-500 bg-slate-100 dark:bg-slate-900 p-3.5 rounded-2xl">
+                                <input type="hidden" id="tgl_${s.name}" value="${todayStr}">
                                 <span class="text-emerald-700 dark:text-emerald-400 font-black">Form Input Setoran</span>
                             </div>
 
-                            <!-- TABEL FORM: satu santri terpilih, empat jenis input -->
-                            <div class="overflow-x-auto rounded-2xl border border-slate-200 dark:border-slate-700">
-                                <table class="w-full min-w-[760px] text-xs">
-                                    <thead>
-                                        <tr class="bg-slate-100 dark:bg-slate-900">
-                                            <th class="p-3 text-left font-black text-emerald-800 dark:text-emerald-300">Bacaan</th>
-                                            <th class="p-3 text-left font-black text-rose-800 dark:text-rose-300">Hafalan</th>
-                                            <th class="p-3 text-left font-black text-purple-800 dark:text-purple-300">Muroja'ah</th>
-                                            <th class="p-3 text-left font-black text-amber-800 dark:text-amber-300">Tugas</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <tr class="align-top bg-white dark:bg-slate-800">
-                                            <td class="p-3 border-t border-slate-200 dark:border-slate-700">
-                                                <div class="font-black ${isTodayBac ? 'text-emerald-600' : 'text-slate-500'}">${isTodayBac ? 'Sudah input hari ini' : 'Belum di input'}</div>
-                                            </td>
-                                            <td class="p-3 border-t border-slate-200 dark:border-slate-700">
-                                                <div class="font-black ${isTodayHaf ? 'text-rose-600' : 'text-slate-500'}">${isTodayHaf ? 'Sudah input hari ini' : 'Belum di input'}</div>
-                                            </td>
-                                            <td class="p-3 border-t border-slate-200 dark:border-slate-700">
-                                                <div class="font-black ${isTodayMur ? 'text-purple-600' : 'text-slate-500'}">${isTodayMur ? 'Sudah input hari ini' : 'Belum di input'}</div>
-                                            </td>
-                                            <td class="p-3 border-t border-slate-200 dark:border-slate-700">
-                                                <div class="font-black ${isTodayTug ? 'text-amber-600' : 'text-slate-500'}">${isTodayTug ? 'Sudah input hari ini' : 'Belum di input'}</div>
-                                            </td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </div>
-
                             <!-- BACAAN -->
-                            <div class="p-4 sm:p-5 rounded-2xl border-2 border-emerald-500 bg-emerald-50 dark:bg-emerald-950/20 space-y-3.5">
+                            <div id="card_section_bacaan_${s.name}" class="p-4 sm:p-5 rounded-2xl border-2 border-emerald-500 bg-emerald-50 dark:bg-emerald-950/20 space-y-3.5">
                                 <div class="flex items-center justify-between border-b border-emerald-200 dark:border-emerald-800 pb-3 flex-wrap gap-2.5">
                                     <div class="flex items-center gap-2 flex-wrap">
                                         <span class="font-black text-xs sm:text-sm text-emerald-800 dark:text-emerald-300 uppercase flex items-center gap-1.5">
@@ -4119,9 +4089,22 @@
         // serta data baru dan data yang diperbarui.
         // ============================================================
         window.rqImportHistoryKey = 'rq_import_history_v1';
+        window.rqDetectImportDevice = function() {
+            try {
+                const ua = String(navigator.userAgent || '');
+                return /Android|iPhone|iPad|iPod|Mobile/i.test(ua) ? 'HP' : 'Laptop/PC';
+            } catch (_) { return 'Laptop/PC'; }
+        };
         window.rqGetImportOperator = function() {
-            const name = String(document.getElementById('rqImportOperatorName')?.value || localStorage.getItem('rq_import_operator_name') || '').trim();
-            const device = String(document.getElementById('rqImportOperatorDevice')?.value || localStorage.getItem('rq_import_operator_device') || '').trim();
+            const savedName = localStorage.getItem('rq_import_operator_name') || '';
+            const savedDevice = localStorage.getItem('rq_import_operator_device') || '';
+            const teacherKeys = ['rq_current_teacher','currentTeacher','selectedTeacher','teacherName'];
+            let detectedName = '';
+            for (const k of teacherKeys) {
+                try { const v = String(localStorage.getItem(k) || '').trim(); if (v) { detectedName = v; break; } } catch (_) {}
+            }
+            const name = String(document.getElementById('rqImportOperatorName')?.value || savedName || detectedName || 'Pengguna Perangkat').trim();
+            const device = String(document.getElementById('rqImportOperatorDevice')?.value || savedDevice || window.rqDetectImportDevice()).trim();
             return { name, device };
         };
         window.rqSaveImportOperator = function() {
@@ -4506,12 +4489,18 @@
         window.openOfflineCsvImport = function(mode = 'replace') {
             window.rqPendingCsvImportMode = mode === 'merge' ? 'merge' : 'replace';
             const input = document.getElementById('rqOfflineCsvImportInput');
-            if (!input) return;
-            if (!input.files?.length) {
-                input.click();
+            if (!input) {
+                window.showToast?.('Kolom pemilih file CSV tidak ditemukan. Muat ulang halaman lalu coba lagi.', 'error');
                 return;
             }
-            window.previewOfflineCsvFile(input.files[0]);
+            // Selalu buka pemilih file saat tombol GANTI/GABUNGKAN ditekan.
+            // Sebelumnya, jika input masih berisi file lama, sistem langsung memakai
+            // file lama sehingga pengguna merasa file HP yang baru tidak masuk.
+            try { input.value = ''; } catch (_) {}
+            setTimeout(() => {
+                try { input.click(); }
+                catch (e) { window.showToast?.('Pemilih file tidak dapat dibuka: ' + (e?.message || e), 'error'); }
+            }, 0);
         };
 
         window.handleOfflineCsvDrop = function(event, mode = 'replace') {
@@ -7291,6 +7280,7 @@
                                 </select>
                             </label>
                             <div class="sm:col-span-2 text-[10px] font-bold text-indigo-700 dark:text-indigo-300">Informasi ini otomatis dicatat bersama tanggal dan waktu setiap Import/Merge yang berhasil.</div>
+                            <div class="sm:col-span-2 text-[10px] font-bold text-emerald-700 dark:text-emerald-300">Perangkat terdeteksi otomatis. Saat menekan GABUNGKAN DATA, pilih kembali file CSV dari HP yang ingin dimasukkan.</div>
                         </div>
                         <p class="text-[11px] text-slate-600 dark:text-slate-400 font-bold">
                             <b>Ganti</b> mengganti data aplikasi dengan isi CSV. <b>Gabungkan</b> mempertahankan data yang ada lalu menggabungkannya dengan data dari CSV.
@@ -8294,7 +8284,7 @@ html.dark #rqSafetyBackupBox #rqSafetyBackupLocation b{color:#ecfdf5 !important}
  const getTarget=(name,type,slot)=>{const d=getDB();const t=d[type]?.[name];if(type==='hafalan'){if(t?.jangkaPendek||t?.akanDatang)return slot==='akanDatang'?t.akanDatang:t.jangkaPendek;return t?.ayat?t:null;}return t||null};
  const limit=(type,name,slot='legacy')=>{const x=ids(type,name,slot),s=document.getElementById(x.s),a=document.getElementById(x.a),i=document.getElementById(x.i);if(!s||!a)return;const q=(window.surahList||[]).find(z=>String(z.name)===String(s.value));if(q){a.max=q.ayat;a.min=1;a.placeholder=`1-${q.ayat}`;if(a.value!==''&&(!Number.isInteger(Number(a.value))||Number(a.value)<1||Number(a.value)>Number(q.ayat)))a.value='';if(i)i.innerHTML=`Surat ${q.no}. <b>${esc(q.name)}</b> memiliki ${q.ayat} ayat. Target maksimal ${q.ayat} ayat.`}else{a.removeAttribute('max');a.min=1;a.placeholder='Pilih surat';if(i)i.textContent='Pilih surat agar batas target ayat mengikuti jumlah ayat asli.'}};
  const render=(type,name,slot='legacy')=>{const x=ids(type,name,slot),b=document.getElementById(x.p);if(!b)return;const t=getTarget(name,type,slot);if(!t){b.innerHTML='<div class="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border text-[9px] font-bold text-slate-500">Belum ada target tersimpan.</div>';return}const q=calc(type,name,t),periode=t.mulai&&t.selesai?`${t.mulai} s.d. ${t.selesai}`:'',pct=Number.isFinite(q.pct)?q.pct:0,detail=`${q.ayatReal} / ${q.ayatTarget} ayat`,status=type==='hafalan'?targetStatus(t,q):'';b.innerHTML=`<div class="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border"><div class="flex justify-between text-[9px] font-black"><span>Progress ${type==='hafalan'?(slot==='akanDatang'?'Yang Akan Datang':'Jangka Pendek'):'Muroja’ah'}</span><span class="${type==='hafalan'?'text-emerald-600':'text-sky-600'}">${pct}%</span></div><div class="mt-1.5 h-2 rounded-full bg-slate-200 overflow-hidden"><div class="h-full ${type==='hafalan'?'bg-emerald-500':'bg-sky-500'} rounded-full" style="width:${pct}%"></div></div><div class="mt-1.5 text-[9px] font-bold text-slate-500">${detail} · ${esc(t.juz?`Juz ${t.juz}`:'Juz -')} · ${esc(t.surat||'')}</div>${periode?`<div class="mt-1 text-[9px] font-bold text-slate-500">Periode: ${esc(periode)}</div>`:''}${status?`<div class="mt-1 text-[9px] font-black ${status==='Sedang Berjalan'?'text-emerald-600':status==='Belum Mulai'?'text-sky-600':status==='Selesai'?'text-emerald-700':status==='Terlewat'?'text-rose-600':'text-slate-500'}">Status: ${status}</div>`:''}<button type="button" onclick='window.deleteInputTarget(${JSON.stringify(type)},${JSON.stringify(name)},${JSON.stringify(slot)})' class="mt-1.5 text-[9px] font-black text-rose-600">Hapus target</button></div>`};
- const load=(type,name,slot='legacy')=>{const x=ids(type,name,slot),t=getTarget(name,type,slot)||{},j=document.getElementById(x.j),s=document.getElementById(x.s),a=document.getElementById(x.a),mulai=document.getElementById(x.mulai),selesai=document.getElementById(x.selesai);if(j)j.value=t.juz||'';if(s)s.value=t.surat||'';if(a)a.value=(Number(t.ayat)>0?Number(t.ayat):'');if(mulai)mulai.value=t.mulai||'';if(selesai)selesai.value=t.selesai||'';limit(type,name,slot);render(type,name,slot)};
+ const load=(type,name,slot='legacy')=>{const x=ids(type,name,slot),t=getTarget(name,type,slot)||{},j=document.getElementById(x.j),s=document.getElementById(x.s),a=document.getElementById(x.a),mulai=document.getElementById(x.mulai),selesai=document.getElementById(x.selesai);if(s)s.value=t.surat||'';if(a)a.value=(Number(t.ayat)>0?Number(t.ayat):'');if(j){const q=t.surat?(window.surahList||[]).find(z=>String(z.name)===String(t.surat)):null;j.value=q&&Number(t.ayat)>0?`Juz ${juzFor(q.no,Number(t.ayat))}`:(t.juz||'');}if(mulai)mulai.value=t.mulai||'';if(selesai)selesai.value=t.selesai||'';limit(type,name,slot);render(type,name,slot)};
  window.onInlineTargetSurahChange=(type,name,slot='legacy')=>limit(type,name,slot);
  window.saveInputTarget=(type,name,slot='legacy')=>{const x=ids(type,name,slot),j=String(document.getElementById(x.j)?.value||'').trim(),surat=String(document.getElementById(x.s)?.value||'').trim(),aEl=document.getElementById(x.a),ayat=Number(aEl?.value||0),mulai=String(document.getElementById(x.mulai)?.value||'').trim(),selesai=String(document.getElementById(x.selesai)?.value||'').trim(),q=(window.surahList||[]).find(z=>String(z.name)===surat);if(!q)return window.showToast?.('Pilih nama surat untuk target.','error');if(!Number.isInteger(ayat)||ayat<1||ayat>Number(q.ayat))return window.showToast?.(`Target ayat harus 1–${q.ayat} untuk ${q.name}.`,'error');if(!mulai||!selesai)return window.showToast?.('Isi tanggal mulai dan tanggal selesai.','error');if(selesai<mulai)return window.showToast?.('Tanggal selesai tidak boleh sebelum tanggal mulai.','error');const db=getDB();db[type]=db[type]||{};if(type==='hafalan'){const prev=db.hafalan?.[name]||{};const legacy=prev.ayat&&!prev.jangkaPendek&&!prev.akanDatang?prev:null;const short=prev.jangkaPendek||legacy||null,future=prev.akanDatang||null;const prevSlot=slot==='jangkaPendek'?short:future;const sameTarget=!!(prevSlot&&String(prevSlot.surat||'').trim()===surat&&String(prevSlot.juz||'').trim()===j&&String(prevSlot.mulai||'')===mulai&&String(prevSlot.selesai||'')===selesai);const createdAt=sameTarget?(prevSlot.createdAt||prevSlot.updatedAt||new Date().toISOString()):new Date().toISOString();const newTarget={juz:j,surat,ayat,kali:0,mulai,selesai,createdAt,updatedAt:new Date().toISOString()};const other=slot==='jangkaPendek'?future:short;if(other?.mulai&&other?.selesai){const a=dateKey(mulai),b=dateKey(selesai),oa=dateKey(other.mulai),ob=dateKey(other.selesai);if(a<=ob&&oa<=b)return window.showToast?.('Periode target tidak boleh tumpang tindih. Pisahkan Target Jangka Pendek dan Target Yang Akan Datang.','error');}db.hafalan[name]={jangkaPendek:slot==='jangkaPendek'?newTarget:short,akanDatang:slot==='akanDatang'?newTarget:future};}else{db[type][name]={juz:j,surat,ayat,mulai,selesai,updatedAt:new Date().toISOString()};}putDB(db);load(type,name,slot);window.showToast?.(`Target ${type==='hafalan'?(slot==='akanDatang'?'Yang Akan Datang':'Jangka Pendek'):'Muroja’ah'} berhasil disimpan.`,'success');setTimeout(()=>{try{window.generateWaReport?.();window.refreshInlineTargets?.();}catch(_){ }},30)};
  window.deleteInputTarget=(type,name,slot='legacy')=>{const db=getDB();if(type==='hafalan'&&(slot==='jangkaPendek'||slot==='akanDatang')){if(db.hafalan?.[name])db.hafalan[name][slot]=null;}else if(db[type])delete db[type][name];putDB(db);load(type,name,slot);window.showToast?.('Target dihapus.','success');setTimeout(()=>{try{window.generateWaReport?.();window.refreshInlineTargets?.();}catch(_){ }},30)};
@@ -8386,6 +8376,9 @@ html.dark #rqSafetyBackupBox #rqSafetyBackupLocation b{color:#ecfdf5 !important}
     }
     return found;
   }
+  // Satu sumber perhitungan Juz untuk seluruh Target.
+  // Tidak memakai nomor surat sebagai nomor Juz.
+  window.rqTargetJuzForSurah=function(no,ayah){return juzFor(no,ayah);};
   function esc(v){return String(v??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');}
   function parts(type,name,slot){
     const p=type==='hafalan'?'Hafalan':'Murojaah';
@@ -8600,8 +8593,9 @@ html.dark #rqSafetyBackupBox #rqSafetyBackupLocation b{color:#ecfdf5 !important}
     try {
         const savedName = localStorage.getItem('rq_import_operator_name') || '';
         const savedDevice = localStorage.getItem('rq_import_operator_device') || '';
-        const n=document.getElementById('rqImportOperatorName'); if(n) n.value=savedName;
-        const d=document.getElementById('rqImportOperatorDevice'); if(d) d.value=savedDevice;
+        const detectedDevice = window.rqDetectImportDevice ? window.rqDetectImportDevice() : 'Laptop/PC';
+        const n=document.getElementById('rqImportOperatorName'); if(n) n.value=savedName || '';
+        const d=document.getElementById('rqImportOperatorDevice'); if(d) d.value=savedDevice || detectedDevice;
         window.renderImportHistory?.();
     } catch (_) {}
 </script>
@@ -8805,8 +8799,8 @@ html.dark #rqSafetyBackupBox #rqSafetyBackupLocation b{color:#ecfdf5 !important}
     const firstSearch=String(document.getElementById(`inputTargetMurojaahSuratSearch_${name}`)?.value||'').trim();
     const first=firstSurat||firstSearch, firstAy=Number(document.getElementById(`inputTargetMurojaahAyat_${name}`)?.value||0);
     const firstAllowed=document.getElementById(`inputTargetMurojaahTampilLaporan_${name}`)?.checked!==false;
-    if(first&&firstAy>0)items.push({surat:first,ayat:firstAy,juz:`Juz ${((window.surahList||[]).find(x=>norm(x.name)===norm(first))||{}).no||''}`,tampilLaporan:firstAllowed});
-    c?.querySelectorAll('.rq-mur-target-row').forEach(row=>{const surat=String(row.querySelector('[data-surah]')?.value||'').trim(),ayat=Number(row.querySelector('[data-ayat]')?.value||0),q=surah(surat);if(surat&&ayat>0)items.push({surat,ayat,juz:q?`Juz ${q.no}`:'',tampilLaporan:row.querySelector('[data-tampil]')?.checked!==false});});
+    if(first&&firstAy>0){const q=surah(first);items.push({surat:first,ayat:firstAy,juz:q?`Juz ${juzFor(q.no,firstAy)}`:'',tampilLaporan:firstAllowed});}
+    c?.querySelectorAll('.rq-mur-target-row').forEach(row=>{const surat=String(row.querySelector('[data-surah]')?.value||'').trim(),ayat=Number(row.querySelector('[data-ayat]')?.value||0),q=surah(surat);if(surat&&ayat>0)items.push({surat,ayat,juz:q?`Juz ${juzFor(q.no,ayat)}`:'',tampilLaporan:row.querySelector('[data-tampil]')?.checked!==false});});
     const map=new Map(); for(const item of items)map.set(norm(item.surat),item);
     return [...map.values()];
   }
@@ -8816,7 +8810,7 @@ html.dark #rqSafetyBackupBox #rqSafetyBackupLocation b{color:#ecfdf5 !important}
     const source=rowsFor(name);
     const existing=new Map(saved.map(x=>[norm(x.surat),x]));
     // Jika kelas memiliki beberapa surat, munculkan surat-surat itu sebagai target tambahan.
-    source.slice(1).forEach(r=>{if(!existing.has(norm(r.surat)))existing.set(norm(r.surat),{surat:r.surat,ayat:'',juz:`Juz ${r.no}`,tampilLaporan:true});});
+    source.slice(1).forEach(r=>{if(!existing.has(norm(r.surat)))existing.set(norm(r.surat),{surat:r.surat,ayat:'',juz:`Juz ${juzFor(r.no,Number(r.end)||1)}`,tampilLaporan:true});});
     c.querySelectorAll('.rq-mur-target-row').forEach(x=>x.remove());
     const first=source[0];
     if(first){const sel=document.getElementById(`inputTargetMurojaahSurat_${name}`);const search=document.getElementById(`inputTargetMurojaahSuratSearch_${name}`);if(sel)sel.value=first.surat;if(search)search.value=first.surat;}
@@ -9068,10 +9062,10 @@ html.dark #rqSafetyBackupBox #rqSafetyBackupLocation b{color:#ecfdf5 !important}
       try{localStorage.setItem(KEY,JSON.stringify(pos));}catch(_){}
     }
     launcher.addEventListener('pointerdown',function(e){
-      if(!mobile() || h.classList.contains('rq-mobile-pro-open')) return;
+      if(!mobile()) return;
       down=true;moved=false;sx=e.clientX;sy=e.clientY;ox=pos.x;oy=pos.y;
       launcher.classList.add('rq-pro-dragging');
-      try{launcher.setPointerCapture(e.pointerId);}catch(_){}
+      try{launcher.setPointerCapture(e.pointerId);}catch(_){ }
     },{passive:true});
     launcher.addEventListener('pointermove',function(e){
       if(!down)return;
@@ -9087,7 +9081,7 @@ html.dark #rqSafetyBackupBox #rqSafetyBackupLocation b{color:#ecfdf5 !important}
       }else{
         if(raf){cancelAnimationFrame(raf);raf=0;}
         pendingX=pendingY=null;
-        open(true);
+        open(!h.classList.contains('rq-mobile-pro-open'));
       }
       launcher.classList.remove('rq-pro-dragging');
       try{launcher.releasePointerCapture(e.pointerId);}catch(_){}
@@ -9102,7 +9096,9 @@ html.dark #rqSafetyBackupBox #rqSafetyBackupLocation b{color:#ecfdf5 !important}
     function open(v){
       if(!mobile())return;
       h.classList.toggle('rq-mobile-pro-open',!!v);
-      launcher.style.display=v?'none':'flex';
+      /* Kotak launcher tetap terlihat saat panel terbuka agar ketukan kedua
+         pada kotak yang sama langsung menutup menu. */
+      launcher.style.display='flex';
       document.body.classList.toggle('rq-mobile-header-open',!!v);
       if(!v) apply();
     }
@@ -9118,8 +9114,7 @@ html.dark #rqSafetyBackupBox #rqSafetyBackupLocation b{color:#ecfdf5 !important}
     /* Klik di luar panel -> tutup. */
     document.addEventListener('click',function(e){
       if(!mobile()||!h.classList.contains('rq-mobile-pro-open'))return;
-      /* Klik launcher adalah bagian dari aksi membuka panel. Jangan langsung ditutup
-         oleh listener klik global pada event yang sama. */
+      /* Ketukan pada kotak launcher ditangani oleh pointerup; jangan dianggap klik luar. */
       if(e.target===launcher || launcher.contains(e.target))return;
       if(h.contains(e.target))return;
       open(false);
@@ -9278,6 +9273,79 @@ html.dark #rqSafetyBackupBox #rqSafetyBackupLocation b{color:#ecfdf5 !important}
 })();
 </script>
 
+<script id="rq-target-juz-canonical-v35">
+(function(){
+  // FIX TERISOLASI: Juz target harus selalu dihitung dari SURAT + AYAT,
+  // bukan mempercayai nilai juz lama yang mungkin sudah salah tersimpan.
+  const KEY='rq_target_hafalan_murojaah_v2';
+  const norm=v=>String(v??'').trim().toLowerCase().replace(/\s+/g,' ');
+  const read=()=>{try{return JSON.parse(localStorage.getItem(KEY)||'{}')||{};}catch(_){return {};}};
+  const write=db=>{try{localStorage.setItem(KEY,JSON.stringify(db));return true;}catch(_){return false;}};
+  function findSurah(name){
+    const list=Array.isArray(window.surahList)?window.surahList:[];
+    return list.find(x=>norm(x?.name)===norm(name))||null;
+  }
+  function canonicalJuz(surat,ayat){
+    const q=findSurah(surat);
+    if(!q)return '';
+    const fn=window.rqTargetJuzForSurah;
+    const j=typeof fn==='function' ? fn(Number(q.no),Number(ayat)||1) : 0;
+    return j ? `Juz ${j}` : '';
+  }
+  function normalizeTarget(t){
+    if(!t||typeof t!=='object')return false;
+    let changed=false;
+    if(Array.isArray(t.items)&&t.items.length){
+      t.items.forEach(item=>{
+        if(!item||!item.surat)return;
+        const j=canonicalJuz(item.surat,Number(item.ayat)||1);
+        if(j && item.juz!==j){item.juz=j;changed=true;}
+      });
+      const first=t.items[0];
+      if(first){
+        if(t.surat!==first.surat){t.surat=first.surat;changed=true;}
+        if(String(t.juz||'')!==String(first.juz||'')){t.juz=first.juz||'';changed=true;}
+      }
+    }else if(t.surat&&Number(t.ayat)>0){
+      const j=canonicalJuz(t.surat,Number(t.ayat));
+      if(j&&t.juz!==j){t.juz=j;changed=true;}
+    }
+    return changed;
+  }
+  function normalizeAll(){
+    const db=read(); let changed=false;
+    const h=db.hafalan||{};
+    Object.keys(h).forEach(name=>{
+      ['jangkaPendek','akanDatang'].forEach(slot=>{
+        const t=h[name]?.[slot]; if(normalizeTarget(t))changed=true;
+      });
+    });
+    const m=db.murojaah||{};
+    Object.keys(m).forEach(name=>{if(normalizeTarget(m[name]))changed=true;});
+    if(changed){
+      write(db);
+      // Data target sudah diperbaiki; refresh tampilan yang memang memakai target.
+      try{window.refreshInlineTargets?.();}catch(_){}
+      try{window.generateWaReport?.();}catch(_){}
+      try{window.generateClassReport?.();}catch(_){}
+      try{window.renderTargetReport?.();}catch(_){}
+    }
+    return changed;
+  }
+  // Pastikan surahList sudah tersedia sebelum normalisasi.
+  const run=()=>{try{normalizeAll();}catch(_) {}};
+  if(Array.isArray(window.surahList)&&window.surahList.length)run();
+  else setTimeout(run,100);
+  setTimeout(run,800);
+  setTimeout(run,1800);
+
+  // Fungsi publik kecil untuk jalur laporan/WA: selalu ambil Juz kanonik.
+  window.rqCanonicalTargetJuz=function(surat,ayat,fallback){
+    const j=canonicalJuz(surat,ayat);
+    return j||String(fallback||'');
+  };
+})();
+</script>
 </html>\n<script id="rq-target-multi-surah-logic">
 (function(){
   const esc=v=>String(v??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');
@@ -9375,9 +9443,45 @@ html.dark #rqSafetyBackupBox #rqSafetyBackupLocation b{color:#ecfdf5 !important}
     };
     oldEngine.calc=function(type,name,t){
       if(type!=='hafalan'||!Array.isArray(t?.items)||!t.items.length)return oldCalc(type,name,t);
-      const rows=oldEngine.rowsFor(type,name,t)||[], items=t.items, norm2=norm; let totalTarget=0,totalReal=0,lastAyat=0;
-      const itemProgress=items.map(item=>{const target=Number(item.ayat)||0,totalSet=new Set();for(const row of rows){const ss=Array.isArray(row?.slots)?row.slots:[];if(ss.length){ss.forEach(sl=>{const n=norm2(sl?.item),tar=norm2(item.surat);if(n===tar){const a=Number(sl.start),b=Number(sl.end);if(Number.isFinite(a)&&a>=1){if(Number.isFinite(b)&&b>=a){for(let x=a;x<=b;x++)totalSet.add(x)}else totalSet.add(a)}}})}else if(norm2(row?.detail).split(/[,;|·\n]/).map(x=>norm2(x)).some(x=>x===norm2(item.surat))){const m=String(row.detail||'').matchAll(/(?:ayat|ay)[^0-9]*(\d+)(?:\s*[-–]\s*(\d+))?/gi);for(const z of m){const a=Number(z[1]),b=Number(z[2]||z[1]);if(Number.isFinite(a)&&a>=1&&Number.isFinite(b)&&b>=a)for(let x=a;x<=b;x++)totalSet.add(x)}}}for(const x of [...totalSet])if(x>target)totalSet.delete(x);const real=Math.min(target,totalSet.size),pct=target?Math.min(100,Math.round(real/target*100)):0,last=target?Math.min(target,totalSet.size?Math.max(...totalSet):0):0;totalTarget+=target;totalReal+=real;return {surat:item.surat,ayatTarget:target,ayatReal:real,pct,lastAyat:last,juz:item.juz||''}});
-      const ayatPct=totalTarget?Math.min(100,Math.round(totalReal/totalTarget*100)):0; return {ayatReal:totalReal,ayatTarget:totalTarget,ayatPct,pct:ayatPct,ayatCount:totalReal,lastAyat,rows,itemProgress,setoranReal:rows.length,setoranTarget:0,setoranPct:0,completeDate:''};
+      const rows=oldEngine.rowsFor(type,name,t)||[], items=t.items, norm2=norm;
+      let totalTarget=0,totalReal=0,lastAyat=0;
+      const itemProgress=items.map(item=>{
+        const target=Math.max(0,Number(item.ayat)||0);
+        const totalSet=new Set();
+        for(const row of rows){
+          const ss=Array.isArray(row?.slots)?row.slots:[];
+          if(ss.length){
+            ss.forEach(sl=>{
+              const n=norm2(sl?.item),tar=norm2(item.surat);
+              if(n===tar){
+                const a=Number(sl.start),b=Number(sl.end);
+                if(Number.isFinite(a)&&a>=1){
+                  if(Number.isFinite(b)&&b>=a){for(let x=a;x<=b;x++)totalSet.add(x);}
+                  else totalSet.add(a);
+                }
+              }
+            });
+          }else if(norm2(row?.detail).split(/[,;|·\n]/).map(x=>norm2(x)).some(x=>x===norm2(item.surat))){
+            const m=String(row.detail||'').matchAll(/(?:ayat|ay)[^0-9]*(\d+)(?:\s*[-–]\s*(\d+))?/gi);
+            for(const z of m){
+              const a=Number(z[1]),b=Number(z[2]||z[1]);
+              if(Number.isFinite(a)&&a>=1&&Number.isFinite(b)&&b>=a)for(let x=a;x<=b;x++)totalSet.add(x);
+            }
+          }
+        }
+        for(const x of [...totalSet])if(x>target)totalSet.delete(x);
+        // Sama dengan engine utama: hanya ayat berurutan mulai dari ayat 1 yang dihitung.
+        let real=0;
+        while(real<target && totalSet.has(real+1))real++;
+        const pct=target?Math.min(100,Math.round(real/target*100)):0;
+        const last=real;
+        totalTarget+=target;
+        totalReal+=real;
+        if(last>lastAyat)lastAyat=last;
+        return {surat:item.surat,ayatTarget:target,ayatReal:real,pct,lastAyat:last,juz:item.juz||''};
+      });
+      const ayatPct=totalTarget?Math.min(100,Math.round(totalReal/totalTarget*100)):0;
+      return {ayatReal:totalReal,ayatTarget:totalTarget,ayatPct,pct:ayatPct,ayatCount:totalReal,lastAyat,rows,itemProgress,setoranReal:rows.length,setoranTarget:0,setoranPct:0,completeDate:''};
     };
   }
   function boot(){
