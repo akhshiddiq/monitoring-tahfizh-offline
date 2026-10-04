@@ -9409,7 +9409,23 @@ html.dark #rqSafetyBackupBox #rqSafetyBackupLocation b{color:#ecfdf5 !important}
     if(!items.length){window.showToast?.('Tidak ada Data Baru yang menunggu transfer.','info');return;}
     const records=recordsFromQueue(items);
     const status=document.getElementById('rqDataBaruStatus');
-    if(status)status.textContent=`Mengirim ${records.length} record ke Google Sheet...`;
+    const setTransferStatus=(state,text)=>{
+      if(!status)return;
+      if(state==='loading'){
+        status.innerHTML=`<span class="inline-flex items-center gap-2"><span class="inline-block w-4 h-4 rounded-full border-2 border-emerald-500 border-t-transparent animate-spin"></span><span>${text}</span></span>`;
+        status.className='mt-3 text-[11px] font-black text-emerald-700 dark:text-emerald-300';
+      }else if(state==='success'){
+        status.innerHTML=`<span class="inline-flex items-center gap-2"><span class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-emerald-500 text-white text-[11px]">✓</span><span>${text}</span></span>`;
+        status.className='mt-3 text-[11px] font-black text-emerald-700 dark:text-emerald-300';
+      }else if(state==='partial'){
+        status.innerHTML=`<span class="inline-flex items-center gap-2"><span class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-amber-500 text-white text-[11px]">!</span><span>${text}</span></span>`;
+        status.className='mt-3 text-[11px] font-black text-amber-700 dark:text-amber-300';
+      }else{
+        status.innerHTML=`<span class="inline-flex items-center gap-2"><span class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-rose-500 text-white text-[11px]">×</span><span>${text}</span></span>`;
+        status.className='mt-3 text-[11px] font-black text-rose-700 dark:text-rose-300';
+      }
+    };
+    setTransferStatus('loading',`Mengirim ${records.length} record ke Google Sheet...`);
     try{
       const res=await fetch(API(),{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'writeBatch',records:records.map(x=>({sheet:x.sheet,data:x.data}))})});
       const json=await res.json();
@@ -9419,13 +9435,17 @@ html.dark #rqSafetyBackupBox #rqSafetyBackupLocation b{color:#ecfdf5 !important}
       const successfulQueueIds=new Set(records.filter(x=>x.queueId&&okIds.has(x.data.recordId)).map(x=>x.queueId));
       const remaining=items.filter(x=>!successfulQueueIds.has(x.queueId));
       write(remaining);
-      if(status)status.textContent=`Transfer selesai: ${json.successCount||0} berhasil, ${json.failedCount||0} gagal. Data gagal tetap disimpan lokal.`;
+      if(failed.length){
+        setTransferStatus('partial',`Belum semuanya masuk. ${json.successCount||0} berhasil masuk Google Sheet, ${json.failedCount||failed.length} gagal dan tetap tersimpan di perangkat.`);
+      }else{
+        setTransferStatus('success',`Sudah masuk ke Google Sheet. ${json.successCount||records.length} record berhasil diterima.`);
+      }
       window.renderDataBaru();
       window.setSyncIndicator?.(failed.length?'error':'success');
       window.updateSyncFlow?.('write',100,failed.length?'Sebagian transfer gagal':'Transfer ke Google Sheet selesai');
       window.showToast?.(failed.length?`Transfer selesai. ${failed.length} data gagal dan tetap tersimpan lokal.`:`Transfer ${json.successCount||records.length} record berhasil ke Google Sheet.`,'success');
     }catch(e){
-      if(status)status.textContent='Transfer gagal. Data tetap aman di perangkat.';
+      setTransferStatus('error','Belum masuk ke Google Sheet. Data tetap aman di perangkat dan akan tetap menunggu transfer.');
       window.showToast?.('Transfer Google Sheet gagal: '+(e?.message||e),'error');
     }
   };
