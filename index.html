@@ -8258,42 +8258,59 @@ html.dark #rqSafetyBackupBox #rqSafetyBackupLocation b{color:#ecfdf5 !important}
 <script>
 (function(){
   'use strict';
-  const topBtn=document.getElementById('rqPageTopBtn');
-  const bottomBtn=document.getElementById('rqPageBottomBtn');
 
-  function scrollWindowTo(y){
-    try{ window.scrollTo({top:y,behavior:'smooth'}); }catch(_){ window.scrollTo(0,y); }
-    try{ document.documentElement.scrollTop=y; }catch(_){}
-    try{ document.body.scrollTop=y; }catch(_){}
+  /* Navigasi halaman harus global: tidak ikut terikat pada menu/section tertentu. */
+  function ensurePageJump(){
+    const nav=document.getElementById('rqPageJump');
+    if(nav && document.body && nav.parentElement!==document.body) document.body.appendChild(nav);
+    return nav;
   }
 
-  function getScrollableParents(el){
-    const out=[]; let node=el;
-    while(node && node!==document.body && node!==document.documentElement){
-      const st=getComputedStyle(node);
-      const canScroll=(/(auto|scroll)/).test(st.overflowY) && node.scrollHeight>node.clientHeight+4;
-      if(canScroll) out.push(node);
-      node=node.parentElement;
-    }
-    return out;
+  function scrollElementTo(el,y){
+    if(!el) return;
+    try{ el.scrollTo({top:y,behavior:'smooth'}); }catch(_){ try{ el.scrollTop=y; }catch(__){} }
+  }
+
+  function getActiveScrollTargets(){
+    const targets=[];
+    const add=(el)=>{
+      if(!el || targets.includes(el)) return;
+      const st=getComputedStyle(el);
+      if(el.scrollHeight>el.clientHeight+4 && /(auto|scroll)/.test(st.overflowY)) targets.push(el);
+    };
+    add(document.scrollingElement);
+    add(document.documentElement);
+    add(document.body);
+    add(document.querySelector('main'));
+    add(document.querySelector('main > section:not(.hidden)'));
+    return targets;
   }
 
   function goTop(){
-    scrollWindowTo(0);
-    getScrollableParents(document.body).forEach(el=>{ try{el.scrollTo({top:0,behavior:'smooth'});}catch(_){el.scrollTop=0;} });
+    ensurePageJump();
+    try{ window.scrollTo({top:0,behavior:'smooth'}); }catch(_){ window.scrollTo(0,0); }
+    getActiveScrollTargets().forEach(el=>scrollElementTo(el,0));
   }
 
   function goBottom(){
-    const max=Math.max(0,document.documentElement.scrollHeight-window.innerHeight);
-    scrollWindowTo(max);
-    getScrollableParents(document.body).forEach(el=>{
-      const y=Math.max(0,el.scrollHeight-el.clientHeight);
-      try{el.scrollTo({top:y,behavior:'smooth'});}catch(_){el.scrollTop=y;}
-    });
+    ensurePageJump();
+    const doc=document.scrollingElement||document.documentElement;
+    const max=Math.max(0,doc.scrollHeight-window.innerHeight);
+    try{ window.scrollTo({top:max,behavior:'smooth'}); }catch(_){ window.scrollTo(0,max); }
+    getActiveScrollTargets().forEach(el=>scrollElementTo(el,Math.max(0,el.scrollHeight-el.clientHeight)));
   }
 
-  topBtn?.addEventListener('click',goTop);
-  bottomBtn?.addEventListener('click',goBottom);
+  function init(){
+    ensurePageJump();
+    const topBtn=document.getElementById('rqPageTopBtn');
+    const bottomBtn=document.getElementById('rqPageBottomBtn');
+    if(!topBtn || !bottomBtn) return;
+    topBtn.onclick=goTop;
+    bottomBtn.onclick=goBottom;
+  }
+
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',init,{once:true});
+  else init();
 })();
 </script>
 
