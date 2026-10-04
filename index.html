@@ -1003,6 +1003,116 @@ window._laporanAiDownloadGroup = function() {
     window._laporanAiDownload(`AI_Data_Grup_${c.replace(/[^a-zA-Z0-9_-]+/g,'_')}.txt`,window._laporanAiBuildGroupData(c));
 };
 window._laporanAiDownloadPrompt = function() { window._laporanAiDownload('MASTER_PROMPT_LAPORAN_AI_RQ_AL-KHANSA.txt',window._laporanAiPrompt); };
+
+window._laporanAiReportFormat = `MASTER FORMAT / KATA-KATA LAPORAN RQ AL-KHANSA
+
+TUJUAN:
+Template ini adalah acuan kata-kata laporan yang dapat dicopy-paste. Jangan mengubah pembuka, susunan, separator, istilah, atau penutup tanpa instruksi khusus.
+
+===== FORMAT WA PERSONAL =====
+========
+*LAPORAN PRESTASI SANTRI*
+*Rumah Qur'an Al-Khansa*
+========
+🪪 *Nama:* *[NAMA SANTRI]*
+🏛️ *Kelas:* *[KELAS]*
+✍️ *Pengajar:* [PENGAJAR]
+========
+
+📖 *Bacaan:*
+[ISI BACAAN]
+- Nilai: [NILAI JIKA ADA]
+- [STATUS/PROGRESS JIKA ADA]
+- Catatan: [CATATAN JIKA ADA]
+
+========
+
+⭐ *Hafalan Baru:*
+[ISI HAFALAN]
+- Nilai: [NILAI JIKA ADA]
+- [STATUS/PROGRESS JIKA ADA]
+- Catatan: [CATATAN JIKA ADA]
+
+========
+
+🔄 *Muroja'ah di Kelas:*
+[ISI MUROJA'AH]
+- Nilai: [NILAI JIKA ADA]
+- [STATUS/PROGRESS JIKA ADA]
+- Catatan: [CATATAN JIKA ADA]
+
+========
+
+📝 *Tugas:* [ISI TUGAS]
+- Catatan: [CATATAN JIKA ADA]
+
+.
+🚀🚀🚀
+
+Jazakumullah khairan katsiran atas perhatian dan bimbingan Ayah/Bunda di rumah. Semoga ananda senantiasa istiqomah menghafal Al-Qur'an dan Belajar Al Quran . Aamiin.
+
+CATATAN FORMAT WA PERSONAL:
+- Urutan utama: Bacaan → Hafalan Baru → Muroja'ah di Kelas → Tugas.
+- Bagian yang tidak memiliki data tidak perlu ditulis.
+- Target Tab 1 hanya muncul jika opsi target diaktifkan.
+- Target lengkap tetap dapat berada di Tab 2 sesuai sistem.
+- Jangan membuat isi yang tidak ada pada data.
+
+===== FORMAT WA GRUP =====
+bismillah
+Ayah bunda yang semoga senantiasa dirahmati Allah, berikut adalah rekapan hafalan dan bacaan kelas *[NAMA KELAS]* ([TANGGAL]):
+
+[Materi Pembelajaran Hari Ini jika memang diaktifkan dan tersedia]
+
+👥 *Daftar Santri & Prestasi:*
+
+[URUTAN SANTRI SESUAI MASTER SANTRI]
+
+Untuk setiap santri yang memiliki input:
+[NOMOR] *[NAMA SANTRI]*
+    - Bacaan: [ISI JIKA ADA]
+    - Hafalan: [ISI JIKA ADA]
+    - Muroja'ah di Kelas: [ISI JIKA ADA]
+    - Tugas: [ISI JIKA ADA]
+    - Target : [ISI TARGET JIKA OPSI TARGET AKTIF DAN TARGET TERSEDIA]
+
+ATURAN FORMAT WA GRUP:
+- Santri tanpa input tidak ditulis.
+- Urutan santri mengikuti MASTER SANTRI.
+- Target hanya ditulis jika opsi target diaktifkan dan target tersedia.
+- Materi pembelajaran hanya ditampilkan bila data materi dan opsi tampil WA aktif.
+- Jangan mengarang isi laporan.
+
+===== FORMAT YANG HARUS DIPERTAHANKAN =====
+Pembuka Personal:
+========
+*LAPORAN PRESTASI SANTRI*
+*Rumah Qur'an Al-Khansa*
+========
+
+Pembuka Grup:
+bismillah
+Ayah bunda yang semoga senantiasa dirahmati Allah, berikut adalah rekapan hafalan dan bacaan kelas *[NAMA KELAS]* ([TANGGAL]):
+
+Penutup Personal:
+.
+🚀🚀🚀
+
+Jazakumullah khairan katsiran atas perhatian dan bimbingan Ayah/Bunda di rumah. Semoga ananda senantiasa istiqomah menghafal Al-Qur'an dan Belajar Al Quran . Aamiin.
+
+Gunakan file ini sebagai MASTER COPY-PASTE. Jika membuat laporan baru, pertahankan kata-kata format di atas dan hanya ganti data yang memang berubah.`;
+window._laporanAiDownloadReportFormat = function() {
+    window._laporanAiDownload('MASTER_FORMAT_KATA-KATA_LAPORAN_RQ_AL-KHANSA.txt', window._laporanAiReportFormat);
+};
+window._laporanAiDownloadPersonalFormat = function() {
+    const format = window._laporanAiReportFormat.split('===== FORMAT WA GRUP =====')[0].trim();
+    window._laporanAiDownload('FORMAT_WA_PERSONAL_RQ_AL-KHANSA.txt', format);
+};
+window._laporanAiDownloadGroupFormat = function() {
+    const parts = window._laporanAiReportFormat.split('===== FORMAT WA GRUP =====');
+    const format = '===== FORMAT WA GRUP =====\n' + (parts[1] || '').split('===== FORMAT YANG HARUS DIPERTAHANKAN =====')[0].trim();
+    window._laporanAiDownload('FORMAT_WA_GRUP_RQ_AL-KHANSA.txt', format);
+};
 window._laporanAiBuildAllData = function() {
     const safe = v => String(v == null ? '' : v);
     let master = Array.isArray(window.santriList) ? window.santriList : [];
@@ -1068,6 +1178,8 @@ window._laporanAiDownloadPackage = function() {
     window._laporanAiDownload('PAKET_LAPORAN_AI_RQ_AL-KHANSA.txt',parts.join(''));
 };
 window.initLaporanAiMenu = function() {
+    const formatPreview=document.getElementById('laporanAiReportFormatPreview');
+    if(formatPreview) formatPreview.value=window._laporanAiReportFormat || '';
     const ps=document.getElementById('laporanAiStudentSelect'), pc=document.getElementById('laporanAiClassSelect');
     if(ps){ const old=ps.value; ps.innerHTML=(window.santriList||[]).map(s=>`<option value="${window._laporanAiEscape(s.name)}">${window._laporanAiEscape(s.name)} — ${window._laporanAiEscape(s.class||'-')}</option>`).join(''); if(old)ps.value=old; }
     if(pc && !pc.options.length){ ['Abdurrahman','Abu Ubaidah','Zubair','Ali','Utsman','Abu Bakar','Bilal','Hamzah','Fatimah','Umar'].forEach(c=>pc.insertAdjacentHTML('beforeend',`<option value="${c}">${c}</option>`)); }
@@ -7207,6 +7319,19 @@ window.initLaporanAiMenu = function() {
                             <button type="button" onclick="window._laporanAiDownloadGroupExample()" class="px-3 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-black text-xs"><i class="fa-solid fa-file-lines"></i> Contoh Laporan Grup</button>
                         </div>
                     </div>
+                </div>
+
+                <div class="p-4 rounded-2xl border-2 border-emerald-300 dark:border-emerald-800 bg-emerald-50/60 dark:bg-emerald-950/20 space-y-3">
+                    <div>
+                        <div class="font-black text-sm text-emerald-900 dark:text-emerald-200">MASTER KATA-KATA / FORMAT LAPORAN</div>
+                        <div class="text-[10px] text-slate-600 dark:text-slate-400 font-bold mt-1">Acuan copy-paste agar kata pembuka, susunan laporan, separator, istilah, dan penutup tetap konsisten.</div>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                        <button type="button" onclick="window._laporanAiDownloadReportFormat()" class="px-3 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-black text-xs"><i class="fa-solid fa-copy"></i> Download Master Format</button>
+                        <button type="button" onclick="window._laporanAiDownloadPersonalFormat()" class="px-3 py-3 bg-sky-600 hover:bg-sky-700 text-white rounded-xl font-black text-xs"><i class="fa-solid fa-user"></i> Format Personal</button>
+                        <button type="button" onclick="window._laporanAiDownloadGroupFormat()" class="px-3 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-black text-xs"><i class="fa-solid fa-users"></i> Format Grup</button>
+                    </div>
+                    <textarea id="laporanAiReportFormatPreview" readonly rows="12" class="w-full p-3 bg-white dark:bg-slate-800 border rounded-xl font-mono text-[10px] leading-relaxed"></textarea>
                 </div>
 
                 <div class="p-4 rounded-2xl border bg-slate-50 dark:bg-slate-900 space-y-3">
