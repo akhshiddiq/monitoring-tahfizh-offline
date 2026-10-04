@@ -124,6 +124,40 @@
             border-color: #22c55e;
             color: #166534;
         }
+        /* Pengatur ukuran TEKS WA Personal & WA Grup — terpisah dari tinggi kolom. */
+        .wa-report-font-controls {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-wrap: wrap;
+            margin: 6px 0 8px;
+        }
+        .wa-report-font-controls button {
+            min-width: 34px;
+            min-height: 32px;
+            padding: 5px 9px;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            background: #ffffff;
+            color: #334155;
+            font-size: 10px;
+            font-weight: 800;
+            cursor: pointer;
+            transition: background-color .15s ease, border-color .15s ease, transform .1s ease;
+        }
+        .wa-report-font-controls button:hover { background: #f1f5f9; border-color: #94a3b8; }
+        .wa-report-font-controls button:active { transform: scale(.96); }
+        .wa-report-font-controls .wa-font-label {
+            color: #64748b;
+            font-size: 10px;
+            font-weight: 800;
+            margin-right: 2px;
+        }
+        .wa-report-font-controls .wa-font-active {
+            background: #dcfce7;
+            border-color: #22c55e;
+            color: #166534;
+        }
 
 
         /* ============================================================
@@ -3943,13 +3977,37 @@
             });
         };
 
+        window.setWaReportFontSize = function(targetId, size) {
+            const el = document.getElementById(targetId);
+            if (!el) return;
+            const sizes = {
+                small: '12px',
+                medium: '14px',
+                large: '16px',
+                xlarge: '18px',
+                xxlarge: '20px'
+            };
+            const fontSize = sizes[size] || sizes.medium;
+            el.style.setProperty('font-size', fontSize, 'important');
+            const key = 'rq_wa_report_font_size_' + targetId;
+            try { localStorage.setItem(key, size); } catch (_) {}
+            document.querySelectorAll('.wa-report-font-controls[data-wa-font-target="' + targetId + '"] button').forEach(btn => {
+                btn.classList.toggle('wa-font-active', btn.getAttribute('data-wa-font-size') === size);
+            });
+        };
+
         window.initWaReportSizeControls = function() {
             ['waMessagePreview','classReportMessagePreview'].forEach(id => {
                 const el = document.getElementById(id);
                 if (!el) return;
                 let size = 'medium';
-                try { size = localStorage.getItem('rq_wa_report_size_' + id) || 'medium'; } catch (_) {}
+                let fontSize = 'medium';
+                try {
+                    size = localStorage.getItem('rq_wa_report_size_' + id) || 'medium';
+                    fontSize = localStorage.getItem('rq_wa_report_font_size_' + id) || 'medium';
+                } catch (_) {}
                 window.setWaReportSize(id, size);
+                window.setWaReportFontSize(id, fontSize);
             });
         };
 
@@ -7379,11 +7437,19 @@
                         <div class="flex items-center justify-between gap-2 flex-wrap">
                             <label class="font-black text-xs sm:text-sm text-slate-700 dark:text-slate-200">Preview Pesan:</label>
                             <div class="wa-report-size-controls" data-wa-size-target="waMessagePreview">
-                                <span class="wa-size-label">Ukuran:</span>
+                                <span class="wa-size-label">Kolom:</span>
                                 <button type="button" data-wa-size="small" onclick="window.setWaReportSize('waMessagePreview','small')" title="Kecil">Kecil</button>
                                 <button type="button" data-wa-size="medium" onclick="window.setWaReportSize('waMessagePreview','medium')" title="Normal">Normal</button>
                                 <button type="button" data-wa-size="large" onclick="window.setWaReportSize('waMessagePreview','large')" title="Besar">Besar</button>
                                 <button type="button" data-wa-size="full" onclick="window.setWaReportSize('waMessagePreview','full')" title="Penuh">Penuh</button>
+                            </div>
+                            <div class="wa-report-font-controls" data-wa-font-target="waMessagePreview">
+                                <span class="wa-font-label">Teks:</span>
+                                <button type="button" data-wa-font-size="small" onclick="window.setWaReportFontSize('waMessagePreview','small')" title="Teks kecil">A−</button>
+                                <button type="button" data-wa-font-size="medium" onclick="window.setWaReportFontSize('waMessagePreview','medium')" title="Teks normal">A</button>
+                                <button type="button" data-wa-font-size="large" onclick="window.setWaReportFontSize('waMessagePreview','large')" title="Teks besar">A+</button>
+                                <button type="button" data-wa-font-size="xlarge" onclick="window.setWaReportFontSize('waMessagePreview','xlarge')" title="Teks sangat besar">A++</button>
+                                <button type="button" data-wa-font-size="xxlarge" onclick="window.setWaReportFontSize('waMessagePreview','xxlarge')" title="Teks ekstra besar">A+++</button>
                             </div>
                         </div>
                         <textarea id="waMessagePreview" rows="18" class="wa-report-textarea w-full mt-1.5 p-4 border rounded-xl font-mono text-xs sm:text-sm leading-relaxed custom-scrollbar"></textarea>
@@ -7480,11 +7546,19 @@
                         <div class="flex items-center justify-between gap-2 flex-wrap">
                             <label class="font-black text-xs sm:text-sm text-slate-700 dark:text-slate-200">Preview Laporan WA Grup:</label>
                             <div class="wa-report-size-controls" data-wa-size-target="classReportMessagePreview">
-                                <span class="wa-size-label">Ukuran:</span>
+                                <span class="wa-size-label">Kolom:</span>
                                 <button type="button" data-wa-size="small" onclick="window.setWaReportSize('classReportMessagePreview','small')" title="Kecil">Kecil</button>
                                 <button type="button" data-wa-size="medium" onclick="window.setWaReportSize('classReportMessagePreview','medium')" title="Normal">Normal</button>
                                 <button type="button" data-wa-size="large" onclick="window.setWaReportSize('classReportMessagePreview','large')" title="Besar">Besar</button>
                                 <button type="button" data-wa-size="full" onclick="window.setWaReportSize('classReportMessagePreview','full')" title="Penuh">Penuh</button>
+                            </div>
+                            <div class="wa-report-font-controls" data-wa-font-target="classReportMessagePreview">
+                                <span class="wa-font-label">Teks:</span>
+                                <button type="button" data-wa-font-size="small" onclick="window.setWaReportFontSize('classReportMessagePreview','small')" title="Teks kecil">A−</button>
+                                <button type="button" data-wa-font-size="medium" onclick="window.setWaReportFontSize('classReportMessagePreview','medium')" title="Teks normal">A</button>
+                                <button type="button" data-wa-font-size="large" onclick="window.setWaReportFontSize('classReportMessagePreview','large')" title="Teks besar">A+</button>
+                                <button type="button" data-wa-font-size="xlarge" onclick="window.setWaReportFontSize('classReportMessagePreview','xlarge')" title="Teks sangat besar">A++</button>
+                                <button type="button" data-wa-font-size="xxlarge" onclick="window.setWaReportFontSize('classReportMessagePreview','xxlarge')" title="Teks ekstra besar">A+++</button>
                             </div>
                         </div>
                         <textarea id="classReportMessagePreview" rows="18" class="wa-report-textarea w-full p-4 border rounded-xl font-mono text-xs sm:text-sm leading-relaxed custom-scrollbar"></textarea>
