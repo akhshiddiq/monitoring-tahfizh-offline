@@ -7595,6 +7595,11 @@ Jangan melakukan perubahan apa pun sampai saya memberikan data dan instruksi ber
                         <div class="p-3.5 bg-white/80 dark:bg-slate-900/70 rounded-2xl border border-violet-200 dark:border-violet-800 space-y-3">
                             <div class="flex items-center gap-2 font-black text-sm text-slate-800 dark:text-slate-100"><span class="w-7 h-7 rounded-lg bg-violet-600 text-white flex items-center justify-center text-xs">2</span> Masukkan File HTML Keseluruhan</div>
                             <p class="text-[11px] font-bold text-slate-600 dark:text-slate-400 leading-relaxed">Masukkan <b>file HTML keseluruhan terbaru</b> dari web. Jangan hanya memasukkan potongan kode. File ini menjadi acuan struktur menu, fitur, format laporan, struktur data, dan fungsi import/export.</p>
+                            <div class="p-3 rounded-xl bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 text-[10px] sm:text-[11px] font-bold text-blue-900 dark:text-blue-200 leading-relaxed">
+                                <div class="mb-1">Info kode web:</div>
+                                <a href="https://github.com/rqalkhansabogor/monitoring-tahfizh-offline/blob/main/index.html" target="_blank" rel="noopener noreferrer" class="text-blue-700 dark:text-blue-300 underline hover:opacity-80 break-all">Buka kode web Monitoring Tahfizh RQ Al-Khansa di GitHub</a>
+                                <div class="mt-1 font-semibold">Link ini dapat diklik untuk membuka file <b>index.html</b> di GitHub.</div>
+                            </div>
                             <div class="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 text-[10px] sm:text-[11px] font-bold text-amber-900 dark:text-amber-200">Gunakan HTML terbaru yang terakhir digunakan. Jangan menggunakan HTML lama jika sudah ada versi terbaru.</div>
                         </div>
 
@@ -7693,16 +7698,32 @@ Aturan wajib:
 - Tambahkan data baru.
 - Jangan menghapus data lama.
 - Jangan mengganti data lama secara sembarangan.
-- Jangan menghilangkan riwayat, bacaan, hafalan, murojaah, catatan, tracking, atau data lain.
-- Pertahankan struktur CSV asli.
-- Pertahankan semua kolom dan data yang tidak sedang diubah.
-- Pastikan data santri tetap lengkap.
+- Jangan menghilangkan riwayat, bacaan, hafalan, murojaah, catatan, tracking, presensi, tugas, target, atau data lain.
+- Pertahankan struktur CSV asli persis seperti file sumber.
+- Pertahankan semua kolom, Type, Key, Value, dan data yang tidak sedang diubah.
+- Pastikan data santri tetap lengkap dan tidak ada santri yang hilang.
 - Pastikan data baru masuk ke struktur yang benar.
+
+IDENTITAS / VERSI FILE WAJIB DIPERTAHANKAN:
+- Baca metadata versi yang ada di CSV, jika tersedia.
+- Catat dan pertahankan informasi: nomor/file ke berapa, File ID, siapa yang membuat/mengupload file, perangkat (HP atau Laptop/PC), nama perangkat jika ada, hari, tanggal, dan jam/waktu WIB.
+- Bedakan dengan jelas antara identitas file sumber dan waktu/operator saat proses penggabungan dilakukan.
+- Jangan menghapus atau mengganti metadata identitas file sumber hanya karena CSV sedang digabungkan.
+- Jika CSV memiliki metadata versi, jangan membuat identitas baru secara asal dan jangan menghilangkan identitas sumber.
+- Jika ada informasi identitas yang tidak tersedia di CSV, jangan menebak; beri tahu saya bahwa informasi tersebut tidak tersedia.
+
+SEBELUM MEMBUAT FILE HASIL:
+- Tampilkan ringkasan singkat bahwa file sumber telah dikenali.
+- Sebutkan File ID / nomor file, siapa yang membuat atau mengupload, perangkat, hari, tanggal, dan jam jika data tersebut tersedia.
+- Beri tahu jika ada metadata yang tidak tersedia.
+- Pastikan jumlah dan isi data lama tetap aman sebelum hasil dibuat.
 
 Setelah selesai, buatkan file CSV hasil gabungan yang siap dimasukkan kembali ke web menggunakan menu:
 Data → Import Data → Gabungkan.
 
-Jangan mengubah format CSV yang dibutuhkan oleh web.</pre>
+File hasil harus tetap kompatibel dengan format CSV web RQ Al-Khansa. Jangan mengubah format CSV yang dibutuhkan oleh web.
+
+PENTING: jangan memilih atau menyarankan mode Ganti. Hasil ini ditujukan untuk mode Gabungkan agar data lama tetap dipertahankan.</pre>
                                 <button type="button" onclick="window.rqCopyChatPrompt('rqChatPrompt6',this)" class="mt-2 w-full px-4 py-2.5 bg-violet-600 hover:bg-violet-700 text-white rounded-xl font-black text-xs flex items-center justify-center gap-2 shadow-md active:scale-95"><i class="fa-solid fa-copy"></i> Salin Prompt Tahap 6</button>
                             </div>
                             <div class="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/20 border border-rose-200 dark:border-rose-800 text-[10px] sm:text-[11px] font-black text-rose-800 dark:text-rose-200">Saat memasukkan hasil kembali ke web, gunakan <b>Gabungkan</b> agar data lama tetap dipertahankan. Jangan pilih <b>Ganti</b> kecuali memang ingin mengganti seluruh data.</div>
