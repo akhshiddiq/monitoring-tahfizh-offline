@@ -998,22 +998,62 @@
                 '', '===== DATA GRUP/KELAS =====', window._laporanAiBuildGroupFullData(className)
             ].join('\n');
         };
+        // KATA PENGANTAR AI — khusus masing-masing menu.
+        // Hanya menghasilkan teks instruksi; tidak mengubah data/sistem lain.
+        window._laporanAiPersonalIntro = function(student) {
+            const name = String(student?.name || '[Nama Santri]').trim();
+            const cls = String(student?.class || '[Kelas]').trim();
+            return [
+                'KATA PENGANTAR UNTUK AI — LAPORAN PERSONAL RQ AL-KHANSA',
+                '',
+                `Anda akan membuat laporan untuk santri ${name} dari kelas ${cls}.`,
+                'Gunakan seluruh DATA PERSONAL yang diberikan sebagai sumber fakta.',
+                'Ikuti contoh format laporan yang diberikan secara persis.',
+                'Pertahankan emoji/emot, kata-kata tetap, urutan, separator, tanda baca, pembukaan, dan penutup yang sudah digunakan di WEB.',
+                'Jangan mengarang, menambah, mengurangi, atau mengganti data yang tidak tersedia.',
+                'Jika data suatu bagian tidak tersedia, ikuti aturan format yang sudah ditetapkan.',
+                'Hasil akhir WAJIB berupa plain text WhatsApp yang siap langsung disalin dan dikirim.'
+            ].join('\n');
+        };
+        window._laporanAiGroupIntro = function(className) {
+            const cls = String(className || '[Kelas]').trim();
+            return [
+                'KATA PENGANTAR UNTUK AI — LAPORAN GRUP RQ AL-KHANSA',
+                '',
+                `Anda akan membuat laporan grup untuk kelas ${cls}.`,
+                'Gunakan seluruh DATA GRUP/KELAS yang diberikan sebagai sumber fakta.',
+                'Ikuti contoh format laporan grup yang diberikan secara persis.',
+                'Pertahankan emoji/emot, kata-kata tetap, urutan santri, separator, tanda baca, pembukaan, dan penutup yang sudah digunakan di WEB.',
+                'Santri tanpa data/input tidak dibuatkan prestasi atau informasi yang tidak ada.',
+                'Jangan mengarang, menambah, mengurangi, atau mengganti data yang tidak tersedia.',
+                'Hasil akhir WAJIB berupa plain text WhatsApp yang siap langsung disalin dan dikirim.'
+            ].join('\n');
+        };
+
         window._laporanAiRefreshPersonal = function(){
             const sel=document.getElementById('laporanAiStudentSelect');
             const s=(window.santriList||[]).find(x=>x.name===sel?.value);
-            const data=document.getElementById('laporanAiPersonalData'), prompt=document.getElementById('laporanAiPersonalPrompt'), out=document.getElementById('laporanAiPersonalOutput'), words=document.getElementById('laporanAiPersonalWords');
-            if(!s){ if(data)data.value=''; if(prompt)prompt.value=''; if(out)out.value=''; if(words)words.value=''; return; }
-            const d=window._laporanAiBuildPersonalFullData(s); const p=window._laporanAiPersonalInstruction(s);
+            const intro=document.getElementById('laporanAiPersonalIntro'), data=document.getElementById('laporanAiPersonalData'), prompt=document.getElementById('laporanAiPersonalPrompt'), out=document.getElementById('laporanAiPersonalOutput'), words=document.getElementById('laporanAiPersonalWords');
+            if(!s){ if(intro)intro.value=''; if(data)data.value=''; if(prompt)prompt.value=''; if(out)out.value=''; if(words)words.value=''; return; }
+            const i=window._laporanAiPersonalIntro(s); const d=window._laporanAiBuildPersonalFullData(s); const p=window._laporanAiPersonalInstruction(s);
             let report=''; try{ report=window._laporanAiGetPersonalReport(s)||''; }catch(_){}
-            if(data)data.value=d; if(prompt)prompt.value=p; if(out)out.value=report; if(words)words.value=report;
+            if(intro)intro.value=i; if(data)data.value=d; if(prompt)prompt.value=p; if(out)out.value=report; if(words)words.value=report;
         };
         window._laporanAiRefreshGroup = function(){
             const sel=document.getElementById('laporanAiClassSelect'), c=sel?.value||'';
-            const data=document.getElementById('laporanAiGroupData'), prompt=document.getElementById('laporanAiGroupPrompt'), out=document.getElementById('laporanAiGroupOutput'), words=document.getElementById('laporanAiGroupWords');
-            if(!c){ if(data)data.value=''; if(prompt)prompt.value=''; if(out)out.value=''; if(words)words.value=''; return; }
-            const d=window._laporanAiBuildGroupFullData(c), p=window._laporanAiGroupInstruction(c);
+            const intro=document.getElementById('laporanAiGroupIntro'), data=document.getElementById('laporanAiGroupData'), prompt=document.getElementById('laporanAiGroupPrompt'), out=document.getElementById('laporanAiGroupOutput'), words=document.getElementById('laporanAiGroupWords');
+            if(!c){ if(intro)intro.value=''; if(data)data.value=''; if(prompt)prompt.value=''; if(out)out.value=''; if(words)words.value=''; return; }
+            const i=window._laporanAiGroupIntro(c); const d=window._laporanAiBuildGroupFullData(c), p=window._laporanAiGroupInstruction(c);
             let report=''; try{ report=window._laporanAiGetGroupReport(c)||''; }catch(_){}
-            if(data)data.value=d; if(prompt)prompt.value=p; if(out)out.value=report; if(words)words.value=report;
+            if(intro)intro.value=i; if(data)data.value=d; if(prompt)prompt.value=p; if(out)out.value=report; if(words)words.value=report;
+        };
+        window._laporanAiDownloadPersonalIntro = function(){
+            const s=(window.santriList||[]).find(x=>x.name===document.getElementById('laporanAiStudentSelect')?.value); if(!s)return;
+            window._laporanAiDownload(`KATA_PENGANTAR_AI_PERSONAL_${s.name.replace(/[^a-zA-Z0-9_-]+/g,'_')}.txt`,window._laporanAiPersonalIntro(s));
+        };
+        window._laporanAiDownloadGroupIntro = function(){
+            const c=document.getElementById('laporanAiClassSelect')?.value||''; if(!c)return;
+            window._laporanAiDownload(`KATA_PENGANTAR_AI_GRUP_${c.replace(/[^a-zA-Z0-9_-]+/g,'_')}.txt`,window._laporanAiGroupIntro(c));
         };
         window._laporanAiDownloadPersonalPrompt = function(){
             const s=(window.santriList||[]).find(x=>x.name===document.getElementById('laporanAiStudentSelect')?.value); if(!s)return;
@@ -7466,8 +7506,13 @@ window.initLaporanAiMenu = function() {
                 </div>
 
                 <div id="laporanAiPanelPersonal" class="space-y-4">
+                    <div class="p-4 rounded-2xl border-2 border-violet-300 dark:border-violet-800 bg-violet-50/60 dark:bg-violet-950/20 space-y-3">
+                        <div class="flex items-center justify-between gap-2 flex-wrap"><div class="font-black text-sm text-violet-900 dark:text-violet-200">KATA PENGANTAR UNTUK AI — LAPORAN PERSONAL</div><div class="flex items-center gap-2 flex-wrap"><button id="laporanAiCopyPersonalIntro" type="button" onclick="window._laporanAiCopyPlain(document.getElementById('laporanAiPersonalIntro')?.value,'laporanAiCopyPersonalIntro')" class="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-black text-xs"><i class="fa-solid fa-copy"></i> Salin</button><button type="button" onclick="window._laporanAiDownloadPersonalIntro()" class="px-3 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-xl font-black text-xs"><i class="fa-solid fa-download"></i> Download</button></div></div>
+                        <div class="text-xs leading-relaxed text-violet-900 dark:text-violet-100">Kata pengantar ini adalah instruksi awal AI sebelum membaca data personal dan membuat laporan. Format, emoji, kata-kata tetap, dan aturan laporan WEB wajib dipertahankan.</div>
+                        <textarea id="laporanAiPersonalIntro" readonly rows="10" class="w-full p-3 bg-white dark:bg-slate-800 border rounded-xl font-mono text-[10px] leading-relaxed"></textarea>
+                    </div>
                     <div class="p-4 rounded-2xl border bg-slate-50 dark:bg-slate-900 space-y-3">
-                        <div class="font-black text-sm">STEP 1 — PILIH SANTRI</div>
+                        <div class="flex items-center justify-between gap-2 flex-wrap"><div class="font-black text-sm">STEP 1 — PILIH SANTRI</div><button id="laporanAiCopyPersonalStep1" type="button" onclick="window._laporanAiCopyPlain(document.getElementById('laporanAiStudentSelect')?.selectedOptions?.[0]?.text || document.getElementById('laporanAiStudentSelect')?.value || '', 'laporanAiCopyPersonalStep1')" class="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-black text-xs"><i class="fa-solid fa-copy"></i> Salin</button></div>
                         <select id="laporanAiStudentSelect" onchange="window._laporanAiRefreshPersonal()" class="w-full p-3 rounded-xl border bg-white dark:bg-slate-800 font-bold text-xs"></select>
                     </div>
                     <div class="p-4 rounded-2xl border bg-sky-50/60 dark:bg-sky-950/20 space-y-3">
@@ -7475,11 +7520,11 @@ window.initLaporanAiMenu = function() {
                         <textarea id="laporanAiPersonalData" readonly rows="12" class="w-full p-3 bg-white dark:bg-slate-800 border rounded-xl font-mono text-[10px] leading-relaxed"></textarea>
                     </div>
                     <div class="p-4 rounded-2xl border bg-amber-50/60 dark:bg-amber-950/20 space-y-3">
-                        <div class="font-black text-sm">STEP 3 — KATA-KATA LAPORAN OTOMATIS SESUAI DATA</div>
+                        <div class="flex items-center justify-between gap-2 flex-wrap"><div class="font-black text-sm">STEP 3 — KATA-KATA LAPORAN OTOMATIS SESUAI DATA</div><button id="laporanAiCopyPersonalWords" type="button" onclick="window._laporanAiCopyPlain(document.getElementById('laporanAiPersonalWords')?.value,'laporanAiCopyPersonalWords')" class="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-black text-xs"><i class="fa-solid fa-copy"></i> Salin</button></div>
                         <textarea id="laporanAiPersonalWords" readonly rows="12" class="w-full p-3 bg-white dark:bg-slate-800 border rounded-xl font-mono text-[10px] leading-relaxed"></textarea>
                     </div>
                     <div class="p-4 rounded-2xl border bg-violet-50/60 dark:bg-violet-950/20 space-y-3">
-                        <div class="flex items-center justify-between gap-2 flex-wrap"><div class="font-black text-sm">STEP 4 — CONTOH FORMAT + PERINTAH AI</div><button type="button" onclick="window._laporanAiDownloadPersonalPrompt()" class="px-3 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-xl font-black text-xs"><i class="fa-solid fa-download"></i> Download Prompt</button></div>
+                        <div class="flex items-center justify-between gap-2 flex-wrap"><div class="font-black text-sm">STEP 4 — CONTOH FORMAT + PERINTAH AI</div><div class="flex items-center gap-2 flex-wrap"><button id="laporanAiCopyPersonalPrompt" type="button" onclick="window._laporanAiCopyPlain(document.getElementById('laporanAiPersonalPrompt')?.value,'laporanAiCopyPersonalPrompt')" class="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-black text-xs"><i class="fa-solid fa-copy"></i> Salin</button><button type="button" onclick="window._laporanAiDownloadPersonalPrompt()" class="px-3 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-xl font-black text-xs"><i class="fa-solid fa-download"></i> Download Prompt</button></div></div>
                         <div class="text-[10px] font-black text-violet-800 dark:text-violet-200">PERINTAH: IKUTI FORMAT INI SECARA PERSIS. JANGAN MENGUBAH EMOJI, KATA-KATA TETAP, URUTAN, SEPARATOR, DAN PENUTUP.</div>
                         <textarea id="laporanAiPersonalPrompt" readonly rows="18" class="w-full p-3 bg-white dark:bg-slate-800 border rounded-xl font-mono text-[10px] leading-relaxed"></textarea>
                     </div>
@@ -7491,8 +7536,13 @@ window.initLaporanAiMenu = function() {
                 </div>
 
                 <div id="laporanAiPanelGroup" class="hidden space-y-4">
+                    <div class="p-4 rounded-2xl border-2 border-violet-300 dark:border-violet-800 bg-violet-50/60 dark:bg-violet-950/20 space-y-3">
+                        <div class="flex items-center justify-between gap-2 flex-wrap"><div class="font-black text-sm text-violet-900 dark:text-violet-200">KATA PENGANTAR UNTUK AI — LAPORAN GRUP</div><div class="flex items-center gap-2 flex-wrap"><button id="laporanAiCopyGroupIntro" type="button" onclick="window._laporanAiCopyPlain(document.getElementById('laporanAiGroupIntro')?.value,'laporanAiCopyGroupIntro')" class="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-black text-xs"><i class="fa-solid fa-copy"></i> Salin</button><button type="button" onclick="window._laporanAiDownloadGroupIntro()" class="px-3 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-xl font-black text-xs"><i class="fa-solid fa-download"></i> Download</button></div></div>
+                        <div class="text-xs leading-relaxed text-violet-900 dark:text-violet-100">Kata pengantar ini adalah instruksi awal AI sebelum membaca data grup/kelas dan membuat laporan. Format, emoji, kata-kata tetap, dan aturan laporan WEB wajib dipertahankan.</div>
+                        <textarea id="laporanAiGroupIntro" readonly rows="10" class="w-full p-3 bg-white dark:bg-slate-800 border rounded-xl font-mono text-[10px] leading-relaxed"></textarea>
+                    </div>
                     <div class="p-4 rounded-2xl border bg-slate-50 dark:bg-slate-900 space-y-3">
-                        <div class="font-black text-sm">STEP 1 — PILIH KELAS</div>
+                        <div class="flex items-center justify-between gap-2 flex-wrap"><div class="font-black text-sm">STEP 1 — PILIH KELAS</div><button id="laporanAiCopyGroupStep1" type="button" onclick="window._laporanAiCopyPlain(document.getElementById('laporanAiClassSelect')?.selectedOptions?.[0]?.text || document.getElementById('laporanAiClassSelect')?.value || '', 'laporanAiCopyGroupStep1')" class="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-black text-xs"><i class="fa-solid fa-copy"></i> Salin</button></div>
                         <select id="laporanAiClassSelect" onchange="window._laporanAiRefreshGroup()" class="w-full p-3 rounded-xl border bg-white dark:bg-slate-800 font-bold text-xs"></select>
                     </div>
                     <div class="p-4 rounded-2xl border bg-sky-50/60 dark:bg-sky-950/20 space-y-3">
@@ -7500,11 +7550,11 @@ window.initLaporanAiMenu = function() {
                         <textarea id="laporanAiGroupData" readonly rows="14" class="w-full p-3 bg-white dark:bg-slate-800 border rounded-xl font-mono text-[10px] leading-relaxed"></textarea>
                     </div>
                     <div class="p-4 rounded-2xl border bg-amber-50/60 dark:bg-amber-950/20 space-y-3">
-                        <div class="font-black text-sm">STEP 3 — KATA-KATA LAPORAN OTOMATIS SESUAI DATA</div>
+                        <div class="flex items-center justify-between gap-2 flex-wrap"><div class="font-black text-sm">STEP 3 — KATA-KATA LAPORAN OTOMATIS SESUAI DATA</div><button id="laporanAiCopyGroupWords" type="button" onclick="window._laporanAiCopyPlain(document.getElementById('laporanAiGroupWords')?.value,'laporanAiCopyGroupWords')" class="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-black text-xs"><i class="fa-solid fa-copy"></i> Salin</button></div>
                         <textarea id="laporanAiGroupWords" readonly rows="14" class="w-full p-3 bg-white dark:bg-slate-800 border rounded-xl font-mono text-[10px] leading-relaxed"></textarea>
                     </div>
                     <div class="p-4 rounded-2xl border bg-violet-50/60 dark:bg-violet-950/20 space-y-3">
-                        <div class="flex items-center justify-between gap-2 flex-wrap"><div class="font-black text-sm">STEP 4 — CONTOH FORMAT + PERINTAH AI</div><button type="button" onclick="window._laporanAiDownloadGroupPrompt()" class="px-3 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-xl font-black text-xs"><i class="fa-solid fa-download"></i> Download Prompt</button></div>
+                        <div class="flex items-center justify-between gap-2 flex-wrap"><div class="font-black text-sm">STEP 4 — CONTOH FORMAT + PERINTAH AI</div><div class="flex items-center gap-2 flex-wrap"><button id="laporanAiCopyGroupPrompt" type="button" onclick="window._laporanAiCopyPlain(document.getElementById('laporanAiGroupPrompt')?.value,'laporanAiCopyGroupPrompt')" class="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-black text-xs"><i class="fa-solid fa-copy"></i> Salin</button><button type="button" onclick="window._laporanAiDownloadGroupPrompt()" class="px-3 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-xl font-black text-xs"><i class="fa-solid fa-download"></i> Download Prompt</button></div></div>
                         <div class="text-[10px] font-black text-violet-800 dark:text-violet-200">PERINTAH: IKUTI FORMAT INI SECARA PERSIS. JANGAN MENGUBAH EMOJI, KATA-KATA TETAP, URUTAN, SEPARATOR, DAN PEMBUKA/PENUTUP.</div>
                         <textarea id="laporanAiGroupPrompt" readonly rows="20" class="w-full p-3 bg-white dark:bg-slate-800 border rounded-xl font-mono text-[10px] leading-relaxed"></textarea>
                     </div>
