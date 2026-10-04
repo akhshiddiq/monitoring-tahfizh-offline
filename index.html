@@ -850,7 +850,7 @@
             const target = document.getElementById(`section-${reportTab ? 'laporan' : tabId}`);
             if (target) target.classList.remove('hidden');
             
-            ['setoran', 'materi', 'dashboard', 'laporan-personal', 'laporan-grup', 'rekapan', 'export'].forEach(t => {
+            ['setoran', 'materi', 'dashboard', 'laporan-personal', 'laporan-grup', 'rekapan', 'export', 'data-baru'].forEach(t => {
                 const btn = document.getElementById(`btnTab-${t}`);
                 if (btn) {
                     btn.className = (t === tabId)
@@ -869,6 +869,7 @@
             if (tabId === 'rekapan') window.renderRekapan();
             if (tabId === 'laporan-santri') window.renderLaporanSantriPekan();
             if (tabId === 'riwayat') window.renderRiwayatInputMenu();
+            if (tabId === 'data-baru') window.renderDataBaru?.();
         };
 
         // ============================================================
@@ -1709,12 +1710,29 @@
         // dengan pemanggilan lama agar fitur existing tidak rusak.
         // ============================================================
         window.saveLocalData = async function(payload) {
+            // LOCAL-FIRST: data tetap disimpan oleh fitur masing-masing seperti sebelumnya.
+            // Tambahan V4.1 hanya mencatat event yang menunggu transfer ke Google Sheet.
+            try {
+                const pendingKey = 'rq_pending_sync_v1';
+                const list = JSON.parse(localStorage.getItem(pendingKey) || '[]');
+                const item = {
+                    queueId: (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : ('q_' + Date.now() + '_' + Math.random().toString(36).slice(2)),
+                    queuedAt: new Date().toISOString(),
+                    payload: payload || {}
+                };
+                list.push(item);
+                localStorage.setItem(pendingKey, JSON.stringify(list.slice(-1000)));
+                window.renderDataBaru?.();
+            } catch (e) {
+                console.warn('Queue Data Baru gagal:', e);
+            }
+
             const category = payload && ['bacaan','hafalan','murojaah','tugas'].includes(payload.type) ? payload.type : null;
             if (category) {
-                window.setInputSyncStatus(category, 'write', 'success', 'Tersimpan di perangkat', payload.name || null, 100);
+                window.setInputSyncStatus(category, 'write', 'success', 'Tersimpan di perangkat — menunggu transfer', payload.name || null, 100);
             }
             window.setSyncIndicator('success');
-            window.updateSyncFlow('write', 100, 'Tersimpan lokal');
+            window.updateSyncFlow('write', 100, 'Tersimpan lokal — menunggu transfer');
             return true;
         };
 
@@ -6666,6 +6684,7 @@
                 <button onclick="window.switchTab('laporan-grup')" id="btnTab-laporan-grup" class="px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold text-emerald-100 hover:bg-emerald-700/65 transition-all shrink-0">Laporan WA Grup</button>                                  <button onclick="window.switchTab('rekapan')" id="btnTab-rekapan" class="px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold text-emerald-100 hover:bg-emerald-700/65 transition-all shrink-0">Rekapan</button>
                 
                 <button onclick="window.switchTab('export')" id="btnTab-export" class="px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold text-emerald-100 hover:bg-emerald-700/65 transition-all shrink-0">Data</button>
+                <button onclick="window.switchTab('data-baru')" id="btnTab-data-baru" class="px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold text-emerald-100 hover:bg-emerald-700/65 transition-all shrink-0">Data Baru <span id="rqDataBaruCount" class="ml-1 px-1.5 py-0.5 rounded-full bg-amber-400 text-amber-950 text-[9px]">0</span></button>
             </div>
         </div>
     </header>
@@ -7404,7 +7423,31 @@
         <section id="section-rekapan" class="hidden space-y-4">
             <div id="rekapanContent"></div>
         </section>
-    </main>
+    
+<!-- DATA BARU — LOCAL-FIRST / MANUAL TRANSFER -->
+<section id="section-data-baru" class="hidden space-y-4">
+  <div class="bg-white dark:bg-slate-900 rounded-2xl border border-amber-200 dark:border-amber-900/40 shadow-sm p-4">
+    <div class="flex flex-wrap items-center justify-between gap-3">
+      <div>
+        <div class="text-base font-black text-amber-700 dark:text-amber-300">Data Baru — Menunggu Transfer</div>
+        <div id="rqDataBaruSummary" class="text-[11px] font-bold text-slate-500 mt-1">Semua data tetap tersimpan di perangkat sampai Anda menekan Transfer.</div>
+      </div>
+      <div class="flex flex-wrap gap-2">
+        <button type="button" onclick="window.transferDataBaruToGoogleSheet?.()" class="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black">Transfer ke Google Sheet</button>
+        <button type="button" onclick="window.clearTransferredDataBaru?.()" class="px-4 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-black">Hapus Data yang Sudah Berhasil</button>
+      </div>
+    </div>
+    <div id="rqDataBaruStatus" class="mt-3 text-[11px] font-black text-slate-500"></div>
+  </div>
+  <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm p-4">
+    <div class="flex items-center justify-between gap-2 mb-3">
+      <div class="text-sm font-black">Aktivitas Data Baru</div>
+      <button type="button" onclick="window.renderDataBaru?.()" class="px-3 py-2 rounded-lg bg-slate-100 dark:bg-slate-800 text-[10px] font-black">Refresh</button>
+    </div>
+    <div id="rqDataBaruContainer" class="space-y-2"></div>
+  </div>
+</section>
+</main>
 
     <!-- MODAL: MUROJA'AH BERSAMA / MASSAL -->
     <div id="murojaahMassalModal" class="fixed inset-0 z-[9999] bg-black/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 hidden">
@@ -9211,314 +9254,108 @@ html.dark #rqSafetyBackupBox #rqSafetyBackupLocation b{color:#ecfdf5 !important}
 })();
 </script>
 
-<!-- ========================================================== -->
-<!-- SYNC ENGINE TAHAP 4.0 - LOCAL-FIRST TO GOOGLE SHEET        -->
-<!-- ========================================================== -->
-<script>
-(function() {
-    // 1. KONFIGURASI UTAMA
-    const SYNC_CONFIG = {
-        API_URL: 'https://script.google.com/macros/s/AKfycbw74kUU2xuhVjKa6qP1K5_RFdzandRJmA8sNGJ2KZigpsIt1xHaG_RlQIXwGm8R-hXTxA/exec',
-        PENDING_QUEUE_KEY: 'rq_pending_sync_queue'
-    };
 
-    // 2. PEMBUATAN DEVICE ID & RECORD ID
-    function generateUUID() {
-        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-            var r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
-            return v.toString(16);
-        }).toUpperCase();
+<script id="rq-data-baru-sync-v41">
+(function(){
+  const QUEUE='rq_pending_sync_v1';
+  const API='https://script.google.com/macros/s/AKfycbw74kUU2xuhVjKa6qP1K5_RFdzandRJmA8sNGJ2KZigpsIt1xHaG_RlQIXwGm8R-hXTxA/exec';
+  const read=()=>{try{const v=JSON.parse(localStorage.getItem(QUEUE)||'[]');return Array.isArray(v)?v:[];}catch(_){return [];}};
+  const write=v=>{try{localStorage.setItem(QUEUE,JSON.stringify(v));return true;}catch(_){return false;}};
+  const esc=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  const rid=(type,p)=>String(p?.recordId||('local_'+type+'_'+String(p?.id||p?.name||'data')+'_'+String(p?.timestamp||p?.tanggal||Date.now()).replace(/[^0-9A-Za-z_-]/g,'')));
+
+  function recordsFromQueue(items){
+    const out=[];
+    for(const q of items){
+      const p=q?.payload||{}, type=String(p.type||'').toLowerCase();
+      let sheet='', data={};
+      if(type==='bacaan'||type==='hafalan'||type==='murojaah'){
+        sheet=type.toUpperCase();
+        const slots=Array.isArray(p.slots)?p.slots:[];
+        const first=slots[0]||{};
+        data={recordId:rid(type,p),idSantri:p.id||'',nama:p.name||'',kelas:p.class||'',tanggal:p.tanggal||'',guru:p.teacher||'',
+          surat:first.surat||first.name||'',ayatMulai:first.start||first.ayatMulai||'',ayatSelesai:first.end||first.ayatSelesai||'',
+          catatan:[p.detail||'',p.status||'',p.progressStatus||'',p.catatan||'',slots.length>1?('SLOTS='+JSON.stringify(slots)):''].filter(Boolean).join(' | '),
+          createdAt:q.queuedAt,updatedAt:q.queuedAt,deviceId:localStorage.getItem('rq_device_id')||'web'};
+      }else if(type==='tugas'){
+        sheet='TUGAS';
+        data={recordId:rid(type,p),idSantri:p.id||'',nama:p.name||'',kelas:p.class||'',judul:'Tugas',isi:p.detail||'',tanggal:p.tanggal||'',status:p.status||'',createdAt:q.queuedAt,updatedAt:q.queuedAt,deviceId:localStorage.getItem('rq_device_id')||'web'};
+      }else if(type==='materi'){
+        sheet='MATERI';
+        data={recordId:rid(type,p),kelas:p.kelas||'',judul:p.judul||'',isi:[p.bab||'',p.ket||''].filter(Boolean).join(' | '),tanggal:p.tanggal||'',status:'AKTIF',createdAt:q.queuedAt,updatedAt:q.queuedAt,deviceId:localStorage.getItem('rq_device_id')||'web'};
+      }else{
+        continue;
+      }
+      out.push({sheet,data,queueId:q.queueId});
     }
+    // MASTER_SANTRI: upsert seluruh master saat transfer. Ini aman karena Apps Script
+    // memakai recordId; tidak mengganti data server secara massal.
+    try{
+      const master=Array.isArray(window.santriList)?window.santriList:[];
+      const seen=new Set();
+      master.forEach((x,i)=>{
+        const id=String(x?.id||('name_'+String(x?.name||'').trim())).trim();
+        if(!id||seen.has(id))return; seen.add(id);
+        out.push({sheet:'MASTER_SANTRI',queueId:null,data:{
+          recordId:id,idSantri:id,nama:x?.name||'',kelas:x?.class||'',guru:x?.teacher||'',status:x?.status||'Aktif',
+          jenisKelamin:x?.gender||'',tanggalLahir:x?.birthDate||'',noWA:x?.phone||'',namaOrangTua:x?.parentName||'',
+          noWAOrangTua:x?.parentPhone||'',alamat:x?.address||'',catatan:x?.note||'',createdAt:x?.createdAt||new Date().toISOString(),
+          updatedAt:new Date().toISOString(),deviceId:localStorage.getItem('rq_device_id')||'web'
+        }});
+      });
+    }catch(_){}
+    return out;
+  }
 
-    function getOrCreateDeviceId() {
-        let deviceId = localStorage.getItem('rq_device_id_v2');
-        if (!deviceId) {
-            deviceId = 'RQ-DEVICE-' + generateUUID().split('-')[0];
-            localStorage.setItem('rq_device_id_v2', deviceId);
-        }
-        return deviceId;
+  window.renderDataBaru=function(){
+    const items=read();
+    const c=document.getElementById('rqDataBaruCount'),sum=document.getElementById('rqDataBaruSummary'),box=document.getElementById('rqDataBaruContainer');
+    if(c)c.textContent=String(items.length);
+    if(sum)sum.textContent=items.length?`${items.length} aktivitas lokal menunggu transfer ke Google Sheet.`:'Tidak ada aktivitas baru yang menunggu transfer.';
+    if(!box)return;
+    if(!items.length){box.innerHTML='<div class="text-xs font-bold text-slate-500">Belum ada data baru yang menunggu transfer.</div>';return;}
+    box.innerHTML=items.slice().reverse().map((q,i)=>{const p=q.payload||{};return `<div class="p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950"><div class="flex justify-between gap-3"><div><b class="text-xs">${esc(p.type||'data')}</b> · <b class="text-xs">${esc(p.name||p.judul||p.kelas||'-')}</b><div class="text-[10px] text-slate-500 mt-1">${esc(q.queuedAt)} · ID ${esc(p.id||'-')}</div></div><span class="text-[9px] font-black text-amber-600">MENUNGGU</span></div></div>`;}).join('');
+  };
+
+  window.transferDataBaruToGoogleSheet=async function(){
+    const items=read();
+    if(!items.length){window.showToast?.('Tidak ada Data Baru yang menunggu transfer.','info');return;}
+    const records=recordsFromQueue(items);
+    const status=document.getElementById('rqDataBaruStatus');
+    if(status)status.textContent=`Mengirim ${records.length} record ke Google Sheet...`;
+    try{
+      const res=await fetch(API,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'writeBatch',records:records.map(x=>({sheet:x.sheet,data:x.data}))})});
+      const json=await res.json();
+      if(!json?.success)throw new Error(json?.message||'Google Script menolak transfer.');
+      const okIds=new Set((json.results||[]).filter(x=>x.success).map(x=>x.data?.recordId||x.recordId).filter(Boolean));
+      const failed=(json.results||[]).filter(x=>!x.success);
+      const successfulQueueIds=new Set(records.filter(x=>x.queueId&&okIds.has(x.data.recordId)).map(x=>x.queueId));
+      const remaining=items.filter(x=>!successfulQueueIds.has(x.queueId));
+      write(remaining);
+      if(status)status.textContent=`Transfer selesai: ${json.successCount||0} berhasil, ${json.failedCount||0} gagal. Data gagal tetap disimpan lokal.`;
+      window.renderDataBaru();
+      window.setSyncIndicator?.(failed.length?'error':'success');
+      window.updateSyncFlow?.('write',100,failed.length?'Sebagian transfer gagal':'Transfer ke Google Sheet selesai');
+      window.showToast?.(failed.length?`Transfer selesai. ${failed.length} data gagal dan tetap tersimpan lokal.`:`Transfer ${json.successCount||records.length} record berhasil ke Google Sheet.`,'success');
+    }catch(e){
+      if(status)status.textContent='Transfer gagal. Data tetap aman di perangkat.';
+      window.showToast?.('Transfer Google Sheet gagal: '+(e?.message||e),'error');
     }
-
-    // 3. MAPPER DATA (LOKAL <-> SERVER)
-    // Menyesuaikan nama kolom di localStorage dengan Header di Google Sheet
-    const SHEET_MAPPER = {
-        MASTER_SANTRI: {
-            localKey: 'rq_santri_master',
-            toServer: (loc) => ({
-                recordId: loc.recordId, idSantri: loc.id, nama: loc.name, kelas: loc.class, 
-                guru: loc.teacher, jenisKelamin: loc.gender || "", noWA: loc.phone || "", 
-                status: loc.status || 'aktif', createdAt: loc.createdAt, updatedAt: loc.updatedAt, deviceId: loc.deviceId
-            }),
-            toLocal: (srv) => ({
-                recordId: srv.recordId, id: srv.idSantri, name: srv.nama, class: srv.kelas, 
-                teacher: srv.guru, gender: srv.jenisKelamin, phone: srv.noWA, status: srv.status,
-                createdAt: srv.createdAt, updatedAt: srv.updatedAt, deviceId: srv.deviceId
-            })
-        },
-        BACAAN: { localKey: 'rq_history_bacaan' },
-        HAFALAN: { localKey: 'rq_history_hafalan' },
-        MUROJAAH: { localKey: 'rq_history_murojaah' },
-        TUGAS: { localKey: 'rq_history_tugas' }
-    };
-
-    // Default History Mapper (BACAAN, HAFALAN, MUROJAAH, TUGAS)
-    ['BACAAN', 'HAFALAN', 'MUROJAAH', 'TUGAS'].forEach(sheet => {
-        SHEET_MAPPER[sheet].toServer = function(loc) {
-            let srv = { ...loc };
-            // Pastikan Array (seperti slots) diubah jadi string JSON karena Google Sheet tidak menerima Array
-            if (srv.slots) srv.slotsJson = JSON.stringify(srv.slots);
-            delete srv.slots; 
-            return srv;
-        };
-        SHEET_MAPPER[sheet].toLocal = function(srv) {
-            let loc = { ...srv };
-            if (loc.slotsJson) {
-                try { loc.slots = JSON.parse(loc.slotsJson); } catch(e) { loc.slots = []; }
-                delete loc.slotsJson;
-            }
-            return loc;
-        };
-    });
-
-    // 4. API BACA & TULIS (SESUAI ATURAN)
-    async function apiWriteRecord(sheet, data) {
-        try {
-            const response = await fetch(SYNC_CONFIG.API_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action: 'write', sheet: sheet, record: data }) // Backend GS mengharapkan "record" atau "data"
-            });
-            const result = await response.json();
-            return result;
-        } catch (error) {
-            console.error('[SYNC WRITE ERROR]', error);
-            return { success: false, error: error.message };
-        }
+  };
+  window.clearTransferredDataBaru=function(){
+    // Hanya menghapus antrean yang sudah kosong/ditandai selesai; data aplikasi tetap utuh.
+    const items=read();
+    if(!items.length){window.showToast?.('Antrean Data Baru sudah kosong.','info');return;}
+    if(confirm('Antrean yang masih menunggu belum berhasil ditransfer. Hapus antrean ini? Data aplikasi lokal tidak ikut dihapus.')){
+      write([]);window.renderDataBaru();window.showToast?.('Antrean Data Baru dihapus. Data lokal aplikasi tetap ada.','success');
     }
-
-    async function apiReadSheet(sheet) {
-        try {
-            const url = SYNC_CONFIG.API_URL + '?' + new URLSearchParams({ action: 'read', sheet: sheet }).toString();
-            const response = await fetch(url, { method: 'GET' });
-            const result = await response.json();
-            return result;
-        } catch (error) {
-            console.error('[SYNC READ ERROR]', error);
-            return { success: false, error: error.message };
-        }
-    }
-
-    // 5. PENGAYAAN DATA LOKAL (ENRICHMENT) & ANTREAN
-    // Memastikan setiap data di localStorage punya recordId, deviceId, dan timestamp
-    function sweepAndEnrichLocalData() {
-        const deviceId = getOrCreateDeviceId();
-        const nowIso = new Date().toISOString();
-        let queuedCount = 0;
-
-        Object.keys(SHEET_MAPPER).forEach(sheetName => {
-            const mapper = SHEET_MAPPER[sheetName];
-            let localArray = [];
-            try { localArray = JSON.parse(localStorage.getItem(mapper.localKey) || '[]'); } catch(e) {}
-            if (!Array.isArray(localArray)) return;
-
-            let isModified = false;
-            localArray.forEach(item => {
-                if (!item.recordId) {
-                    item.recordId = 'REC-' + generateUUID();
-                    item.createdAt = item.createdAt || (item.timestamp ? new Date(item.timestamp).toISOString() : nowIso);
-                    item.updatedAt = item.updatedAt || item.createdAt;
-                    item.deviceId = deviceId;
-                    isModified = true;
-                    // Masukkan ke antrean sinkronisasi jika data ini baru diberi ID
-                    queueSync(sheetName, item);
-                    queuedCount++;
-                }
-            });
-
-            if (isModified) {
-                localStorage.setItem(mapper.localKey, JSON.stringify(localArray));
-            }
-        });
-
-        if (queuedCount > 0) console.log(`[SYNC] ${queuedCount} record baru dimasukkan ke antrean.`);
-    }
-
-    // Fungsi menambah data ke antrean
-    function queueSync(sheet, record) {
-        let queue = [];
-        try { queue = JSON.parse(localStorage.getItem(SYNC_CONFIG.PENDING_QUEUE_KEY) || '[]'); } catch(e){}
-        
-        // Cek agar tidak menduplikat id yang sama di antrean (ambil yang terbaru)
-        queue = queue.filter(q => q.record.recordId !== record.recordId);
-        queue.push({ sheet, record: SHEET_MAPPER[sheet].toServer(record) });
-        
-        localStorage.setItem(SYNC_CONFIG.PENDING_QUEUE_KEY, JSON.stringify(queue));
-        if (window.setSyncIndicator) window.setSyncIndicator('pending');
-    }
-
-    // 6. PROSES ANTREAN (BACKGROUND WRITE)
-    window.isSyncingWrite = false;
-    async function processPendingSync() {
-        if (window.isSyncingWrite) return;
-        window.isSyncingWrite = true;
-
-        let queue = [];
-        try { queue = JSON.parse(localStorage.getItem(SYNC_CONFIG.PENDING_QUEUE_KEY) || '[]'); } catch(e){}
-
-        if (queue.length === 0) {
-            window.isSyncingWrite = false;
-            if (window.setSyncIndicator) window.setSyncIndicator('success');
-            return;
-        }
-
-        console.log(`[SYNC] Memproses ${queue.length} antrean...`);
-        if (window.updateSyncFlow) window.updateSyncFlow('write', 34, 'Mengirim ke Server...');
-
-        let remainingQueue = [...queue];
-
-        for (let i = 0; i < queue.length; i++) {
-            const task = queue[i];
-            const res = await apiWriteRecord(task.sheet, task.record);
-            
-            if (res.success) {
-                // Berhasil -> Hapus dari antrean
-                remainingQueue = remainingQueue.filter(q => q.record.recordId !== task.record.recordId);
-                localStorage.setItem(SYNC_CONFIG.PENDING_QUEUE_KEY, JSON.stringify(remainingQueue));
-            } else {
-                console.warn(`[SYNC] Gagal upload ${task.record.recordId}:`, res.error);
-                break; // Stop jika error koneksi, coba lagi nanti
-            }
-        }
-
-        window.isSyncingWrite = false;
-        if (remainingQueue.length === 0) {
-            if (window.updateSyncFlow) window.updateSyncFlow('write', 100, 'Semua data tersinkron');
-            if (window.setSyncIndicator) window.setSyncIndicator('success');
-        } else {
-            if (window.setSyncIndicator) window.setSyncIndicator('error');
-        }
-    }
-
-    // 7. PULL DATA DARI SERVER (BACKGROUND READ & MERGE)
-    window.isSyncingRead = false;
-    async function processServerMerge(forceRender = false) {
-        if (window.isSyncingRead) return;
-        window.isSyncingRead = true;
-        if (window.updateSyncFlow) window.updateSyncFlow('read', 34, 'Mengecek Server...');
-
-        let uiNeedsUpdate = false;
-
-        for (const sheetName of Object.keys(SHEET_MAPPER)) {
-            const mapper = SHEET_MAPPER[sheetName];
-            const res = await apiReadSheet(sheetName);
-
-            if (!res.success || !res.data || res.data.length === 0) continue;
-
-            // Convert Array of Array -> Array of Objects
-            const headers = res.data[0];
-            const rows = res.data.slice(1);
-            const serverObjects = rows.map(row => {
-                let obj = {};
-                headers.forEach((h, i) => obj[h] = row[i]);
-                return obj;
-            });
-
-            // Baca Data Lokal
-            let localArray = [];
-            try { localArray = JSON.parse(localStorage.getItem(mapper.localKey) || '[]'); } catch(e) {}
-            let localMap = new Map();
-            localArray.forEach(item => {
-                if(item.recordId) localMap.set(item.recordId, item);
-            });
-
-            let sheetModified = false;
-
-            // Merge Logic
-            serverObjects.forEach(srv => {
-                if (!srv.recordId) return;
-                const convertedSrv = mapper.toLocal(srv);
-                const loc = localMap.get(srv.recordId);
-
-                // Jika lokal tidak punya, atau server punya updatedAt lebih baru
-                if (!loc || new Date(convertedSrv.updatedAt) > new Date(loc.updatedAt || 0)) {
-                    localMap.set(srv.recordId, convertedSrv);
-                    sheetModified = true;
-                }
-            });
-
-            if (sheetModified) {
-                // Simpan kembali ke lokal (diurutkan DESC by updatedAt)
-                const mergedArray = Array.from(localMap.values()).sort((a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0));
-                localStorage.setItem(mapper.localKey, JSON.stringify(mergedArray));
-                uiNeedsUpdate = true;
-            }
-        }
-
-        window.isSyncingRead = false;
-        if (window.updateSyncFlow) window.updateSyncFlow('read', 100, 'Update dari server selesai');
-        
-        if (uiNeedsUpdate || forceRender) {
-            // Segarkan variabel memory utama agar UI tidak buta data
-            try {
-                const master = JSON.parse(localStorage.getItem('rq_santri_master') || '[]');
-                if (master.length > 0) window.santriList = window.normalizeSantriMaster(master);
-            } catch(e){}
-            
-            if (window.renderSantriCardsAndTable) window.renderSantriCardsAndTable();
-            if (window.renderLaporanSantriPekan) window.renderLaporanSantriPekan();
-            if (window.showToast && uiNeedsUpdate) window.showToast('Data diperbarui dari server pusat.', 'success');
-        }
-    }
-
-    // ==========================================================
-    // 8. HOOK (MENYUSUP) KE FUNGSI WEBSITE EXISTING
-    // ==========================================================
-    
-    // A. Intercept Penyimpanan
-    const originalSaveLocalData = window.saveLocalData;
-    window.saveLocalData = async function(payload) {
-        // Biarkan aplikasi lokal bekerja seperti biasa
-        await originalSaveLocalData(payload);
-        
-        // Setelah lokal selesai, kita sweep untuk memberi recordId, lalu masukkan ke Antrean, lalu Proses
-        setTimeout(() => {
-            sweepAndEnrichLocalData();
-            processPendingSync();
-        }, 300);
-        return true;
-    };
-
-    // B. Intercept Pemuatan
-    const originalLoadLocalData = window.loadLocalData;
-    window.loadLocalData = async function(forceRender = false) {
-        // Biarkan UI merender dari lokal dengan cepat (No lag)
-        await originalLoadLocalData(forceRender);
-        
-        // Di latar belakang, kita tarik data baru dari server
-        setTimeout(() => {
-            processServerMerge(forceRender);
-        }, 500);
-        return true;
-    };
-
-    // 9. INISIALISASI SAAT HALAMAN DIMUAT
-    document.addEventListener("DOMContentLoaded", () => {
-        sweepAndEnrichLocalData(); // Beri ID ke data yang sudah ada sebelumnya
-        processPendingSync();      // Habiskan sisa antrean jika kemarin sedang offline
-        processServerMerge(true);  // Tarik data terbaru saat web dibuka
-    });
-
-    // Ekspos fungsi Sync Manual agar bisa dipanggil jika perlu
-    window.apiTriggerManualSync = function() {
-        if(window.showToast) window.showToast("Sinkronisasi manual dimulai...", "success");
-        sweepAndEnrichLocalData();
-        processPendingSync().then(() => processServerMerge(true));
-    };
-
+  };
+  window.rqCheckGoogleSheetSync=async function(){
+    try{const r=await fetch(API+'?action=ping');const j=await r.json();return !!j?.success;}catch(_){return false;}
+  };
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(window.renderDataBaru,300));else setTimeout(window.renderDataBaru,300);
 })();
 </script>
-<!-- ========================================================== -->
-
 </body>
 
 <script>
