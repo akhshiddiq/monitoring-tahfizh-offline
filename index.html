@@ -37,6 +37,104 @@
         .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(16, 185, 129, 0.4); border-radius: 9999px; }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(16, 185, 129, 0.7); }
 
+        /* ============================================================
+           TAMPILAN LAPORAN WHATSAPP — VISUAL SAJA
+           Personal & Grup dibuat terang seperti area chat WhatsApp.
+           Tidak mengubah isi, format, data, atau fungsi laporan.
+           ============================================================ */
+        .wa-report-textarea {
+            width: 100% !important;
+            color: #111827 !important;
+            background-color: #efeae2 !important;
+            background-image:
+                radial-gradient(circle at 20% 20%, rgba(255,255,255,.48) 0 1px, transparent 1.5px),
+                radial-gradient(circle at 80% 35%, rgba(255,255,255,.38) 0 1px, transparent 1.5px),
+                radial-gradient(circle at 35% 75%, rgba(0,0,0,.035) 0 1px, transparent 1.5px),
+                radial-gradient(circle at 75% 85%, rgba(0,0,0,.025) 0 1px, transparent 1.5px);
+            background-size: 38px 38px, 52px 52px, 47px 47px, 61px 61px;
+            border: 1px solid #d8d0c7 !important;
+            border-radius: 14px !important;
+            caret-color: #111827 !important;
+            resize: vertical !important;
+            overflow-y: auto !important;
+            overflow-x: hidden !important;
+            scrollbar-gutter: stable;
+            box-sizing: border-box;
+        }
+        .wa-report-textarea::selection {
+            background: rgba(37, 211, 102, .24);
+            color: #111827;
+        }
+        .wa-report-textarea:focus {
+            outline: 2px solid rgba(37, 211, 102, .28) !important;
+            outline-offset: 0;
+            border-color: #25d366 !important;
+        }
+        @media (min-width: 768px) {
+            .wa-report-textarea {
+                min-height: 560px !important;
+                height: 68vh !important;
+                max-height: 900px !important;
+            }
+        }
+        @media (max-width: 767px) {
+            /* HP: kolom laporan dibuat panjang memenuhi ruang layar dan scroll di dalamnya. */
+            .wa-report-textarea {
+                min-height: calc(100vh - 250px) !important;
+                height: calc(100vh - 250px) !important;
+                max-height: none !important;
+                font-size: 14px !important;
+                line-height: 1.65 !important;
+                padding: 16px !important;
+                border-radius: 12px !important;
+            }
+        }
+
+
+        /* ============================================================
+           STICKY NOMOR VERSI FILE — VISUAL/NAVIGASI SAJA
+           Kotak kecil, tidak transparan, muncul di semua menu, dapat
+           dipindahkan dengan mouse maupun sentuhan HP.
+           ============================================================ */
+        #rqFloatingFileVersion {
+            position: fixed;
+            left: 12px;
+            bottom: 12px;
+            z-index: 9999;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 72px;
+            height: 30px;
+            padding: 0 10px;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            background: #ffffff !important;
+            color: #0f172a !important;
+            box-shadow: 0 2px 8px rgba(15,23,42,.18);
+            font-size: 10px;
+            font-weight: 800;
+            line-height: 1;
+            white-space: nowrap;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: none;
+            cursor: grab;
+        }
+        #rqFloatingFileVersion:active { cursor: grabbing; }
+        #rqFloatingFileVersion.rq-dragging { cursor: grabbing; box-shadow: 0 4px 12px rgba(15,23,42,.24); }
+        @media (max-width: 767px) {
+            #rqFloatingFileVersion {
+                left: 8px;
+                bottom: 8px;
+                min-width: 68px;
+                height: 28px;
+                padding: 0 8px;
+                border-radius: 7px;
+                font-size: 9px;
+            }
+        }
+
         :root { --app-header-height: 0px; }
         .santri-name-sticky {
             position: sticky;
@@ -5014,6 +5112,7 @@
                 historyBox.innerHTML=list.slice(0,50).map(x=>`<div class="border-b border-slate-200 dark:border-slate-700 py-3 last:border-b-0"><div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1"><div class="font-black text-sm text-slate-800 dark:text-slate-100">${esc(x.sourceFileId||'-')} ${x.action==='IMPORT'?'→ IMPORT':''}</div><div class="text-[10px] font-black text-slate-500">${esc(x.sourceCreatedAtWib||'-')}</div></div><div class="text-[11px] font-bold text-slate-600 dark:text-slate-300 mt-1">Dibuat: ${esc(x.sourceCreatedBy)} · ${esc(x.sourceDevice)}${x.sourceDeviceName?' · '+esc(x.sourceDeviceName):''}</div>${x.action==='IMPORT'?`<div class="text-[11px] font-bold text-emerald-700 dark:text-emerald-300 mt-1">Masuk ke perangkat: ${esc(x.importedDevice)} · ${esc(x.importedBy)} · ${esc(x.importedAtWib)} · Urutan FILE-IMPORT-${String(x.importNumber||0).padStart(4,'0')}</div>`:''}</div>`).join('');
             }
             window.renderVersionDataSummary?.();
+            window.rqRenderFloatingFileVersion?.();
         };
 
         // ============================================================
@@ -6827,6 +6926,10 @@
         </div>
     </header>
 
+
+    <!-- Nomor versi file: kecil, sticky di semua menu, dapat dipindahkan. -->
+    <div id="rqFloatingFileVersion" aria-label="Nomor versi file" title="Nomor versi file — dapat dipindahkan">FILE-0000</div>
+
     <main class="flex-1 max-w-7xl w-full mx-auto p-3 sm:p-5 lg:p-6 space-y-4 relative">
 
 <!-- SECTION: INPUT SETORAN -->
@@ -6958,7 +7061,7 @@
                             <button type="button" id="inlineLiveTab1Btn" onclick="window.switchInlineLiveReportTab(1)" class="px-2.5 py-2 rounded-lg text-[9px] sm:text-[10px] font-black bg-emerald-600 text-white shadow-sm leading-tight">Tab 1<br><span class="font-bold">Bacaan · Hafalan · Muroja'ah · Tugas</span></button>
                             <button type="button" id="inlineLiveTab2Btn" onclick="window.switchInlineLiveReportTab(2)" class="px-2.5 py-2 rounded-lg text-[9px] sm:text-[10px] font-black text-slate-700 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-800 leading-tight">Tab 2<br><span class="font-bold">Target Saat Ini · Yang Akan Datang</span></button>
                         </div>
-                        <textarea id="waMessagePreviewInline" rows="14" oninput="const x=document.getElementById('waMessagePreview'); if(x) x.value=this.value" class="w-full p-3 bg-slate-50 dark:bg-slate-900 border rounded-xl font-mono leading-relaxed custom-scrollbar resize-y" style="font-size:14px; line-height:1.65; height:60vh; min-height:380px; max-height:680px; overflow-y:scroll; overflow-x:hidden; resize:vertical; scrollbar-gutter:stable;"></textarea>
+                        <textarea id="waMessagePreviewInline" rows="14" oninput="const x=document.getElementById('waMessagePreview'); if(x) x.value=this.value" class="wa-report-textarea w-full p-3 border rounded-xl font-mono leading-relaxed custom-scrollbar" style="font-size:14px; line-height:1.65; height:60vh; min-height:380px; max-height:680px; overflow-y:auto; overflow-x:hidden; resize:vertical; scrollbar-gutter:stable;"></textarea>
                         <div class="grid grid-cols-2 gap-2">
                             <button onclick="window.copyWaReportText()" class="px-3 py-2.5 bg-slate-200 dark:bg-slate-700 rounded-xl font-black text-[10px] active:scale-95"><i class="fa-regular fa-copy"></i> Salin</button>
                             <button onclick="window.sendWaReportDirect()" class="px-3 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-black text-[10px] shadow-md active:scale-95"><i class="fa-brands fa-whatsapp"></i> Kirim WA</button>
@@ -7200,7 +7303,7 @@
 
                     <div>
                         <label class="font-black text-xs sm:text-sm text-slate-700 dark:text-slate-200">Preview Pesan:</label>
-                        <textarea id="waMessagePreview" rows="18" class="w-full mt-1.5 p-4 bg-slate-50 dark:bg-slate-900 border rounded-xl font-mono text-xs sm:text-sm leading-relaxed custom-scrollbar"></textarea>
+                        <textarea id="waMessagePreview" rows="18" class="wa-report-textarea w-full mt-1.5 p-4 border rounded-xl font-mono text-xs sm:text-sm leading-relaxed custom-scrollbar"></textarea>
                     </div>
                     <div class="flex items-center gap-2.5 flex-wrap">
                         <button onclick="window.copyWaReportText()" class="px-4 py-3 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 rounded-xl font-black text-xs sm:text-sm active:scale-95 transition">Salin Teks</button>
@@ -7291,7 +7394,7 @@
                     </div>
 
                     <div>
-                        <textarea id="classReportMessagePreview" rows="18" class="w-full p-4 bg-slate-50 dark:bg-slate-900 border rounded-xl font-mono text-xs sm:text-sm leading-relaxed custom-scrollbar"></textarea>
+                        <textarea id="classReportMessagePreview" rows="18" class="wa-report-textarea w-full p-4 border rounded-xl font-mono text-xs sm:text-sm leading-relaxed custom-scrollbar"></textarea>
                     </div>
                     <div class="flex items-center gap-2.5">
                         <button onclick="window.copyClassReportText()" class="px-4 py-3 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 rounded-xl font-black text-xs sm:text-sm active:scale-95 transition">Salin Teks Kelas</button>
@@ -10438,6 +10541,92 @@ html.dark #rqSafetyBackupBox #rqSafetyBackupLocation b{color:#ecfdf5 !important}
   // Target Report menu juga hanya menampilkan target yang mendapat izin.
   setTimeout(()=>{try{if(typeof window.renderTargetReport==='function')window.renderTargetReport();}catch(_){ }},160);
 })();
+
+
+        /* ============================================================
+           STICKY NOMOR VERSI FILE — hanya tampilan + posisi lokal.
+           Tidak mengubah data laporan atau struktur data aplikasi.
+           ============================================================ */
+        window.rqRenderFloatingFileVersion = function() {
+            const el = document.getElementById('rqFloatingFileVersion');
+            if (!el) return;
+            let label = '';
+            try {
+                const list = window.rqGetVersionHistory ? window.rqGetVersionHistory() : [];
+                const latest = Array.isArray(list) ? list.find(x => x && x.sourceFileId) : null;
+                if (latest?.sourceFileId) label = String(latest.sourceFileId).trim();
+                if (!label) {
+                    const counter = Math.max(0, parseInt(localStorage.getItem('rq_version_file_counter_v1') || '0', 10) || 0);
+                    if (counter > 0) label = `FILE-${String(counter).padStart(4, '0')}`;
+                }
+            } catch (_) {}
+            el.textContent = label || 'FILE-0000';
+        };
+
+        window.rqInitFloatingFileVersion = function() {
+            const el = document.getElementById('rqFloatingFileVersion');
+            if (!el || el.dataset.rqDragReady === '1') return;
+            el.dataset.rqDragReady = '1';
+            try {
+                const saved = JSON.parse(localStorage.getItem('rq_version_badge_position_v1') || 'null');
+                if (saved && Number.isFinite(saved.left) && Number.isFinite(saved.top)) {
+                    el.style.left = `${Math.max(0, Math.min(window.innerWidth - el.offsetWidth, saved.left))}px`;
+                    el.style.top = `${Math.max(0, Math.min(window.innerHeight - el.offsetHeight, saved.top))}px`;
+                    el.style.right = 'auto';
+                    el.style.bottom = 'auto';
+                }
+            } catch (_) {}
+            let dragging = false, startX = 0, startY = 0, startLeft = 0, startTop = 0;
+            const start = (clientX, clientY) => {
+                const r = el.getBoundingClientRect();
+                dragging = true;
+                startX = clientX; startY = clientY;
+                startLeft = r.left; startTop = r.top;
+                el.classList.add('rq-dragging');
+            };
+            const move = (clientX, clientY) => {
+                if (!dragging) return;
+                const maxLeft = Math.max(0, window.innerWidth - el.offsetWidth);
+                const maxTop = Math.max(0, window.innerHeight - el.offsetHeight);
+                const left = Math.max(0, Math.min(maxLeft, startLeft + clientX - startX));
+                const top = Math.max(0, Math.min(maxTop, startTop + clientY - startY));
+                el.style.left = `${left}px`;
+                el.style.top = `${top}px`;
+                el.style.right = 'auto';
+                el.style.bottom = 'auto';
+            };
+            const end = () => {
+                if (!dragging) return;
+                dragging = false;
+                el.classList.remove('rq-dragging');
+                try {
+                    const r = el.getBoundingClientRect();
+                    localStorage.setItem('rq_version_badge_position_v1', JSON.stringify({left:r.left, top:r.top}));
+                } catch (_) {}
+            };
+            el.addEventListener('mousedown', e => { if (e.button === 0) { e.preventDefault(); start(e.clientX, e.clientY); } });
+            window.addEventListener('mousemove', e => move(e.clientX, e.clientY));
+            window.addEventListener('mouseup', end);
+            el.addEventListener('touchstart', e => {
+                const t = e.touches && e.touches[0];
+                if (t) { e.preventDefault(); start(t.clientX, t.clientY); }
+            }, {passive:false});
+            window.addEventListener('touchmove', e => {
+                const t = e.touches && e.touches[0];
+                if (dragging && t) { e.preventDefault(); move(t.clientX, t.clientY); }
+            }, {passive:false});
+            window.addEventListener('touchend', end, {passive:true});
+            window.addEventListener('resize', () => {
+                if (!el.style.top) return;
+                const r = el.getBoundingClientRect();
+                const left = Math.max(0, Math.min(window.innerWidth - el.offsetWidth, r.left));
+                const top = Math.max(0, Math.min(window.innerHeight - el.offsetHeight, r.top));
+                el.style.left = `${left}px`;
+                el.style.top = `${top}px`;
+            });
+            window.rqRenderFloatingFileVersion();
+        };
+        window.rqInitFloatingFileVersion();
 
         window.renderVersiMenu?.();
         window.rqCopyChatPrompt = async function(id, button) {
