@@ -7552,6 +7552,163 @@
   <div id="rqImportHistoryContainer" class="mt-3 space-y-2.5"></div>
 </div>
 
+                    <!-- PANDUAN: INPUT DATA MELALUI CHATGPT -->
+                    <div class="mt-5 p-4 sm:p-5 bg-violet-50 dark:bg-violet-950/20 rounded-2xl border-2 border-violet-300 dark:border-violet-800 space-y-4">
+                        <div class="flex items-start gap-3">
+                            <div class="w-10 h-10 shrink-0 rounded-xl bg-violet-600 text-white flex items-center justify-center shadow-md">
+                                <i class="fa-solid fa-comments"></i>
+                            </div>
+                            <div>
+                                <div class="font-black text-base sm:text-lg text-violet-950 dark:text-violet-200">Panduan Input Data melalui ChatGPT</div>
+                                <p class="text-[11px] sm:text-xs font-bold text-violet-800/80 dark:text-violet-300 mt-1 leading-relaxed">
+                                    Gunakan panduan ini saat membuka obrolan ChatGPT baru untuk memasukkan data bacaan, hafalan, muroja’ah, dan catatan tanpa kehilangan data lama.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="p-3.5 bg-white/80 dark:bg-slate-900/70 rounded-2xl border border-violet-200 dark:border-violet-800 space-y-3">
+                            <div class="flex items-center gap-2 font-black text-sm text-slate-800 dark:text-slate-100"><span class="w-7 h-7 rounded-lg bg-violet-600 text-white flex items-center justify-center text-xs">1</span> Copy dan Paste Prompt Pembuka</div>
+                            <p class="text-[11px] font-bold text-slate-600 dark:text-slate-400">Buka obrolan ChatGPT baru, lalu salin prompt berikut. Tombol menyalin langsung tanpa pop-up.</p>
+                            <div class="relative">
+                                <pre id="rqChatPrompt1" class="whitespace-pre-wrap text-[10px] sm:text-[11px] leading-relaxed font-semibold bg-slate-950 text-slate-100 rounded-xl p-3.5 pr-3.5 overflow-x-auto max-h-72">Saya akan menggunakan obrolan ini untuk melakukan input, pembaruan, dan penggabungan data Monitoring Tahfizh RQ Al-Khansa.
+
+Ikuti aturan berikut:
+- Jangan mengubah struktur, fitur, format, atau data yang sudah ada kecuali saya meminta secara khusus.
+- Pertahankan seluruh data santri yang sudah ada.
+- Jangan menghapus data lama hanya karena ada data baru.
+- Data baru harus diproses sebagai tambahan atau pembaruan sesuai instruksi saya.
+- Pertahankan format data yang sudah digunakan oleh sistem.
+- Pertahankan data bacaan, hafalan, murojaah, catatan, riwayat, presensi, tugas, tracking tahfizh, dan data lain yang terdapat dalam file.
+- Jangan mengubah emoji atau format laporan yang sudah digunakan sistem.
+- Gunakan istilah "santri", bukan "murid".
+- Jika terdapat data yang meragukan, jangan menebak. Tanyakan kepada saya.
+- Jangan membuat struktur data baru yang tidak diperlukan.
+- Sebelum mengolah data, pahami terlebih dahulu file HTML dan file data yang saya berikan.
+- Jangan langsung mengubah atau membuat file sebelum saya memberikan instruksi.
+
+Setelah saya mengirim file HTML dan file data, pahami terlebih dahulu seluruh struktur dan formatnya.
+Jangan melakukan perubahan apa pun sampai saya memberikan data dan instruksi berikutnya.</pre>
+                                <button type="button" onclick="window.rqCopyChatPrompt('rqChatPrompt1',this)" class="mt-2 w-full px-4 py-2.5 bg-violet-600 hover:bg-violet-700 text-white rounded-xl font-black text-xs flex items-center justify-center gap-2 shadow-md active:scale-95"><i class="fa-solid fa-copy"></i> Salin Prompt Tahap 1</button>
+                            </div>
+                        </div>
+
+                        <div class="p-3.5 bg-white/80 dark:bg-slate-900/70 rounded-2xl border border-violet-200 dark:border-violet-800 space-y-3">
+                            <div class="flex items-center gap-2 font-black text-sm text-slate-800 dark:text-slate-100"><span class="w-7 h-7 rounded-lg bg-violet-600 text-white flex items-center justify-center text-xs">2</span> Masukkan File HTML Keseluruhan</div>
+                            <p class="text-[11px] font-bold text-slate-600 dark:text-slate-400 leading-relaxed">Masukkan <b>file HTML keseluruhan terbaru</b> dari web. Jangan hanya memasukkan potongan kode. File ini menjadi acuan struktur menu, fitur, format laporan, struktur data, dan fungsi import/export.</p>
+                            <div class="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 text-[10px] sm:text-[11px] font-bold text-amber-900 dark:text-amber-200">Gunakan HTML terbaru yang terakhir digunakan. Jangan menggunakan HTML lama jika sudah ada versi terbaru.</div>
+                        </div>
+
+                        <div class="p-3.5 bg-white/80 dark:bg-slate-900/70 rounded-2xl border border-violet-200 dark:border-violet-800 space-y-3">
+                            <div class="flex items-center gap-2 font-black text-sm text-slate-800 dark:text-slate-100"><span class="w-7 h-7 rounded-lg bg-violet-600 text-white flex items-center justify-center text-xs">3</span> Copy Prompt Persiapan Data</div>
+                            <div class="relative">
+                                <pre id="rqChatPrompt3" class="whitespace-pre-wrap text-[10px] sm:text-[11px] leading-relaxed font-semibold bg-slate-950 text-slate-100 rounded-xl p-3.5 overflow-x-auto max-h-72">Sekarang saya sudah memberikan file HTML keseluruhan dari sistem Monitoring Tahfizh RQ Al-Khansa.
+
+Tugas kamu:
+1. Baca dan pahami seluruh file HTML tersebut.
+2. Pahami struktur data dan fitur yang ada.
+3. Jangan mengubah kode HTML.
+4. Jangan membuat versi baru dari web.
+5. Jangan menghapus fitur apa pun.
+6. Jangan mengubah format laporan.
+7. Jangan mengubah emoji yang sudah digunakan.
+8. Jangan mengubah struktur data santri.
+9. Pertahankan seluruh data lama ketika nanti melakukan penggabungan.
+10. Identifikasi file/data apa yang perlu saya berikan agar data lama tetap lengkap.
+
+Setelah selesai memahami HTML, jangan langsung mengolah data.
+Beritahu saya bahwa kamu sudah memahami struktur HTML dan kemudian tunggu saya memberikan file CSV data terbaru dari web.</pre>
+                                <button type="button" onclick="window.rqCopyChatPrompt('rqChatPrompt3',this)" class="mt-2 w-full px-4 py-2.5 bg-violet-600 hover:bg-violet-700 text-white rounded-xl font-black text-xs flex items-center justify-center gap-2 shadow-md active:scale-95"><i class="fa-solid fa-copy"></i> Salin Prompt Tahap 3</button>
+                            </div>
+                        </div>
+
+                        <div class="p-3.5 bg-white/80 dark:bg-slate-900/70 rounded-2xl border border-violet-200 dark:border-violet-800 space-y-3">
+                            <div class="flex items-center gap-2 font-black text-sm text-slate-800 dark:text-slate-100"><span class="w-7 h-7 rounded-lg bg-violet-600 text-white flex items-center justify-center text-xs">4</span> Download dan Masukkan Data Lama</div>
+                            <div class="p-3 rounded-xl bg-sky-50 dark:bg-sky-950/20 border-2 border-sky-200 dark:border-sky-800 text-[11px] sm:text-xs font-bold text-sky-900 dark:text-sky-200 leading-relaxed">
+                                <b>File yang WAJIB dibawa ke ChatGPT:</b><br>
+                                Gunakan <b>Download Semua Data CSV</b> dari menu Data. File ini adalah backup data aplikasi secara keseluruhan dan menjadi sumber data lama yang harus dipertahankan.<br><br>
+                                <b>Jangan hanya menggunakan Download Ringkasan Santri (.csv)</b> untuk proses penggabungan data aplikasi.
+                            </div>
+                            <button type="button" onclick="window.exportAllLocalDataToCsv()" class="w-full px-4 py-2.5 bg-sky-600 hover:bg-sky-700 text-white rounded-xl font-black text-xs flex items-center justify-center gap-2 shadow-md active:scale-95"><i class="fa-solid fa-download"></i> Download Semua Data CSV Sekarang</button>
+                            <div class="relative">
+                                <pre id="rqChatPrompt4" class="whitespace-pre-wrap text-[10px] sm:text-[11px] leading-relaxed font-semibold bg-slate-950 text-slate-100 rounded-xl p-3.5 overflow-x-auto max-h-72">Saya sekarang memberikan file CSV data terbaru dari web.
+
+File CSV ini adalah data lama yang WAJIB dipertahankan.
+
+Tugas kamu:
+- Baca seluruh isi CSV.
+- Pahami struktur datanya.
+- Pertahankan seluruh data lama.
+- Jangan menghapus santri.
+- Jangan menghapus bacaan, hafalan, murojaah, catatan, riwayat, tracking, atau data lain yang terdapat dalam file.
+- Jangan mengubah data lama tanpa alasan dan tanpa instruksi saya.
+
+Untuk sementara jangan membuat file hasil akhir.
+Cukup pahami dan siapkan data tersebut sebagai data dasar.
+
+Setelah selesai, beri tahu saya bahwa data lama sudah siap dan saya akan mulai memberikan data baru.</pre>
+                                <button type="button" onclick="window.rqCopyChatPrompt('rqChatPrompt4',this)" class="mt-2 w-full px-4 py-2.5 bg-violet-600 hover:bg-violet-700 text-white rounded-xl font-black text-xs flex items-center justify-center gap-2 shadow-md active:scale-95"><i class="fa-solid fa-copy"></i> Salin Prompt Tahap 4</button>
+                            </div>
+                        </div>
+
+                        <div class="p-3.5 bg-white/80 dark:bg-slate-900/70 rounded-2xl border border-violet-200 dark:border-violet-800 space-y-3">
+                            <div class="flex items-center gap-2 font-black text-sm text-slate-800 dark:text-slate-100"><span class="w-7 h-7 rounded-lg bg-violet-600 text-white flex items-center justify-center text-xs">5</span> Bersiap Memasukkan Nama Santri, Kelas, Bacaan & Hafalan</div>
+                            <div class="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/20 border-2 border-emerald-200 dark:border-emerald-800 text-[11px] sm:text-xs font-bold text-emerald-900 dark:text-emerald-200 leading-relaxed">
+                                <b>Nama tidak harus lengkap.</b> Anda boleh menyebut nama panggilan, nama depan, atau potongan nama. ChatGPT harus mencocokkannya dengan <b>nama santri di kelas yang Anda sebutkan</b>.<br><br>
+                                Urutan yang dianjurkan: <b>Nama santri → Kelas → Bacaan/Hafalan/Murojaah/Catatan</b>.<br><br>
+                                Jika hanya ada satu kandidat yang cocok, gunakan nama lengkap yang tersimpan. Jika ada beberapa kandidat atau tidak ditemukan, <b>jangan menebak</b>; tanyakan kepada Anda. Kelas menjadi pembatas utama pencarian nama.
+                            </div>
+                            <div class="p-3 bg-slate-50 dark:bg-slate-900/60 rounded-xl border border-slate-200 dark:border-slate-700 text-[10px] sm:text-[11px] font-bold text-slate-700 dark:text-slate-300 leading-relaxed">
+                                <b>Contoh:</b> “Kelas Abdurrahman. Ahmad, hafalan An-Naba ayat 1–10. Aisyah, bacaan An-Nazi’at ayat 1–15. Rafa, murojaah Al-Mursalat ayat 1–20.”
+                            </div>
+                            <div class="relative">
+                                <pre id="rqChatPrompt5" class="whitespace-pre-wrap text-[10px] sm:text-[11px] leading-relaxed font-semibold bg-slate-950 text-slate-100 rounded-xl p-3.5 overflow-x-auto max-h-80">Saya akan membacakan data dengan urutan nama santri, kelas, kemudian bacaan, hafalan, murojaah, atau catatan.
+
+Nama yang saya sebutkan tidak harus nama lengkap. Jika saya hanya menyebut nama panggilan, nama depan, atau potongan nama, cocokkan dengan daftar santri yang terdapat pada data lama dan gunakan kelas yang saya sebutkan sebagai pembatas pencarian.
+
+Aturan pencocokan:
+1. Cari nama yang cocok di kelas yang saya sebutkan.
+2. Nama boleh berupa nama lengkap, panggilan, nama depan, atau potongan nama.
+3. Jika hanya ada satu kandidat yang cocok, gunakan nama lengkap yang tersimpan di data.
+4. Jika ada beberapa kandidat yang mungkin cocok, jangan menebak. Tanyakan kepada saya.
+5. Jika nama tidak ditemukan di kelas tersebut, beri tahu saya dan jangan membuat santri baru secara otomatis.
+6. Jangan memindahkan santri ke kelas lain hanya karena nama terlihat mirip.
+7. Pertahankan seluruh data lama dan tambahkan data baru sesuai instruksi saya.
+8. Jangan menghapus atau menimpa riwayat lama secara sembarangan.
+
+Saya akan melanjutkan memberikan nama, kelas, lalu data hafalan/bacaan/murojaah.</pre>
+                                <button type="button" onclick="window.rqCopyChatPrompt('rqChatPrompt5',this)" class="mt-2 w-full px-4 py-2.5 bg-violet-600 hover:bg-violet-700 text-white rounded-xl font-black text-xs flex items-center justify-center gap-2 shadow-md active:scale-95"><i class="fa-solid fa-copy"></i> Salin Prompt Tahap 5</button>
+                            </div>
+                        </div>
+
+                        <div class="p-3.5 bg-white/80 dark:bg-slate-900/70 rounded-2xl border border-violet-200 dark:border-violet-800 space-y-3">
+                            <div class="flex items-center gap-2 font-black text-sm text-slate-800 dark:text-slate-100"><span class="w-7 h-7 rounded-lg bg-violet-600 text-white flex items-center justify-center text-xs">6</span> Minta ChatGPT Membuat File Gabungan</div>
+                            <p class="text-[11px] font-bold text-slate-600 dark:text-slate-400">Setelah semua input selesai, salin prompt ini. ChatGPT harus membuat CSV hasil gabungan yang siap diimpor kembali melalui <b>Gabungkan</b>.</p>
+                            <div class="relative">
+                                <pre id="rqChatPrompt6" class="whitespace-pre-wrap text-[10px] sm:text-[11px] leading-relaxed font-semibold bg-slate-950 text-slate-100 rounded-xl p-3.5 overflow-x-auto max-h-80">Data baru sudah selesai saya berikan.
+
+Sekarang gabungkan data baru tersebut dengan data lama dari CSV yang sebelumnya saya berikan.
+
+Aturan wajib:
+- Pertahankan seluruh data lama.
+- Tambahkan data baru.
+- Jangan menghapus data lama.
+- Jangan mengganti data lama secara sembarangan.
+- Jangan menghilangkan riwayat, bacaan, hafalan, murojaah, catatan, tracking, atau data lain.
+- Pertahankan struktur CSV asli.
+- Pertahankan semua kolom dan data yang tidak sedang diubah.
+- Pastikan data santri tetap lengkap.
+- Pastikan data baru masuk ke struktur yang benar.
+
+Setelah selesai, buatkan file CSV hasil gabungan yang siap dimasukkan kembali ke web menggunakan menu:
+Data → Import Data → Gabungkan.
+
+Jangan mengubah format CSV yang dibutuhkan oleh web.</pre>
+                                <button type="button" onclick="window.rqCopyChatPrompt('rqChatPrompt6',this)" class="mt-2 w-full px-4 py-2.5 bg-violet-600 hover:bg-violet-700 text-white rounded-xl font-black text-xs flex items-center justify-center gap-2 shadow-md active:scale-95"><i class="fa-solid fa-copy"></i> Salin Prompt Tahap 6</button>
+                            </div>
+                            <div class="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/20 border border-rose-200 dark:border-rose-800 text-[10px] sm:text-[11px] font-black text-rose-800 dark:text-rose-200">Saat memasukkan hasil kembali ke web, gunakan <b>Gabungkan</b> agar data lama tetap dipertahankan. Jangan pilih <b>Ganti</b> kecuali memang ingin mengganti seluruh data.</div>
+                        </div>
+                    </div>
+
                     <button onclick="window.exportDataToExcel()" class="px-4.5 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-black text-xs sm:text-sm flex items-center gap-2 shadow-md transition active:scale-95">
                         <i class="fa-solid fa-file-excel text-sm"></i> Download Ringkasan Santri (.csv)
                     </button>
@@ -10245,4 +10402,36 @@ html.dark #rqSafetyBackupBox #rqSafetyBackupLocation b{color:#ecfdf5 !important}
 })();
 
         window.renderVersiMenu?.();
+        window.rqCopyChatPrompt = async function(id, button) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            const text = el.textContent || el.innerText || '';
+            const original = button ? button.innerHTML : '';
+            try {
+                if (navigator.clipboard && window.isSecureContext) {
+                    await navigator.clipboard.writeText(text);
+                } else {
+                    const ta = document.createElement('textarea');
+                    ta.value = text;
+                    ta.setAttribute('readonly', '');
+                    ta.style.position = 'fixed';
+                    ta.style.opacity = '0';
+                    document.body.appendChild(ta);
+                    ta.select();
+                    ta.setSelectionRange(0, ta.value.length);
+                    document.execCommand('copy');
+                    ta.remove();
+                }
+                if (button) {
+                    button.innerHTML = '<i class="fa-solid fa-check"></i> Tersalin';
+                    setTimeout(() => { button.innerHTML = original; }, 1200);
+                }
+            } catch (e) {
+                console.warn('Salin prompt gagal:', e);
+                if (button) {
+                    button.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> Gagal menyalin';
+                    setTimeout(() => { button.innerHTML = original; }, 1500);
+                }
+            }
+        };
 </script>
