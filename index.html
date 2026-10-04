@@ -90,6 +90,41 @@
             }
         }
 
+        /* Pengatur ukuran kolom WA Personal & WA Grup — hanya tampilan. */
+        .wa-report-size-controls {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-wrap: wrap;
+            margin: 6px 0 8px;
+        }
+        .wa-report-size-controls button {
+            min-width: 34px;
+            min-height: 32px;
+            padding: 5px 9px;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            background: #ffffff;
+            color: #334155;
+            font-size: 10px;
+            font-weight: 800;
+            cursor: pointer;
+            transition: background-color .15s ease, border-color .15s ease, transform .1s ease;
+        }
+        .wa-report-size-controls button:hover { background: #f1f5f9; border-color: #94a3b8; }
+        .wa-report-size-controls button:active { transform: scale(.96); }
+        .wa-report-size-controls .wa-size-label {
+            color: #64748b;
+            font-size: 10px;
+            font-weight: 800;
+            margin-right: 2px;
+        }
+        .wa-report-size-controls .wa-size-active {
+            background: #dcfce7;
+            border-color: #22c55e;
+            color: #166534;
+        }
+
 
         /* ============================================================
            STICKY NOMOR VERSI FILE — VISUAL/NAVIGASI SAJA
@@ -3885,6 +3920,45 @@
             return false;
         };
 
+        window.setWaReportSize = function(targetId, size) {
+            const el = document.getElementById(targetId);
+            if (!el) return;
+            const sizes = {
+                small: { desktop: '420px', mobile: '50vh' },
+                medium: { desktop: '560px', mobile: '68vh' },
+                large: { desktop: '720px', mobile: '82vh' },
+                full: { desktop: 'calc(100vh - 190px)', mobile: 'calc(100vh - 210px)' }
+            };
+            const cfg = sizes[size] || sizes.medium;
+            const mobile = window.matchMedia && window.matchMedia('(max-width: 767px)').matches;
+            const height = mobile ? cfg.mobile : cfg.desktop;
+            el.style.setProperty('height', height, 'important');
+            el.style.setProperty('min-height', height, 'important');
+            el.style.setProperty('max-height', 'none', 'important');
+            el.style.setProperty('overflow-y', 'auto', 'important');
+            const key = 'rq_wa_report_size_' + targetId;
+            try { localStorage.setItem(key, size); } catch (_) {}
+            document.querySelectorAll('.wa-report-size-controls[data-wa-size-target="' + targetId + '"] button').forEach(btn => {
+                btn.classList.toggle('wa-size-active', btn.getAttribute('data-wa-size') === size);
+            });
+        };
+
+        window.initWaReportSizeControls = function() {
+            ['waMessagePreview','classReportMessagePreview'].forEach(id => {
+                const el = document.getElementById(id);
+                if (!el) return;
+                let size = 'medium';
+                try { size = localStorage.getItem('rq_wa_report_size_' + id) || 'medium'; } catch (_) {}
+                window.setWaReportSize(id, size);
+            });
+        };
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', window.initWaReportSizeControls);
+        } else {
+            window.initWaReportSizeControls();
+        }
+
         window.copyWaReportText = async function() {
             const textarea = document.getElementById('waMessagePreviewInline') || document.getElementById('waMessagePreview');
             if (!textarea) return;
@@ -7302,7 +7376,16 @@
                     </div>
 
                     <div>
-                        <label class="font-black text-xs sm:text-sm text-slate-700 dark:text-slate-200">Preview Pesan:</label>
+                        <div class="flex items-center justify-between gap-2 flex-wrap">
+                            <label class="font-black text-xs sm:text-sm text-slate-700 dark:text-slate-200">Preview Pesan:</label>
+                            <div class="wa-report-size-controls" data-wa-size-target="waMessagePreview">
+                                <span class="wa-size-label">Ukuran:</span>
+                                <button type="button" data-wa-size="small" onclick="window.setWaReportSize('waMessagePreview','small')" title="Kecil">Kecil</button>
+                                <button type="button" data-wa-size="medium" onclick="window.setWaReportSize('waMessagePreview','medium')" title="Normal">Normal</button>
+                                <button type="button" data-wa-size="large" onclick="window.setWaReportSize('waMessagePreview','large')" title="Besar">Besar</button>
+                                <button type="button" data-wa-size="full" onclick="window.setWaReportSize('waMessagePreview','full')" title="Penuh">Penuh</button>
+                            </div>
+                        </div>
                         <textarea id="waMessagePreview" rows="18" class="wa-report-textarea w-full mt-1.5 p-4 border rounded-xl font-mono text-xs sm:text-sm leading-relaxed custom-scrollbar"></textarea>
                     </div>
                     <div class="flex items-center gap-2.5 flex-wrap">
@@ -7394,6 +7477,16 @@
                     </div>
 
                     <div>
+                        <div class="flex items-center justify-between gap-2 flex-wrap">
+                            <label class="font-black text-xs sm:text-sm text-slate-700 dark:text-slate-200">Preview Laporan WA Grup:</label>
+                            <div class="wa-report-size-controls" data-wa-size-target="classReportMessagePreview">
+                                <span class="wa-size-label">Ukuran:</span>
+                                <button type="button" data-wa-size="small" onclick="window.setWaReportSize('classReportMessagePreview','small')" title="Kecil">Kecil</button>
+                                <button type="button" data-wa-size="medium" onclick="window.setWaReportSize('classReportMessagePreview','medium')" title="Normal">Normal</button>
+                                <button type="button" data-wa-size="large" onclick="window.setWaReportSize('classReportMessagePreview','large')" title="Besar">Besar</button>
+                                <button type="button" data-wa-size="full" onclick="window.setWaReportSize('classReportMessagePreview','full')" title="Penuh">Penuh</button>
+                            </div>
+                        </div>
                         <textarea id="classReportMessagePreview" rows="18" class="wa-report-textarea w-full p-4 border rounded-xl font-mono text-xs sm:text-sm leading-relaxed custom-scrollbar"></textarea>
                     </div>
                     <div class="flex items-center gap-2.5">
