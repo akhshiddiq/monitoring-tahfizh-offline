@@ -850,7 +850,7 @@
             const target = document.getElementById(`section-${reportTab ? 'laporan' : tabId}`);
             if (target) target.classList.remove('hidden');
             
-            ['setoran', 'materi', 'dashboard', 'laporan-personal', 'laporan-grup', 'rekapan', 'export', 'data-baru'].forEach(t => {
+            ['setoran', 'materi', 'dashboard', 'laporan-personal', 'laporan-grup', 'rekapan', 'export'].forEach(t => {
                 const btn = document.getElementById(`btnTab-${t}`);
                 if (btn) {
                     btn.className = (t === tabId)
@@ -869,7 +869,6 @@
             if (tabId === 'rekapan') window.renderRekapan();
             if (tabId === 'laporan-santri') window.renderLaporanSantriPekan();
             if (tabId === 'riwayat') window.renderRiwayatInputMenu();
-            if (tabId === 'data-baru') window.renderDataBaru?.();
         };
 
         // ============================================================
@@ -1710,29 +1709,12 @@
         // dengan pemanggilan lama agar fitur existing tidak rusak.
         // ============================================================
         window.saveLocalData = async function(payload) {
-            // LOCAL-FIRST: data tetap disimpan oleh fitur masing-masing seperti sebelumnya.
-            // Tambahan V4.1 hanya mencatat event yang menunggu transfer ke Google Sheet.
-            try {
-                const pendingKey = 'rq_pending_sync_v1';
-                const list = JSON.parse(localStorage.getItem(pendingKey) || '[]');
-                const item = {
-                    queueId: (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : ('q_' + Date.now() + '_' + Math.random().toString(36).slice(2)),
-                    queuedAt: new Date().toISOString(),
-                    payload: payload || {}
-                };
-                list.push(item);
-                localStorage.setItem(pendingKey, JSON.stringify(list.slice(-1000)));
-                window.renderDataBaru?.();
-            } catch (e) {
-                console.warn('Queue Data Baru gagal:', e);
-            }
-
             const category = payload && ['bacaan','hafalan','murojaah','tugas'].includes(payload.type) ? payload.type : null;
             if (category) {
-                window.setInputSyncStatus(category, 'write', 'success', 'Tersimpan di perangkat — menunggu transfer', payload.name || null, 100);
+                window.setInputSyncStatus(category, 'write', 'success', 'Tersimpan di perangkat', payload.name || null, 100);
             }
             window.setSyncIndicator('success');
-            window.updateSyncFlow('write', 100, 'Tersimpan lokal — menunggu transfer');
+            window.updateSyncFlow('write', 100, 'Tersimpan lokal');
             return true;
         };
 
@@ -4243,8 +4225,7 @@
         };
 
 
-        window.importAllLocalDataFromCsv = async function(file, mode = 'merge', skipConfirm = false) {
-            mode = 'merge'; // SAFETY: Import CSV selalu MERGE/UPSERT, tidak pernah REPLACE.
+        window.importAllLocalDataFromCsv = async function(file, mode = 'replace', skipConfirm = false) {
             if (!file) return;
             try {
                 const operator = window.rqGetImportOperator();
@@ -4531,10 +4512,10 @@
         };
 
         window.rqPendingCsvFile = null;
-        window.rqPendingCsvImportMode = 'merge';
+        window.rqPendingCsvImportMode = 'replace';
 
-        window.openOfflineCsvImport = function(mode = 'merge') {
-            window.rqPendingCsvImportMode = 'merge';
+        window.openOfflineCsvImport = function(mode = 'replace') {
+            window.rqPendingCsvImportMode = mode === 'merge' ? 'merge' : 'replace';
             const input = document.getElementById('rqOfflineCsvImportInput');
             if (!input) {
                 window.showToast?.('Kolom pemilih file CSV tidak ditemukan. Muat ulang halaman lalu coba lagi.', 'error');
@@ -4550,11 +4531,11 @@
             }, 0);
         };
 
-        window.handleOfflineCsvDrop = function(event, mode = 'merge') {
+        window.handleOfflineCsvDrop = function(event, mode = 'replace') {
             event.preventDefault();
             event.currentTarget?.classList.remove('ring-4','ring-violet-300','ring-amber-300');
             const file = event.dataTransfer?.files?.[0];
-            window.rqPendingCsvImportMode = 'merge';
+            window.rqPendingCsvImportMode = mode === 'merge' ? 'merge' : 'replace';
             if (!file) return;
             const input = document.getElementById('rqOfflineCsvImportInput');
             if (input) {
@@ -5129,14 +5110,13 @@
             } catch(e) { console.error(e); window.showToast('Download file sinkronisasi gagal: '+(e?.message||e),'error'); }
         };
 
-        window.openWebSyncImport = function(mode='merge') {
+        window.openWebSyncImport = function(mode='replace') {
             const input=document.getElementById('rqWebSyncImportInput');
-            window.rqPendingWebSyncMode='merge';
+            window.rqPendingWebSyncMode=mode==='merge'?'merge':'replace';
             if(input) input.click();
         };
 
-        window.importWebSyncFile = async function(file, mode='merge') {
-            mode='merge'; // SAFETY: file sync selalu MERGE.
+        window.importWebSyncFile = async function(file, mode='replace') {
             if(!file) return;
             try {
                 const text=await file.text();
@@ -5197,11 +5177,12 @@
                     s.cloudHafSlots = null;
                     s.cloudMurSlots = null;
                 });
-                // Reset hanya mengosongkan ringkasan tampilan harian pada Master Santri.
-                // RIWAYAT tetap APPEND-ONLY dan tidak pernah dihapus.
-                try{localStorage.setItem('rq_santri_master',JSON.stringify(window.santriList||[]));}catch(_){}
+                localStorage.removeItem('rq_history_bacaan');
+                localStorage.removeItem('rq_history_hafalan');
+                localStorage.removeItem('rq_history_murojaah');
+                localStorage.removeItem('rq_history_tugas');
                 window.renderSantriCardsAndTable();
-                window.showToast("Ringkasan setoran harian direset. Riwayat lama tetap tersimpan.", "success");
+                window.showToast("Data setoran harian direset!", "success");
             }
         };
 
@@ -6685,7 +6666,6 @@
                 <button onclick="window.switchTab('laporan-grup')" id="btnTab-laporan-grup" class="px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold text-emerald-100 hover:bg-emerald-700/65 transition-all shrink-0">Laporan WA Grup</button>                                  <button onclick="window.switchTab('rekapan')" id="btnTab-rekapan" class="px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold text-emerald-100 hover:bg-emerald-700/65 transition-all shrink-0">Rekapan</button>
                 
                 <button onclick="window.switchTab('export')" id="btnTab-export" class="px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold text-emerald-100 hover:bg-emerald-700/65 transition-all shrink-0">Data</button>
-                <button onclick="window.switchTab('data-baru')" id="btnTab-data-baru" class="px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold text-emerald-100 hover:bg-emerald-700/65 transition-all shrink-0">Data Baru <span id="rqDataBaruCount" class="ml-1 px-1.5 py-0.5 rounded-full bg-amber-400 text-amber-950 text-[9px]">0</span></button>
             </div>
         </div>
     </header>
@@ -7402,27 +7382,6 @@
 
 <div id="rqSafetyBackupPlacement" class="mt-4"></div>
 
-<!-- GOOGLE SCRIPT API — URL DAPAT DIGANTI MANUAL -->
-<div class="mt-4 p-4 rounded-2xl border-2 border-emerald-200 dark:border-emerald-900 bg-emerald-50/60 dark:bg-emerald-950/20">
-  <div class="flex flex-wrap items-center justify-between gap-2">
-    <div>
-      <div class="font-black text-sm text-emerald-900 dark:text-emerald-200"><i class="fa-solid fa-link"></i> Google Script API</div>
-      <div class="text-[10px] font-bold text-slate-600 dark:text-slate-400 mt-1">Link Web App Google Apps Script yang dipakai untuk transfer Data Baru. Bisa diganti manual tanpa mengubah kode website.</div>
-    </div>
-    <span id="rqGoogleScriptStatus" class="text-[9px] font-black px-2 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500">BELUM DICEK</span>
-  </div>
-  <div class="mt-3">
-    <label class="text-[10px] font-black text-slate-600 dark:text-slate-300">Link Google Script terbaru</label>
-    <input id="rqGoogleScriptUrlInput" type="url" autocomplete="off" spellcheck="false" placeholder="https://script.google.com/macros/s/.../exec" class="mt-1 w-full p-3 rounded-xl border-2 border-emerald-200 dark:border-emerald-800 bg-white dark:bg-slate-900 text-[11px] font-bold text-slate-800 dark:text-slate-100">
-  </div>
-  <div class="mt-3 flex flex-wrap gap-2">
-    <button type="button" onclick="window.rqSaveGoogleScriptUrl?.()" class="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-black"><i class="fa-solid fa-floppy-disk mr-1"></i> Simpan Link</button>
-    <button type="button" onclick="window.rqTestGoogleScriptUrl?.()" class="px-4 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-700 text-white text-[10px] font-black"><i class="fa-solid fa-plug mr-1"></i> Tes Koneksi</button>
-    <button type="button" onclick="window.rqResetGoogleScriptUrl?.()" class="px-4 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-[10px] font-black">Kembalikan Link Bawaan</button>
-  </div>
-  <div id="rqGoogleScriptNote" class="mt-2 text-[9px] font-bold text-slate-500 dark:text-slate-400">Link disimpan di perangkat ini. Jika Anda mengganti deployment Google Script, cukup masukkan URL /exec yang baru lalu Simpan Link.</div>
-</div>
-
 <div class="mt-4 p-4 rounded-2xl border-2 border-indigo-200 dark:border-indigo-900 bg-indigo-50/60 dark:bg-indigo-950/20">
   <div class="flex flex-wrap items-center justify-between gap-2">
     <div>
@@ -7445,31 +7404,7 @@
         <section id="section-rekapan" class="hidden space-y-4">
             <div id="rekapanContent"></div>
         </section>
-    
-<!-- DATA BARU — LOCAL-FIRST / MANUAL TRANSFER -->
-<section id="section-data-baru" class="hidden space-y-4">
-  <div class="bg-white dark:bg-slate-900 rounded-2xl border border-amber-200 dark:border-amber-900/40 shadow-sm p-4">
-    <div class="flex flex-wrap items-center justify-between gap-3">
-      <div>
-        <div class="text-base font-black text-amber-700 dark:text-amber-300">Data Baru — Menunggu Transfer</div>
-        <div id="rqDataBaruSummary" class="text-[11px] font-bold text-slate-500 mt-1">Semua data tetap tersimpan di perangkat sampai Anda menekan SINKRONISASI.</div>
-      </div>
-      <div class="flex flex-wrap gap-2">
-        <button type="button" onclick="window.transferDataBaruToGoogleSheet?.()" class="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black">SINKRONISASI</button>
-        <button type="button" onclick="window.clearTransferredDataBaru?.()" class="px-4 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-black">Hapus Data yang Sudah Berhasil</button>
-      </div>
-    </div>
-    <div id="rqDataBaruStatus" class="mt-3 text-[11px] font-black text-slate-500"></div>
-  </div>
-  <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm p-4">
-    <div class="flex items-center justify-between gap-2 mb-3">
-      <div class="text-sm font-black">Aktivitas Data Baru</div>
-      <button type="button" onclick="window.renderDataBaru?.()" class="px-3 py-2 rounded-lg bg-slate-100 dark:bg-slate-800 text-[10px] font-black">Refresh</button>
-    </div>
-    <div id="rqDataBaruContainer" class="space-y-2"></div>
-  </div>
-</section>
-</main>
+    </main>
 
     <!-- MODAL: MUROJA'AH BERSAMA / MASSAL -->
     <div id="murojaahMassalModal" class="fixed inset-0 z-[9999] bg-black/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 hidden">
@@ -7948,35 +7883,10 @@ html.dark #rqSafetyBackupBox #rqSafetyBackupLocation b{color:#ecfdf5 !important}
       if(!obj || obj.format!=='rq-al-khansa-offline-backup' || !obj.localStorage || typeof obj.localStorage!=='object'){
         throw new Error('Format backup tidak dikenali.');
       }
-      if(!confirm('Restore aman akan MENGGABUNGKAN isi backup dengan data lokal saat ini. Data lokal yang tidak ada di backup tetap dipertahankan. Lanjutkan?')) return;
-      for(const [k,v] of Object.entries(obj.localStorage)){
-        if(!String(k||'').startsWith('rq_')) continue;
-        try{
-          const incoming=String(v);
-          const current=localStorage.getItem(k);
-          if(!current){ localStorage.setItem(k,incoming); continue; }
-          let a,b; try{a=JSON.parse(current);b=JSON.parse(incoming);}catch(_){a=null;b=null;}
-          if(Array.isArray(a)&&Array.isArray(b)){
-            const keyOf=x=>String(x?.recordId||x?.sourceKey||x?.id||[x?.name,x?.tanggal,x?.timestamp,x?.detail].filter(Boolean).join('|')||'');
-            const map=new Map(a.map(x=>[keyOf(x),x]));
-            for(const x of b){const kx=keyOf(x); if(!kx){map.set('__'+Math.random(),x);continue;} const prev=map.get(kx); if(!prev||String(x?.updatedAt||x?.timestamp||'')>=String(prev?.updatedAt||prev?.timestamp||'')) map.set(kx,x);}
-            localStorage.setItem(k,JSON.stringify(Array.from(map.values())));
-          }else if(a&&b&&typeof a==='object'&&typeof b==='object'&&!Array.isArray(a)&&!Array.isArray(b)){
-            localStorage.setItem(k,JSON.stringify({...a,...b}));
-          }else{
-            localStorage.setItem(k,incoming);
-          }
-        }catch(_){ try{localStorage.setItem(k,String(v));}catch(__){} }
-      }
-      if(Array.isArray(obj.santriList)){
-        const current=Array.isArray(window.santriList)?window.santriList:[];
-        const keyOf=x=>String(x?.id||x?.recordId||x?.name||'').trim().toLowerCase();
-        const map=new Map(current.map(x=>[keyOf(x),x]));
-        for(const x of obj.santriList){const k=keyOf(x);if(!k)continue;const p=map.get(k);map.set(k,p?{...p,...x}:x);}
-        window.santriList=Array.from(map.values());
-        try{localStorage.setItem('rq_santri_master',JSON.stringify(window.santriList));}catch(_){}
-      }
-      notify('Restore aman berhasil digabungkan. Data lama yang tidak ada di backup tetap dipertahankan.','success');
+      if(!confirm('Restore akan mengganti data lokal saat ini dengan isi backup. Lanjutkan?')) return;
+      localStorage.clear();
+      for(const [k,v] of Object.entries(obj.localStorage)) localStorage.setItem(k,String(v));
+      notify('Restore berhasil. Aplikasi akan dimuat ulang.','success');
       setTimeout(()=>location.reload(),700);
     }catch(e){notify('Restore gagal: '+(e?.message||e),'error')}
     finally{restoreInput.value=''}
@@ -8608,27 +8518,10 @@ html.dark #rqSafetyBackupBox #rqSafetyBackupLocation b{color:#ecfdf5 !important}
       const ok=await window.rqCreateSafetyBackup('sebelum-pemulihan-terakhir'); if(!ok)return;
     }
     try{
-      for(const [k,v] of Object.entries(x.data.localStorage||{})){
-        if(!String(k||'').startsWith('rq_')) continue;
-        try{
-          const current=localStorage.getItem(k);
-          if(!current){localStorage.setItem(k,String(v));continue;}
-          let a,b;try{a=JSON.parse(current);b=JSON.parse(String(v));}catch(_){a=null;b=null;}
-          if(Array.isArray(a)&&Array.isArray(b)){
-            const keyOf=y=>String(y?.recordId||y?.sourceKey||y?.id||[y?.name,y?.tanggal,y?.timestamp,y?.detail].filter(Boolean).join('|')||'');
-            const map=new Map(a.map(y=>[keyOf(y),y]));
-            for(const y of b){const ky=keyOf(y);if(!ky){map.set('__'+Math.random(),y);continue;}const p=map.get(ky);if(!p||String(y?.updatedAt||y?.timestamp||'')>=String(p?.updatedAt||p?.timestamp||''))map.set(ky,y);}
-            localStorage.setItem(k,JSON.stringify(Array.from(map.values())));
-          }else if(a&&b&&typeof a==='object'&&typeof b==='object'&&!Array.isArray(a)&&!Array.isArray(b)) localStorage.setItem(k,JSON.stringify({...a,...b}));
-          else localStorage.setItem(k,String(v));
-        }catch(_){try{localStorage.setItem(k,String(v));}catch(__){}}
-      }
-      if(Array.isArray(x.data.santriList)){
-        const current=Array.isArray(window.santriList)?window.santriList:[];const keyOf=y=>String(y?.id||y?.recordId||y?.name||'').trim().toLowerCase();const map=new Map(current.map(y=>[keyOf(y),y]));
-        for(const y of x.data.santriList){const ky=keyOf(y);if(!ky)continue;const p=map.get(ky);map.set(ky,p?{...p,...y}:y);} window.santriList=Array.from(map.values());
-        try{localStorage.setItem('rq_santri_master',JSON.stringify(window.santriList));}catch(_){}
-      }
-      writeLog({action:'Pemulihan data',detail:'Menggabungkan snapshot sebelum: '+x.reason});
+      Object.keys(localStorage).filter(k=>k.startsWith('rq_')&&k!==SNAP_KEY&&k!==LOG_KEY).forEach(k=>localStorage.removeItem(k));
+      for(const [k,v] of Object.entries(x.data.localStorage||{}))localStorage.setItem(k,v);
+      if(Array.isArray(x.data.santriList))window.santriList=x.data.santriList;
+      writeLog({action:'Pemulihan data',detail:'Memulihkan kondisi sebelum: '+x.reason});
       window.location.reload();
     }catch(e){window.showToast?.('Pemulihan gagal: '+e.message,'error')}
   }
@@ -9318,194 +9211,6 @@ html.dark #rqSafetyBackupBox #rqSafetyBackupLocation b{color:#ecfdf5 !important}
 })();
 </script>
 
-
-<script id="rq-data-baru-sync-v41">
-(function(){
-  const QUEUE='rq_pending_sync_v1';
-  const GOOGLE_SCRIPT_DEFAULT='https://script.google.com/macros/s/AKfycbw74kUU2xuhVjKa6qP1K5_RFdzandRJmA8sNGJ2KZigpsIt1xHaG_RlQIXwGm8R-hXTxA/exec';
-  const GOOGLE_SCRIPT_KEY='rq_google_script_web_app_url_v1';
-  const getApi=()=>{
-    try{
-      const saved=String(localStorage.getItem(GOOGLE_SCRIPT_KEY)||'').trim();
-      return saved||GOOGLE_SCRIPT_DEFAULT;
-    }catch(_){ return GOOGLE_SCRIPT_DEFAULT; }
-  };
-  const normalizeApi=v=>String(v||'').trim().replace(/\/+$/,'');
-  const validApi=v=>/^https:\/\/script\.google\.com\/macros\/s\/[^\s/]+\/exec(?:\?.*)?$/i.test(normalizeApi(v));
-  const API=()=>normalizeApi(getApi());
-  window.rqGoogleScriptGetUrl=()=>API();
-  window.rqSaveGoogleScriptUrl=function(){
-    const input=document.getElementById('rqGoogleScriptUrlInput');
-    const note=document.getElementById('rqGoogleScriptNote');
-    const status=document.getElementById('rqGoogleScriptStatus');
-    const v=normalizeApi(input?.value||'');
-    if(!validApi(v)){
-      if(note)note.textContent='Link tidak valid. Gunakan URL Web App Google Apps Script yang berakhir /exec.';
-      if(status){status.textContent='LINK TIDAK VALID';status.className='text-[9px] font-black px-2 py-1 rounded-lg bg-rose-100 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300';}
-      window.showToast?.('Link Google Script tidak valid. Pastikan URL Web App berakhir /exec.','error');
-      return false;
-    }
-    try{localStorage.setItem(GOOGLE_SCRIPT_KEY,v);}catch(e){window.showToast?.('Link gagal disimpan di perangkat: '+(e?.message||e),'error');return false;}
-    if(input)input.value=v;
-    if(note)note.textContent='Link tersimpan di perangkat ini. Transfer berikutnya akan menggunakan link tersebut.';
-    if(status){status.textContent='TERSIMPAN';status.className='text-[9px] font-black px-2 py-1 rounded-lg bg-emerald-100 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300';}
-    window.showToast?.('Link Google Script berhasil disimpan.','success');
-    return true;
-  };
-  window.rqResetGoogleScriptUrl=function(){
-    try{localStorage.removeItem(GOOGLE_SCRIPT_KEY);}catch(_){}
-    const input=document.getElementById('rqGoogleScriptUrlInput');
-    if(input)input.value=GOOGLE_SCRIPT_DEFAULT;
-    const note=document.getElementById('rqGoogleScriptNote');
-    if(note)note.textContent='Kembali menggunakan link bawaan Google Script. Klik Simpan Link bila ingin menyimpannya sebagai konfigurasi perangkat.';
-    const status=document.getElementById('rqGoogleScriptStatus');
-    if(status){status.textContent='BAWAAN';status.className='text-[9px] font-black px-2 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500';}
-    window.showToast?.('Link Google Script dikembalikan ke link bawaan.','success');
-  };
-  window.rqTestGoogleScriptUrl=async function(){
-    const input=document.getElementById('rqGoogleScriptUrlInput');
-    const candidate=normalizeApi(input?.value||API());
-    const status=document.getElementById('rqGoogleScriptStatus');
-    const note=document.getElementById('rqGoogleScriptNote');
-    if(!validApi(candidate)){window.showToast?.('Link Google Script tidak valid.','error');return false;}
-    if(status){status.textContent='MENGECEK...';status.className='text-[9px] font-black px-2 py-1 rounded-lg bg-sky-100 dark:bg-sky-950/40 text-sky-700 dark:text-sky-300';}
-    try{
-      const r=await fetch(candidate+'?action=ping',{cache:'no-store'});
-      const j=await r.json();
-      if(!j?.success)throw new Error(j?.message||j?.error||'Ping tidak berhasil');
-      if(status){status.textContent='TERHUBUNG';status.className='text-[9px] font-black px-2 py-1 rounded-lg bg-emerald-100 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300';}
-      if(note)note.textContent='Google Script merespons. URL ini siap dipakai untuk transfer.';
-      window.showToast?.('Google Script berhasil terhubung.','success');
-      return true;
-    }catch(e){
-      if(status){status.textContent='GAGAL TERHUBUNG';status.className='text-[9px] font-black px-2 py-1 rounded-lg bg-rose-100 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300';}
-      if(note)note.textContent='Tes koneksi gagal. Periksa URL deployment, akses Web App, dan pastikan menggunakan /exec.';
-      window.showToast?.('Tes Google Script gagal: '+(e?.message||e),'error');
-      return false;
-    }
-  };
-  function initGoogleScriptUrlUi(){
-    const input=document.getElementById('rqGoogleScriptUrlInput');
-    if(input)input.value=API();
-  }
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(initGoogleScriptUrlUi,100));else setTimeout(initGoogleScriptUrlUi,100);
-  const read=()=>{try{const v=JSON.parse(localStorage.getItem(QUEUE)||'[]');return Array.isArray(v)?v:[];}catch(_){return [];}};
-  const write=v=>{try{localStorage.setItem(QUEUE,JSON.stringify(v));return true;}catch(_){return false;}};
-  const esc=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
-  const rid=(type,p)=>String(p?.recordId||('local_'+type+'_'+String(p?.id||p?.name||'data')+'_'+String(p?.timestamp||p?.tanggal||Date.now()).replace(/[^0-9A-Za-z_-]/g,'')));
-
-  function recordsFromQueue(items){
-    const out=[];
-    for(const q of items){
-      const p=q?.payload||{}, type=String(p.type||'').toLowerCase();
-      let sheet='', data={};
-      if(type==='bacaan'||type==='hafalan'||type==='murojaah'){
-        sheet=type.toUpperCase();
-        const slots=Array.isArray(p.slots)?p.slots:[];
-        const first=slots[0]||{};
-        data={recordId:rid(type,p),idSantri:p.id||'',nama:p.name||'',kelas:p.class||'',tanggal:p.tanggal||'',guru:p.teacher||'',
-          surat:first.surat||first.name||'',ayatMulai:first.start||first.ayatMulai||'',ayatSelesai:first.end||first.ayatSelesai||'',
-          catatan:[p.detail||'',p.status||'',p.progressStatus||'',p.catatan||'',slots.length>1?('SLOTS='+JSON.stringify(slots)):''].filter(Boolean).join(' | '),
-          createdAt:q.queuedAt,updatedAt:q.queuedAt,deviceId:localStorage.getItem('rq_device_id')||'web'};
-      }else if(type==='tugas'){
-        sheet='TUGAS';
-        data={recordId:rid(type,p),idSantri:p.id||'',nama:p.name||'',kelas:p.class||'',judul:'Tugas',isi:p.detail||'',tanggal:p.tanggal||'',status:p.status||'',createdAt:q.queuedAt,updatedAt:q.queuedAt,deviceId:localStorage.getItem('rq_device_id')||'web'};
-      }else if(type==='materi'){
-        sheet='MATERI';
-        data={recordId:rid(type,p),kelas:p.kelas||'',judul:p.judul||'',isi:[p.bab||'',p.ket||''].filter(Boolean).join(' | '),tanggal:p.tanggal||'',status:'AKTIF',createdAt:q.queuedAt,updatedAt:q.queuedAt,deviceId:localStorage.getItem('rq_device_id')||'web'};
-      }else{
-        continue;
-      }
-      out.push({sheet,data,queueId:q.queueId});
-    }
-    // MASTER_SANTRI: upsert seluruh master saat transfer. Ini aman karena Apps Script
-    // memakai recordId; tidak mengganti data server secara massal.
-    try{
-      const master=Array.isArray(window.santriList)?window.santriList:[];
-      const seen=new Set();
-      master.forEach((x,i)=>{
-        const id=String(x?.id||('name_'+String(x?.name||'').trim())).trim();
-        if(!id||seen.has(id))return; seen.add(id);
-        out.push({sheet:'MASTER_SANTRI',queueId:null,data:{
-          recordId:id,idSantri:id,nama:x?.name||'',kelas:x?.class||'',guru:x?.teacher||'',status:x?.status||'Aktif',
-          jenisKelamin:x?.gender||'',tanggalLahir:x?.birthDate||'',noWA:x?.phone||'',namaOrangTua:x?.parentName||'',
-          noWAOrangTua:x?.parentPhone||'',alamat:x?.address||'',catatan:x?.note||'',createdAt:x?.createdAt||new Date().toISOString(),
-          updatedAt:new Date().toISOString(),deviceId:localStorage.getItem('rq_device_id')||'web'
-        }});
-      });
-    }catch(_){}
-    return out;
-  }
-
-  window.renderDataBaru=function(){
-    const items=read();
-    const c=document.getElementById('rqDataBaruCount'),sum=document.getElementById('rqDataBaruSummary'),box=document.getElementById('rqDataBaruContainer');
-    if(c)c.textContent=String(items.length);
-    if(sum)sum.textContent=items.length?`${items.length} aktivitas lokal menunggu transfer ke Google Sheet.`:'Tidak ada aktivitas baru yang menunggu transfer.';
-    if(!box)return;
-    if(!items.length){box.innerHTML='<div class="text-xs font-bold text-slate-500">Belum ada data baru yang menunggu transfer.</div>';return;}
-    box.innerHTML=items.slice().reverse().map((q,i)=>{const p=q.payload||{};return `<div class="p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950"><div class="flex justify-between gap-3"><div><b class="text-xs">${esc(p.type||'data')}</b> · <b class="text-xs">${esc(p.name||p.judul||p.kelas||'-')}</b><div class="text-[10px] text-slate-500 mt-1">${esc(q.queuedAt)} · ID ${esc(p.id||'-')}</div></div><span class="text-[9px] font-black text-amber-600">MENUNGGU</span></div></div>`;}).join('');
-  };
-
-  window.transferDataBaruToGoogleSheet=async function(){
-    const items=read();
-    if(!items.length){window.showToast?.('Tidak ada Data Baru yang menunggu transfer.','info');return;}
-    const records=recordsFromQueue(items);
-    const status=document.getElementById('rqDataBaruStatus');
-    const setTransferStatus=(state,text)=>{
-      if(!status)return;
-      if(state==='loading'){
-        status.innerHTML=`<span class="inline-flex items-center gap-2"><span class="inline-block w-4 h-4 rounded-full border-2 border-emerald-500 border-t-transparent animate-spin"></span><span>${text}</span></span>`;
-        status.className='mt-3 text-[11px] font-black text-emerald-700 dark:text-emerald-300';
-      }else if(state==='success'){
-        status.innerHTML=`<span class="inline-flex items-center gap-2"><span class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-emerald-500 text-white text-[11px]">✓</span><span>${text}</span></span>`;
-        status.className='mt-3 text-[11px] font-black text-emerald-700 dark:text-emerald-300';
-      }else if(state==='partial'){
-        status.innerHTML=`<span class="inline-flex items-center gap-2"><span class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-amber-500 text-white text-[11px]">!</span><span>${text}</span></span>`;
-        status.className='mt-3 text-[11px] font-black text-amber-700 dark:text-amber-300';
-      }else{
-        status.innerHTML=`<span class="inline-flex items-center gap-2"><span class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-rose-500 text-white text-[11px]">×</span><span>${text}</span></span>`;
-        status.className='mt-3 text-[11px] font-black text-rose-700 dark:text-rose-300';
-      }
-    };
-    setTransferStatus('loading',`Mengirim ${records.length} record ke Google Sheet...`);
-    try{
-      const res=await fetch(API(),{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'writeBatch',records:records.map(x=>({sheet:x.sheet,data:x.data}))})});
-      const json=await res.json();
-      if(!json?.success)throw new Error(json?.message||'Google Script menolak transfer.');
-      const okIds=new Set((json.results||[]).filter(x=>x.success).map(x=>x.data?.recordId||x.recordId).filter(Boolean));
-      const failed=(json.results||[]).filter(x=>!x.success);
-      const successfulQueueIds=new Set(records.filter(x=>x.queueId&&okIds.has(x.data.recordId)).map(x=>x.queueId));
-      const remaining=items.filter(x=>!successfulQueueIds.has(x.queueId));
-      write(remaining);
-      if(failed.length){
-        setTransferStatus('partial',`Belum semuanya masuk. ${json.successCount||0} berhasil masuk Google Sheet, ${json.failedCount||failed.length} gagal dan tetap tersimpan di perangkat.`);
-      }else{
-        setTransferStatus('success',`Sudah masuk ke Google Sheet. ${json.successCount||records.length} record berhasil diterima.`);
-      }
-      window.renderDataBaru();
-      window.setSyncIndicator?.(failed.length?'error':'success');
-      window.updateSyncFlow?.('write',100,failed.length?'Sebagian transfer gagal':'Transfer ke Google Sheet selesai');
-      window.showToast?.(failed.length?`Transfer selesai. ${failed.length} data gagal dan tetap tersimpan lokal.`:`Transfer ${json.successCount||records.length} record berhasil ke Google Sheet.`,'success');
-    }catch(e){
-      setTransferStatus('error','Belum masuk ke Google Sheet. Data tetap aman di perangkat dan akan tetap menunggu transfer.');
-      window.showToast?.('Transfer Google Sheet gagal: '+(e?.message||e),'error');
-    }
-  };
-  window.clearTransferredDataBaru=function(){
-    // Hanya menghapus antrean yang sudah kosong/ditandai selesai; data aplikasi tetap utuh.
-    const items=read();
-    if(!items.length){window.showToast?.('Antrean Data Baru sudah kosong.','info');return;}
-    if(confirm('Antrean yang masih menunggu belum berhasil ditransfer. Hapus antrean ini? Data aplikasi lokal tidak ikut dihapus.')){
-      write([]);window.renderDataBaru();window.showToast?.('Antrean Data Baru dihapus. Data lokal aplikasi tetap ada.','success');
-    }
-  };
-  window.rqCheckGoogleSheetSync=async function(){
-    try{const r=await fetch(API()+'?action=ping');const j=await r.json();return !!j?.success;}catch(_){return false;}
-  };
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(window.renderDataBaru,300));else setTimeout(window.renderDataBaru,300);
-})();
-</script>
 </body>
 
 <script>
@@ -9669,7 +9374,7 @@ html.dark #rqSafetyBackupBox #rqSafetyBackupLocation b{color:#ecfdf5 !important}
   };
 })();
 </script>
-\n<script id="rq-target-multi-surah-logic">
+</html>\n<script id="rq-target-multi-surah-logic">
 (function(){
   const esc=v=>String(v??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');
   const key='rq_target_hafalan_murojaah_v2';
@@ -10347,201 +10052,3 @@ html.dark #rqSafetyBackupBox #rqSafetyBackupLocation b{color:#ecfdf5 !important}
   setTimeout(()=>{try{if(typeof window.renderTargetReport==='function')window.renderTargetReport();}catch(_){ }},160);
 })();
 </script>
-
-<!-- ============================================================
-     RQ MANUAL SYNC V1 — LOCAL-FIRST / DEVICE-AWARE / MERGE ONLY
-     Patch 2026-10-04. Tidak menghapus database lama.
-     ============================================================ -->
-<script id="rq-manual-sync-v1">
-(function(){
-  'use strict';
-  const QUEUE='rq_pending_sync_v1';
-  const FP_KEY='rq_sync_fingerprint_v1';
-  const DEVICE_ID_KEY='rq_device_id';
-  const DEVICE_NAME_KEY='rq_device_name';
-  const DEVICE_TYPE_KEY='rq_device_type';
-  const SYNC_LOG_KEY='rq_manual_sync_log_v1';
-  const API_KEY='rq_google_script_web_app_url_v1';
-  const DEFAULT_API='https://script.google.com/macros/s/AKfycbw74kUU2xuhVjKa6qP1K5_RFdzandRJmA8sNGJ2KZigpsIt1xHaG_RlQIXwGm8R-hXTxA/exec';
-  const SHEETS=['MASTER_SANTRI','BACAAN','HAFALAN','MUROJAAH','TARGET','TUGAS','MATERI','RIWAYAT'];
-  const esc=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
-  const safe=(key,fallback)=>{try{const v=JSON.parse(localStorage.getItem(key)||'');return v??fallback;}catch(_){return fallback;}};
-  const save=(key,v)=>{try{localStorage.setItem(key,JSON.stringify(v));return true;}catch(_){return false;}};
-  const now=()=>new Date().toISOString();
-  const norm=v=>String(v??'').trim();
-  function hash(s){let h=2166136261;const x=String(s);for(let i=0;i<x.length;i++){h^=x.charCodeAt(i);h=Math.imul(h,16777619);}return (h>>>0).toString(16).padStart(8,'0');}
-  function api(){try{return norm(localStorage.getItem(API_KEY))||DEFAULT_API;}catch(_){return DEFAULT_API;}}
-  function validApi(v){return /^https:\/\/script\.google\.com\/macros\/s\/[^\s/]+\/exec(?:\?.*)?$/i.test(norm(v).replace(/\/+$/,''));}
-  function device(){
-    let id=norm(localStorage.getItem(DEVICE_ID_KEY));
-    if(!id){id='DEVICE-'+Date.now().toString(36).toUpperCase()+'-'+Math.random().toString(36).slice(2,8).toUpperCase();try{localStorage.setItem(DEVICE_ID_KEY,id);}catch(_){} }
-    let type=norm(localStorage.getItem(DEVICE_TYPE_KEY));
-    if(!type){type=norm(localStorage.getItem('rq_import_operator_device'))||(/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)?'HP':'Laptop');try{localStorage.setItem(DEVICE_TYPE_KEY,type);}catch(_){} }
-    let name=norm(localStorage.getItem(DEVICE_NAME_KEY));
-    if(!name) name=norm(localStorage.getItem('rq_import_operator_name'))||`${type} RQ Al-Khansa`;
-    return {deviceId:id,deviceName:name,deviceType:type,appVersion:'ManualSync-V1'};
-  }
-  function setStatus(text,state='idle'){
-    const box=document.getElementById('rqManualSyncStatus');if(box){box.textContent=text;box.className='mt-3 text-[11px] font-black '+(state==='success'?'text-emerald-700 dark:text-emerald-300':state==='partial'?'text-amber-700 dark:text-amber-300':state==='error'?'text-rose-700 dark:text-rose-300':'text-slate-600 dark:text-slate-300');}
-  }
-  function progress(p,text){
-    const bar=document.getElementById('rqManualSyncProgress');const label=document.getElementById('rqManualSyncProgressText');
-    const n=Math.max(0,Math.min(100,Number(p)||0));if(bar)bar.style.width=n+'%';if(label)label.textContent=`${n}% · ${text||''}`;
-  }
-  function resultCard(r){
-    const box=document.getElementById('rqManualSyncResult');if(!box)return;
-    box.classList.remove('hidden');
-    box.innerHTML=`<div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[10px] font-black">\
-      <div class="p-2 rounded-xl bg-slate-100 dark:bg-slate-800">Device<br><span class="text-sm">${esc(r.deviceName)}</span></div>\
-      <div class="p-2 rounded-xl bg-slate-100 dark:bg-slate-800">Dikirim<br><span class="text-sm">${r.sent||0}</span></div>\
-      <div class="p-2 rounded-xl bg-slate-100 dark:bg-slate-800">Diterima<br><span class="text-sm">${r.received||0}</span></div>\
-      <div class="p-2 rounded-xl bg-slate-100 dark:bg-slate-800">Gagal/Konflik<br><span class="text-sm">${(r.failed||0)}/${(r.conflict||0)}</span></div></div>\
-      <div class="mt-2 text-[10px] font-bold">CREATE: <b>${r.created||0}</b> · UPDATE: <b>${r.updated||0}</b> · Konflik: <b>${r.conflict||0}</b> · Menunggu retry: <b>${r.failed||0}</b></div>\
-      <div class="mt-2 font-black ${r.status==='SUCCESS'?'text-emerald-700 dark:text-emerald-300':r.status==='PARTIAL'?'text-amber-700 dark:text-amber-300':'text-rose-700 dark:text-rose-300'}">Status: ${esc(r.status)}</div>`;
-  }
-  function queue(){return safe(QUEUE,[]).filter(x=>x&&typeof x==='object');}
-  function fingerprints(){return safe(FP_KEY,{});}
-  function keyFor(sheet,recordId){return sheet+'|'+recordId;}
-  function stableRecordId(prefix,obj){return 'local_'+prefix+'_'+hash(JSON.stringify(obj));}
-  function santriByName(name){const n=norm(name).toLowerCase();return (window.santriList||[]).find(s=>norm(s?.name).toLowerCase()===n)||null;}
-  function isoOf(row){
-    if(row?.updatedAt&& !isNaN(Date.parse(row.updatedAt)))return new Date(row.updatedAt).toISOString();
-    if(row?.rawTime&&Number(row.rawTime)>0)return new Date(Number(row.rawTime)).toISOString();
-    if(row?.timestamp&& !isNaN(Date.parse(row.timestamp)))return new Date(row.timestamp).toISOString();
-    return now();
-  }
-  function prepareHistory(sheet,key,type){
-    const list=safe(key,[]);if(!Array.isArray(list))return [];
-    const out=[];let changed=false;
-    for(const row of list){
-      if(!row||typeof row!=='object')continue;
-      const s=santriByName(row.name);
-      const stamp=isoOf(row);
-      if(!row.recordId){
-        const legacyStamp=row.rawTime?new Date(Number(row.rawTime)).toISOString():String(row.timestamp||stamp);
-        const legacyBase=String(s?.id||row.id||row.name||'data').trim()||'data';
-        row.recordId='local_'+type+'_'+legacyBase+'_'+legacyStamp.replace(/[^0-9A-Za-z_-]/g,'');
-        changed=true;
-      }
-      if(!row.updatedAt){row.updatedAt=stamp;changed=true;}
-      out.push({sheet,data:{recordId:String(row.recordId),idSantri:s?.id||row.id||'',nama:row.name||'',kelas:s?.class||row.class||'',guru:s?.teacher||row.teacher||'',tanggal:row.tanggal||'',surat:row.slots?.[0]?.item||row.slots?.[0]?.surat||row.slots?.[0]?.name||'',ayatMulai:row.slots?.[0]?.start||row.slots?.[0]?.ayatMulai||'',ayatSelesai:row.slots?.[0]?.end||row.slots?.[0]?.ayatSelesai||'',catatan:[row.detail||'',row.status||'',row.progressStatus||'',row.catatan||'',Array.isArray(row.slots)&&row.slots.length>1?'SLOTS='+JSON.stringify(row.slots):''].filter(Boolean).join(' | '),createdAt:stamp,updatedAt:row.updatedAt,deviceId:device().deviceId},force:false});
-    }
-    if(changed)save(key,list);
-    return out;
-  }
-  function prepareLocalRecords(){
-    const out=[];
-    const seen=new Set();
-    const queueSignatures=new Set();
-    const signature=x=>hash(JSON.stringify({...x.data,recordId:undefined}));
-    const add=x=>{if(!x?.sheet||!x?.data?.recordId)return;const k=keyFor(x.sheet,x.data.recordId);if(seen.has(k))return;const sig=signature(x);if(!x.force&&queueSignatures.has(x.sheet+'|'+sig))return;seen.add(k);out.push(x);if(x.force)queueSignatures.add(x.sheet+'|'+sig);};
-    // Queue wajib didahulukan: record gagal selalu retry.
-    for(const q of queue()){
-      const p=q.payload||{};const type=norm(p.type).toLowerCase();
-      if(['bacaan','hafalan','murojaah','tugas','materi'].includes(type)){
-        try{
-          const oldRid=String(p.recordId||'');
-          const data=type==='materi'?{recordId:oldRid||stableRecordId('materi',p),kelas:p.kelas||'',judul:p.judul||'',isi:[p.bab||'',p.ket||''].filter(Boolean).join(' | '),tanggal:p.tanggal||'',status:'AKTIF',createdAt:q.queuedAt,updatedAt:q.queuedAt,deviceId:device().deviceId}:{recordId:oldRid||stableRecordId(type,p),idSantri:p.id||'',nama:p.name||'',kelas:p.class||'',guru:p.teacher||'',tanggal:p.tanggal||'',surat:p.slots?.[0]?.surat||p.slots?.[0]?.name||'',ayatMulai:p.slots?.[0]?.start||p.slots?.[0]?.ayatMulai||'',ayatSelesai:p.slots?.[0]?.end||p.slots?.[0]?.ayatSelesai||'',catatan:[p.detail||'',p.status||'',p.progressStatus||'',p.catatan||'',Array.isArray(p.slots)&&p.slots.length>1?'SLOTS='+JSON.stringify(p.slots):''].filter(Boolean).join(' | '),createdAt:q.queuedAt,updatedAt:q.queuedAt,deviceId:device().deviceId};
-          add({sheet:type==='materi'?'MATERI':type.toUpperCase(),data,queueId:q.queueId,force:true});
-        }catch(_){ }
-      }
-    }
-    // Master santri.
-    for(const s of (window.santriList||[])){if(!s||!s.name)continue;const rid=String(s.id||s.recordId||stableRecordId('santri',{name:s.name}));const stamp=s.updatedAt||s.createdAt||now();add({sheet:'MASTER_SANTRI',data:{recordId:rid,idSantri:rid,nama:s.name||'',kelas:s.class||'',guru:s.teacher||'',status:s.status||'Aktif',jenisKelamin:s.gender||'',tanggalLahir:s.birthDate||'',noWA:s.phone||'',namaOrangTua:s.parentName||'',noWAOrangTua:s.parentPhone||'',alamat:s.address||'',catatan:s.note||'',createdAt:s.createdAt||stamp,updatedAt:stamp,deviceId:device().deviceId},force:false});}
-    // Histories.
-    for(const x of prepareHistory('BACAAN','rq_history_bacaan','bacaan'))add(x);
-    for(const x of prepareHistory('HAFALAN','rq_history_hafalan','hafalan'))add(x);
-    for(const x of prepareHistory('MUROJAAH','rq_history_murojaah','murojaah'))add(x);
-    for(const x of prepareHistory('TUGAS','rq_history_tugas','tugas'))add(x);
-    // Materi lokal.
-    for(const key of ['rq_materi_utama','rq_materi_tambahan']){const list=safe(key,[]);if(!Array.isArray(list))continue;list.forEach((m,i)=>{if(!m)return;const rid=m.recordId||stableRecordId('materi',{key,i,kelas:m.kelas,judul:m.judul,tanggal:m.tanggal,bab:m.bab,ket:m.ket});if(!m.recordId)m.recordId=rid;const stamp=m.updatedAt||m.createdAt||((m.tanggal&&new Date(m.tanggal+'T00:00:00').toISOString())||now());add({sheet:'MATERI',data:{recordId:rid,kelas:m.kelas||'',judul:m.judul||'',isi:[m.bab||'',m.ket||''].filter(Boolean).join(' | '),tanggal:m.tanggal||'',status:m.tampilWa===false?'NONAKTIF':'AKTIF',createdAt:m.createdAt||stamp,updatedAt:stamp,deviceId:device().deviceId},force:false});});save(key,list);}
-    // Rekapan sebagai RIWAYAT, tetap append-only.
-    const rek=safe('rq_history_rekapan',[]);if(Array.isArray(rek))rek.forEach((r,i)=>{if(!r)return;const rid=r.recordId||stableRecordId('rekapan',{i,id:r.id,name:r.name,tanggal:r.tanggal,timestamp:r.rawTime||r.timestamp,category:r.category,catatan:r.catatan});if(!r.recordId)r.recordId=rid;const stamp=isoOf(r);add({sheet:'RIWAYAT',data:{recordId:rid,idSantri:r.id||'',nama:r.name||'',kelas:santriByName(r.name)?.class||'',kategori:r.category||'',detail:r.catatan||'',tanggal:r.tanggal||'',createdAt:r.createdAt||stamp,updatedAt:r.updatedAt||stamp,deviceId:device().deviceId},force:false});});if(Array.isArray(rek))save('rq_history_rekapan',rek);
-    // Target: satu record per santri + slot. Isi JSON dipertahankan bila header mendukungnya.
-    const tdb=safe('rq_target_hafalan_murojaah_v2',{});
-    for(const [type,obj] of Object.entries(tdb||{})){if(!obj||typeof obj!=='object')continue;for(const [name,val] of Object.entries(obj)){if(!val)continue;const slots=type==='hafalan'?['jangkaPendek','akanDatang']:[null];for(const slot of slots){const target=slot?val?.[slot]:val;if(!target)continue;const rid=stableRecordId('target',{type,name,slot,target});const stamp=target.updatedAt||now();add({sheet:'TARGET',data:{recordId:rid,idSantri:santriByName(name)?.id||'',nama:name,jenis:type,slot:slot||'legacy',juz:target.juz||'',surat:target.surat||'',ayat:Number(target.ayat)||0,mulai:target.mulai||'',selesai:target.selesai||'',itemsJson:JSON.stringify(target.items||[]),tampilLaporan:target.tampilLaporan!==false?'1':'0',createdAt:target.createdAt||stamp,updatedAt:stamp,deviceId:device().deviceId},force:false});}}}
-    return out;
-  }
-  function fingerprint(data){return hash(JSON.stringify(data));}
-  function chooseServer(local,server){
-    if(!local)return server;
-    const lt=Date.parse(local.updatedAt||local.timestamp||local.tanggal||'')||0, st=Date.parse(server.updatedAt||server.timestamp||server.tanggal||'')||0;
-    if(st>lt)return server;
-    if(lt>st)return local;
-    const ld=norm(local.deviceId),sd=norm(server.deviceId);if(sd&&ld&&sd>ld)return server;return local;
-  }
-  function rowsToObjects(packet){
-    const data=Array.isArray(packet?.data)?packet.data:[];if(!data.length)return [];
-    const headers=data[0].map(x=>String(x??'').trim());return data.slice(1).map(row=>{const o={};headers.forEach((h,i)=>{if(h)o[h]=row?.[i]??'';});return o;}).filter(o=>o.recordId);
-  }
-  function mergeMaster(rows){
-    if(!rows.length)return 0;const local=Array.isArray(window.santriList)?window.santriList:[];const map=new Map(local.map(x=>[String(x?.id||x?.recordId||x?.name||'').trim(),x]));let changed=0;
-    for(const r of rows){const id=String(r.recordId||r.idSantri||'').trim();if(!id)continue;const old=map.get(id);const incoming={id:id,name:r.nama||r.name||'',class:r.kelas||r.class||'',teacher:r.guru||r.teacher||'',status:r.status||'Aktif',gender:r.jenisKelamin||r.gender||'',birthDate:r.tanggalLahir||r.birthDate||'',phone:r.noWA||r.phone||'',parentName:r.namaOrangTua||r.parentName||'',parentPhone:r.noWAOrangTua||r.parentPhone||'',address:r.alamat||r.address||'',note:r.catatan||r.note||'',createdAt:r.createdAt||now(),updatedAt:r.updatedAt||r.createdAt||now()};const picked=chooseServer(old,incoming);if(!old||picked===incoming){map.set(id,old?{...old,...incoming}:incoming);changed++;}}
-    if(changed){window.santriList=Array.from(map.values());save('rq_santri_master',window.santriList);window.normalizeSantriMaster&&(window.santriList=window.normalizeSantriMaster(window.santriList));}
-    return changed;
-  }
-  function mergeHistory(sheet,key,rows){
-    if(!rows.length)return 0;const local=safe(key,[]);const list=Array.isArray(local)?local:[];const map=new Map();const stable=x=>String(x.recordId||stableRecordId(sheet.toLowerCase(),{id:x.idSantri,nama:x.nama,tanggal:x.tanggal,surat:x.surat,ayatMulai:x.ayatMulai,ayatSelesai:x.ayatSelesai,catatan:x.catatan,createdAt:x.createdAt}));list.forEach(x=>map.set(stable(x),x));let changed=0;
-    for(const r of rows){const id=stable(r);const existing=map.get(id);const incoming={recordId:r.recordId,name:r.nama||'',tanggal:r.tanggal||'',detail:r.detail||r.catatan||'',status:r.status||'',catatan:r.catatan||'',type:sheet.toLowerCase(),updatedAt:r.updatedAt||r.createdAt||now(),createdAt:r.createdAt||r.updatedAt||now()};if(r.ayatMulai||r.ayatSelesai||r.surat)incoming.slots=[{surat:r.surat||'',start:r.ayatMulai||'',end:r.ayatSelesai||''}];const picked=chooseServer(existing,incoming);if(!existing||picked===incoming){map.set(id,{...(existing||{}),...incoming});changed++;}}
-    if(changed)save(key,Array.from(map.values()));return changed;
-  }
-  function mergeMateri(rows){
-    let changed=0;for(const key of ['rq_materi_utama','rq_materi_tambahan']){const list=safe(key,[]);if(!Array.isArray(list))continue;const map=new Map(list.map(x=>[String(x.recordId||stableRecordId('materi',x)),x]));for(const r of rows){const id=String(r.recordId||'');if(!id)continue;const old=map.get(id);const incoming={recordId:id,kelas:r.kelas||'',judul:r.judul||'',bab:'',tanggal:r.tanggal||'',ket:r.isi||'',tampilWa:r.status!=='NONAKTIF',updatedAt:r.updatedAt||r.createdAt||now(),createdAt:r.createdAt||r.updatedAt||now()};if(!old||chooseServer(old,incoming)===incoming){map.set(id,{...(old||{}),...incoming});changed++;}}save(key,Array.from(map.values()));}return changed;
-  }
-  function mergeTarget(rows){
-    const db=safe('rq_target_hafalan_murojaah_v2',{});let changed=0;
-    for(const r of rows){const type=norm(r.jenis)||'hafalan',name=norm(r.nama);if(!name)continue;const slot=norm(r.slot)||'legacy';const target={juz:r.juz||'',surat:r.surat||'',ayat:Number(r.ayat)||0,mulai:r.mulai||'',selesai:r.selesai||'',items:safeJsonText(r.itemsJson,[]),tampilLaporan:String(r.tampilLaporan)!=='0',updatedAt:r.updatedAt||now(),createdAt:r.createdAt||r.updatedAt||now()};db[type]=db[type]||{};if(type==='hafalan'){db[type][name]=db[type][name]||{};const old=db[type][name][slot==='legacy'?'jangkaPendek':slot];if(!old||chooseServer(old,target)===target){db[type][name][slot==='legacy'?'jangkaPendek':slot]={...(old||{}),...target};changed++;}}else{const old=db[type][name];if(!old||chooseServer(old,target)===target){db[type][name]={...(old||{}),...target};changed++;}}}
-    if(changed)save('rq_target_hafalan_murojaah_v2',db);return changed;
-  }
-  function safeJsonText(v,fallback){try{const x=JSON.parse(String(v||''));return x??fallback;}catch(_){return fallback;}}
-  function saveSyncLog(entry){const arr=safe(SYNC_LOG_KEY,[]);arr.unshift(entry);save(SYNC_LOG_KEY,arr.slice(0,200));}
-  async function manualSync(){
-    const btn=document.getElementById('rqManualSyncBtn');if(window.__rqManualSyncRunning)return;window.__rqManualSyncRunning=true;if(btn){btn.disabled=true;btn.textContent='SEDANG SINKRONISASI…';}
-    const started=now();const d=device();let sent=0,received=0,created=0,updated=0,failed=0,conflict=0;let serverData={};
-    try{
-      progress(3,'Memeriksa perangkat…');setStatus('Memeriksa perangkat…');
-      if(!d.deviceId||!d.deviceName||!d.deviceType)throw new Error('Konfigurasi perangkat belum lengkap.');
-      if(!validApi(api()))throw new Error('URL Google Script tidak valid.');
-      progress(10,'Memeriksa Google Script…');setStatus('Memeriksa Google Script…');
-      const pingRes=await fetch(api().replace(/\/+$/,'')+'?action=ping',{cache:'no-store'});const ping=await pingRes.json();if(!ping?.success)throw new Error(ping?.message||ping?.error||'Google Script tidak merespons.');
-      progress(17,'Membaca status data lokal…');setStatus('Membaca data lokal…');
-      const all=prepareLocalRecords();const fps=fingerprints();const pending=all.filter(x=>x.force||!fps[keyFor(x.sheet,x.data.recordId)]||fps[keyFor(x.sheet,x.data.recordId)]!==fingerprint(x.data));
-      sent=pending.length;progress(25,`Menyiapkan ${sent} data untuk dikirim…`);
-      const syncId='SYNC-'+new Date().toISOString().replace(/[-:TZ.]/g,'').slice(0,14)+'-'+hash(d.deviceId+'|'+started);
-      const payload={action:'manualSync',syncId,device:{...d},records:pending.map(x=>({sheet:x.sheet,data:x.data})),sheets:SHEETS};
-      progress(35,`Mengirim ${sent} data…`);setStatus(`Mengirim ${sent} data ke Google Sheet…`);
-      const res=await fetch(api(),{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(payload)});const j=await res.json();
-      if(!j?.success && !j?.partial)throw new Error(j?.message||j?.error||'Google Script menolak sinkronisasi.');
-      const wr=Array.isArray(j.writeResults)?j.writeResults:[];for(const x of wr){if(x.success){if(x.operation==='CREATE')created++;if(x.operation==='UPDATE')updated++;const rec=pending[x.index];if(rec)fps[keyFor(rec.sheet,rec.data.recordId)]=fingerprint(rec.data);}else{failed++;if(x.conflict)conflict++;}}
-      // Record queue yang benar-benar berhasil dihapus; yang gagal/conflict tetap.
-      const okQueueIds=new Set(wr.filter(x=>x.success).map(x=>pending[x.index]?.queueId).filter(Boolean));
-      if(okQueueIds.size){const remain=queue().filter(q=>!okQueueIds.has(q.queueId));save(QUEUE,remain);}
-      progress(55,'Menerima data server…');setStatus('Mengambil data server…');serverData=j.reads||{};
-      for(const sheet of Object.keys(serverData)){const rows=rowsToObjects(serverData[sheet]);received+=rows.length;}
-      progress(70,'Menggabungkan data server dengan lokal…');setStatus('Menggabungkan data server dengan data lokal…');
-      let merged=0;merged+=mergeMaster(rowsToObjects(serverData.MASTER_SANTRI));merged+=mergeHistory('BACAAN','rq_history_bacaan',rowsToObjects(serverData.BACAAN));merged+=mergeHistory('HAFALAN','rq_history_hafalan',rowsToObjects(serverData.HAFALAN));merged+=mergeHistory('MUROJAAH','rq_history_murojaah',rowsToObjects(serverData.MUROJAAH));merged+=mergeHistory('TUGAS','rq_history_tugas',rowsToObjects(serverData.TUGAS));merged+=mergeMateri(rowsToObjects(serverData.MATERI));merged+=mergeTarget(rowsToObjects(serverData.TARGET));merged+=mergeHistory('RIWAYAT','rq_history_rekapan',rowsToObjects(serverData.RIWAYAT));
-      // Setelah MERGE, fingerprint dihitung ulang dari kondisi lokal terbaru agar data server yang baru diterima tidak dikirim ulang tanpa perubahan.
-      for(const x of prepareLocalRecords()){if(x?.data?.recordId)fps[keyFor(x.sheet,x.data.recordId)]=fingerprint(x.data);}
-      save(FP_KEY,fps);progress(88,'Memverifikasi hasil…');
-      const status=failed===0&&conflict===0?'SUCCESS':(created+updated+merged>0?'PARTIAL':'FAILED');
-      progress(100,status==='SUCCESS'?'Sinkronisasi selesai.':status==='PARTIAL'?'Sinkronisasi sebagian berhasil.':'Sinkronisasi gagal.');setStatus(status==='SUCCESS'?'Sinkronisasi berhasil.':status==='PARTIAL'?'Sinkronisasi sebagian berhasil.':'Sinkronisasi gagal.',status==='SUCCESS'?'success':status==='PARTIAL'?'partial':'error');
-      const result={syncId,deviceName:d.deviceName,deviceId:d.deviceId,sent,received,created,updated,failed,conflict,status,finishedAt:now()};resultCard(result);saveSyncLog(result);window.renderDataBaru?.();window.setSyncIndicator?.(status==='SUCCESS'?'success':status==='PARTIAL'?'pending':'error');window.showToast?.(status==='SUCCESS'?`Sinkronisasi berhasil: ${sent} dikirim, ${received} diterima.`:status==='PARTIAL'?`Sinkronisasi sebagian: ${failed} menunggu retry, ${conflict} konflik.`:`Sinkronisasi gagal. Data lokal tetap aman.` ,status==='SUCCESS'?'success':status==='PARTIAL'?'info':'error');window.dispatchEvent(new Event('rq:db-updated'));return result;
-    }catch(e){
-      const result={deviceName:d.deviceName,deviceId:d.deviceId,sent,received,created,updated,failed:Math.max(1,failed),conflict,status:'FAILED',message:e?.message||String(e),finishedAt:now()};progress(100,'Sinkronisasi gagal.');setStatus('Sinkronisasi gagal: '+result.message,'error');resultCard(result);saveSyncLog(result);window.setSyncIndicator?.('error');window.showToast?.('Sinkronisasi gagal. Data lokal tetap aman di perangkat.','error');return result;
-    }finally{window.__rqManualSyncRunning=false;if(btn){btn.disabled=false;btn.textContent='SINKRONISASI';}}
-  }
-  window.rqManualSync=manualSync;
-  function buildUI(){
-    const host=document.getElementById('rqDataBaruSummary')?.parentElement?.parentElement;if(!host||document.getElementById('rqManualSyncCenter'))return;
-    const box=document.createElement('div');box.id='rqManualSyncCenter';box.className='mt-4 p-4 rounded-2xl border-2 border-indigo-200 dark:border-indigo-900 bg-indigo-50/60 dark:bg-indigo-950/20';
-    box.innerHTML=`<div class="flex flex-wrap items-center justify-between gap-3"><div><div class="font-black text-sm text-indigo-900 dark:text-indigo-200"><i class="fa-solid fa-arrows-rotate"></i> SINKRONISASI MANUAL</div><div class="text-[10px] font-bold text-slate-600 dark:text-slate-400 mt-1">Sinkronisasi hanya berjalan saat Anda menekan tombol. Tidak ada auto-sync.</div></div><button id="rqManualSyncBtn" type="button" class="px-5 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-black">SINKRONISASI</button></div><div class="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-3 text-[10px] font-bold"><label>Nama Perangkat<input id="rqManualDeviceName" class="mt-1 w-full p-2 rounded-lg border" placeholder="HP Sidik"></label><label>Jenis<select id="rqManualDeviceType" class="mt-1 w-full p-2 rounded-lg border"><option>HP</option><option>Laptop</option></select></label><div class="p-2 rounded-lg bg-white/70 dark:bg-slate-900"><b>Device ID</b><div id="rqManualDeviceId" class="mt-1 break-all">-</div></div></div><div class="mt-3 h-3 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden"><div id="rqManualSyncProgress" class="h-full bg-indigo-500 transition-all" style="width:0%"></div></div><div id="rqManualSyncProgressText" class="mt-1 text-[10px] font-black text-slate-500">0% · Siap melakukan sinkronisasi.</div><div id="rqManualSyncStatus" class="mt-3 text-[11px] font-black text-slate-600">Siap melakukan sinkronisasi.</div><div id="rqManualSyncResult" class="hidden mt-3"></div>`;
-    host.parentElement?.appendChild(box);
-    const d=device();const ni=document.getElementById('rqManualDeviceName'),ti=document.getElementById('rqManualDeviceType'),di=document.getElementById('rqManualDeviceId');if(ni){ni.value=d.deviceName;ni.onchange=()=>{localStorage.setItem(DEVICE_NAME_KEY,ni.value.trim());}}if(ti){ti.value=d.deviceType==='Laptop'?'Laptop':'HP';ti.onchange=()=>{localStorage.setItem(DEVICE_TYPE_KEY,ti.value);}}if(di)di.textContent=d.deviceId;document.getElementById('rqManualSyncBtn')?.addEventListener('click',manualSync);
-  }
-  window.transferDataBaruToGoogleSheet=manualSync;
-  window.rqCheckGoogleSheetSync=async function(){try{const r=await fetch(api()+'?action=ping',{cache:'no-store'});const j=await r.json();return !!j?.success;}catch(_){return false;}};
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(buildUI,400));else setTimeout(buildUI,400);
-})();
-</script>
-
-</html>
