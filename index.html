@@ -850,7 +850,7 @@
             const target = document.getElementById(`section-${reportTab ? 'laporan' : tabId}`);
             if (target) target.classList.remove('hidden');
             
-            ['setoran', 'materi', 'dashboard', 'laporan-personal', 'laporan-grup', 'rekapan', 'export'].forEach(t => {
+            ['setoran', 'materi', 'dashboard', 'laporan-personal', 'laporan-grup', 'rekapan', 'export', 'versi'].forEach(t => {
                 const btn = document.getElementById(`btnTab-${t}`);
                 if (btn) {
                     btn.className = (t === tabId)
@@ -869,6 +869,7 @@
             if (tabId === 'rekapan') window.renderRekapan();
             if (tabId === 'laporan-santri') window.renderLaporanSantriPekan();
             if (tabId === 'riwayat') window.renderRiwayatInputMenu();
+            if (tabId === 'versi') window.renderVersiMenu();
         };
 
         // ============================================================
@@ -4002,19 +4003,116 @@
         // CSV ini dapat diimpor kembali ke perangkat untuk memulihkan
         // data dan melanjutkan penggunaan tanpa server.
         // ============================================================
+        // ============================================================
+        // IDENTITAS FILE / VERSI — 100% LOKAL
+        // Tidak memakai Google Sheet/backend. Metadata ikut tertanam
+        // di dalam CSV sehingga tetap terbaca saat dipindah perangkat.
+        // ============================================================
+        window.rqVersionMetaKeys = [
+            'fileId','fileNumber','createdBy','createdDevice','createdDeviceName',
+            'createdAt','createdDay','createdDate','createdTime','createdAtWib'
+        ];
+        window.rqDetectDeviceType = function() {
+            try {
+                const ua = String(navigator.userAgent || '');
+                return /Android|iPhone|iPad|iPod|Mobile/i.test(ua) ? 'HP' : 'Laptop/PC';
+            } catch (_) { return 'Laptop/PC'; }
+        };
+        window.rqGetVersionOperator = function() {
+            const savedName = String(localStorage.getItem('rq_version_operator_name') || localStorage.getItem('rq_import_operator_name') || '').trim();
+            const teacherKeys = ['rq_current_teacher','currentTeacher','selectedTeacher','teacherName'];
+            let detectedName = '';
+            for (const k of teacherKeys) {
+                try { const v=String(localStorage.getItem(k)||'').trim(); if(v){ detectedName=v; break; } } catch(_) {}
+            }
+            return String(document.getElementById('rqVersionOperatorName')?.value || savedName || detectedName || '').trim();
+        };
+        window.rqGetVersionDevice = function() {
+            return String(document.getElementById('rqVersionDevice')?.value || localStorage.getItem('rq_version_device') || window.rqDetectDeviceType()).trim() || window.rqDetectDeviceType();
+        };
+        window.rqGetVersionDeviceName = function() {
+            return String(document.getElementById('rqVersionDeviceName')?.value || localStorage.getItem('rq_version_device_name') || '').trim();
+        };
+        window.rqSaveVersionIdentity = function() {
+            const name = String(document.getElementById('rqVersionOperatorName')?.value || '').trim();
+            const device = String(document.getElementById('rqVersionDevice')?.value || '').trim();
+            const deviceName = String(document.getElementById('rqVersionDeviceName')?.value || '').trim();
+            if (name) { localStorage.setItem('rq_version_operator_name', name); localStorage.setItem('rq_import_operator_name', name); }
+            if (device) { localStorage.setItem('rq_version_device', device); localStorage.setItem('rq_import_operator_device', device); }
+            if (deviceName) localStorage.setItem('rq_version_device_name', deviceName);
+            window.renderVersiMenu?.();
+        };
+        window.rqGetNextFileNumber = function() {
+            const n = Math.max(0, parseInt(localStorage.getItem('rq_version_file_counter_v1') || '0',10) || 0) + 1;
+            localStorage.setItem('rq_version_file_counter_v1', String(n));
+            return n;
+        };
+        window.rqFormatFileNumber = function(n) { return 'FILE-' + String(n).padStart(4,'0'); };
+        window.rqFormatWib = function(date=new Date()) {
+            const dtf = (opts) => new Intl.DateTimeFormat('id-ID',{timeZone:'Asia/Jakarta',...opts}).format(date);
+            return {
+                day: dtf({weekday:'long'}),
+                date: dtf({day:'2-digit',month:'long',year:'numeric'}),
+                time: dtf({hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}) + ' WIB',
+                full: dtf({weekday:'long',day:'2-digit',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit',hour12:false}) + ' WIB'
+            };
+        };
+        window.rqGetVersionHistory = function(){
+            try { const x=JSON.parse(localStorage.getItem('rq_version_history_v1')||'[]'); return Array.isArray(x)?x:[]; } catch(_){ return []; }
+        };
+        window.rqSaveVersionHistory = function(entry){
+            try { const list=window.rqGetVersionHistory(); list.unshift(entry); localStorage.setItem('rq_version_history_v1',JSON.stringify(list.slice(0,200))); } catch(e){ console.warn('History Versi gagal disimpan:',e); }
+        };
+        window.rqRecordImportedVersion = function(meta, file, mode) {
+            const count = (Math.max(0,parseInt(localStorage.getItem('rq_version_import_counter_v1')||'0',10)||0) + 1);
+            localStorage.setItem('rq_version_import_counter_v1',String(count));
+            const now=new Date(), w=window.rqFormatWib(now);
+            const operator=window.rqGetImportOperator ? window.rqGetImportOperator() : {name:'Pengguna Perangkat',device:window.rqDetectDeviceType()};
+            const entry={
+                action:'IMPORT', importNumber:count, sourceFileId:meta.fileId||'-', sourceFileNumber:meta.fileNumber||'-',
+                sourceCreatedBy:meta.createdBy||'-', sourceDevice:meta.createdDevice||'-', sourceDeviceName:meta.createdDeviceName||'-',
+                sourceCreatedAt:meta.createdAt||'-', sourceCreatedDay:meta.createdDay||'-', sourceCreatedDate:meta.createdDate||'-', sourceCreatedTime:meta.createdTime||'-',
+                importedBy:operator.name||'-', importedDevice:operator.device||window.rqDetectDeviceType(), importedAt:now.toISOString(),
+                importedDay:w.day, importedDate:w.date, importedTime:w.time, importedAtWib:w.full,
+                mode:mode==='merge'?'GABUNGKAN':'GANTI', fileName:file?.name||'-', status:'BERHASIL'
+            };
+            window.rqSaveVersionHistory(entry);
+            return entry;
+        };
+
         window.exportAllLocalDataToCsv = function() {
             try {
+                const operator = window.rqGetVersionOperator();
+                if (!operator) {
+                    const asked = window.prompt('Nama yang membuat file:', 'Ustadz Sidik');
+                    if (asked === null) return;
+                    const val = String(asked).trim();
+                    if (!val) { window.showToast('Nama pembuat file wajib diisi.', 'error'); return; }
+                    localStorage.setItem('rq_version_operator_name', val);
+                    localStorage.setItem('rq_import_operator_name', val);
+                }
+                const now = new Date();
+                const wib = window.rqFormatWib(now);
+                const device = window.rqGetVersionDevice();
+                const deviceName = window.rqGetVersionDeviceName() || device;
+                const createdBy = window.rqGetVersionOperator();
                 const rows = [
                     ['Type', 'Key', 'Value'],
                     ['meta', 'format', 'rq-al-khansa-local-csv'],
                     ['meta', 'version', '1'],
-                    ['meta', 'exportedAt', new Date().toISOString()]
+                    ['meta', 'exportedAt', now.toISOString()],
+                    ['meta', 'fileId', '__FILE_ID__'],
+                    ['meta', 'fileNumber', '__FILE_NUMBER__'],
+                    ['meta', 'createdBy', createdBy],
+                    ['meta', 'createdDevice', device],
+                    ['meta', 'createdDeviceName', deviceName],
+                    ['meta', 'createdAt', now.toISOString()],
+                    ['meta', 'createdDay', wib.day],
+                    ['meta', 'createdDate', wib.date],
+                    ['meta', 'createdTime', wib.time],
+                    ['meta', 'createdAtWib', wib.full]
                 ];
 
-                // Simpan master santri yang sedang aktif agar hasil impor dapat
-                // membawa kembali daftar santri yang dipakai saat ekspor.
-                // Pastikan Master Santri selalu ikut file, bahkan jika daftar
-                // pada window belum tersedia saat tombol Download ditekan.
                 let masterSantri = Array.isArray(window.santriList) ? window.santriList : null;
                 if (!masterSantri) {
                     try {
@@ -4023,10 +4121,7 @@
                         if (Array.isArray(parsedMaster)) masterSantri = parsedMaster;
                     } catch (_) {}
                 }
-                if (Array.isArray(masterSantri)) {
-                    rows.push(['santriList', '__santriList', JSON.stringify(masterSantri)]);
-                }
-
+                if (Array.isArray(masterSantri)) rows.push(['santriList', '__santriList', JSON.stringify(masterSantri)]);
                 for (let i = 0; i < localStorage.length; i++) {
                     const key = localStorage.key(i);
                     if (!key || !key.startsWith('rq_')) continue;
@@ -4039,21 +4134,29 @@
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
-                const defaultFileName = `RQ-Al-Khansa-Data-Offline-${new Date().toISOString().replace(/[:.]/g, '-').slice(0,19)}`;
+                const previewNumber = Math.max(0, parseInt(localStorage.getItem('rq_version_file_counter_v1') || '0',10) || 0) + 1;
+                const previewFileId = window.rqFormatFileNumber(previewNumber);
+                const defaultFileName = `${previewFileId}-RQ-Al-Khansa-Data-Offline-${now.toISOString().replace(/[:.]/g, '-').slice(0,19)}`;
                 const requestedFileName = window.prompt('Nama file CSV:', defaultFileName);
-                if (requestedFileName === null) {
-                    URL.revokeObjectURL(url);
-                    return;
-                }
+                if (requestedFileName === null) { URL.revokeObjectURL(url); return; }
+                const fileNumber = window.rqGetNextFileNumber();
+                const fileId = window.rqFormatFileNumber(fileNumber);
+                rows[4][2] = fileId;
+                rows[5][2] = String(fileNumber);
+                const csvFinal = '\uFEFF' + rows.map(row => row.map(esc).join(',')).join('\r\n') + '\r\n';
+                const finalBlob = new Blob([csvFinal], { type: 'text/csv;charset=utf-8;' });
+                URL.revokeObjectURL(url);
+                const finalUrl = URL.createObjectURL(finalBlob);
+                a.href = finalUrl;
                 let safeFileName = String(requestedFileName).trim() || defaultFileName;
-                safeFileName = safeFileName.replace(/[\\/:*?"<>|]/g, '_');
-                safeFileName = safeFileName.replace(/\.csv$/i, '');
+                safeFileName = safeFileName.replace(/[\\/:*?"<>|]/g, '_').replace(/\.csv$/i, '');
                 a.download = safeFileName + '.csv';
-                document.body.appendChild(a);
-                a.click();
-                a.remove();
-                setTimeout(() => URL.revokeObjectURL(url), 1000);
-                window.showToast(`Semua data offline berhasil didownload (${rows.length - 4} data).`, 'success');
+                document.body.appendChild(a); a.click(); a.remove();
+                setTimeout(() => URL.revokeObjectURL(finalUrl), 1000);
+                window.rqSaveVersionHistory({action:'EXPORT',importNumber:null,sourceFileId:fileId,sourceFileNumber:fileNumber,sourceCreatedBy:createdBy,sourceDevice:device,sourceDeviceName:deviceName,sourceCreatedAt:now.toISOString(),sourceCreatedDay:wib.day,sourceCreatedDate:wib.date,sourceCreatedTime:wib.time,sourceCreatedAtWib:wib.full,fileName:a.download,importedBy:'-',importedDevice:'-',importedAt:'-',importedDay:'-',importedDate:'-',importedTime:'-',importedAtWib:'-',mode:'DOWNLOAD',status:'BERHASIL'});
+                window.showToast(`File ${fileId} berhasil didownload.`, 'success');
+                window.renderVersiMenu?.();
+                window.renderVersionDataSummary?.();
             } catch (e) {
                 console.error(e);
                 window.showToast('Download CSV data offline gagal: ' + (e?.message || e), 'error');
@@ -4241,6 +4344,7 @@
                 }
 
                 let formatOk = false, version = '';
+                const sourceMeta = {};
                 const imported = {};
                 let importedSantri = null;
                 for (let i = 1; i < rows.length; i++) {
@@ -4249,6 +4353,7 @@
                     const value = String(rows[i][2] ?? '');
                     if (type === 'meta' && key === 'format') formatOk = value === 'rq-al-khansa-local-csv';
                     else if (type === 'meta' && key === 'version') version = value;
+                    else if (type === 'meta' && window.rqVersionMetaKeys.includes(key)) sourceMeta[key] = value;
                     else if (type === 'localStorage' && key.startsWith('rq_')) imported[key] = value;
                     else if (type === 'santriList' && key === '__santriList') {
                         try { importedSantri = JSON.parse(value); } catch (_) { throw new Error('Data master santri di CSV rusak.'); }
@@ -4263,6 +4368,7 @@
                 }
 
                 const modeLabel = mode === 'merge' ? 'GABUNGKAN' : 'GANTI';
+                const previousImportCount = Math.max(0, parseInt(localStorage.getItem('rq_version_import_counter_v1') || '0',10) || 0);
                 const jumlah = Object.keys(imported).length;
                 if (!skipConfirm) {
                     const ok = confirm(
@@ -4441,7 +4547,13 @@
                         'rq_inline_live_report_open',
                         'rq_inline_live_report_type',
                         'rq_inline_live_tab1_include_target',
-                        'rq_safety_backup_enabled'
+                        'rq_safety_backup_enabled',
+                        'rq_version_file_counter_v1',
+                        'rq_version_import_counter_v1',
+                        'rq_version_history_v1',
+                        'rq_version_operator_name',
+                        'rq_version_device',
+                        'rq_version_device_name'
                     ]);
                     for (const [key, incomingValue] of Object.entries(imported)) {
                         if (deviceLocalOnlyKeys.has(key)) continue;
@@ -4503,6 +4615,14 @@
                     const audit = window.rqBuildImportAudit({mode,file,operator,beforeStorage,imported,importedSantri,afterStorage});
                     window.rqSaveImportAudit(audit);
                 } catch (auditErr) { console.warn('Gagal membuat History Import/Merge:', auditErr); }
+                try {
+                    localStorage.setItem('rq_version_import_counter_v1', String(previousImportCount));
+                    const receivedVersion = window.rqRecordImportedVersion(sourceMeta, file, mode);
+                    if (resultBox) {
+                        const sourceText = sourceMeta.fileId ? `${sourceMeta.fileId} · dibuat ${sourceMeta.createdBy || '-'} · ${sourceMeta.createdDevice || '-'} · ${sourceMeta.createdAtWib || sourceMeta.createdAt || '-'}` : 'File lama tanpa metadata Versi';
+                        resultBox.innerHTML += `<div class="mt-3 p-3 rounded-xl border-2 border-indigo-200 dark:border-indigo-800 bg-indigo-50 dark:bg-indigo-950/30 text-xs font-bold text-indigo-900 dark:text-indigo-200"><b>IDENTITAS FILE</b><br>${sourceText}<br><b>Urutan masuk di perangkat ini:</b> FILE-IMPORT-${String(receivedVersion.importNumber).padStart(4,'0')}<br><b>Diterima oleh:</b> ${receivedVersion.importedBy} · ${receivedVersion.importedDevice} · ${receivedVersion.importedAtWib}</div>`;
+                    }
+                } catch (versionErr) { console.warn('Gagal mencatat Versi Import:', versionErr); }
                 window.showToast(`Import CSV ${mode === 'merge' ? 'gabung' : 'ganti'} berhasil.`, 'success');
                 setTimeout(() => location.reload(), 2200);
             } catch (e) {
@@ -4768,6 +4888,7 @@
                     throw new Error('Format CSV tidak dikenali. Gunakan CSV hasil Download Semua Data CSV.');
                 }
                 let formatOk = false, version = '';
+                const sourceMeta = {};
                 const imported = {};
                 let importedSantri = null;
                 let targetInfo = null;
@@ -4778,6 +4899,7 @@
                     const value = String(rows[i][2] ?? '');
                     if (type === 'meta' && key === 'format') formatOk = value === 'rq-al-khansa-local-csv';
                     else if (type === 'meta' && key === 'version') version = value;
+                    else if (type === 'meta' && window.rqVersionMetaKeys.includes(key)) sourceMeta[key] = value;
                     else if (type === 'localStorage' && key.startsWith('rq_')) {
                         imported[key] = value;
                         if (key === 'rq_target_hafalan_murojaah_v2') {
@@ -4828,6 +4950,7 @@
                             <div class="bg-white/80 dark:bg-slate-800 rounded-lg p-2.5"><b>Kunci aplikasi:</b><br>${Object.keys(imported).length}</div>
                             <div class="bg-white/80 dark:bg-slate-800 rounded-lg p-2.5"><b>Master santri:</b><br>${Array.isArray(importedSantri) ? importedSantri.length + ' santri' : 'Tidak ada'}</div>
                             <div class="bg-white/80 dark:bg-slate-800 rounded-lg p-2.5"><b>Target hafalan / murojaah:</b><br>${targetH} / ${targetM} santri</div>
+                            <div class="bg-white/80 dark:bg-slate-800 rounded-lg p-2.5 sm:col-span-2 border-2 border-indigo-200 dark:border-indigo-800"><b>Identitas Versi:</b><br>${sourceMeta.fileId ? `<b>${String(sourceMeta.fileId)}</b> · Dibuat oleh ${String(sourceMeta.createdBy||'-').replace(/[&<>]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[m]))} · ${String(sourceMeta.createdDevice||'-')} · ${String(sourceMeta.createdAtWib||sourceMeta.createdAt||'-')}` : 'File lama — metadata Versi belum tersedia'}</div>
                             <div class="bg-white/80 dark:bg-slate-800 rounded-lg p-2.5 sm:col-span-2"><b>Validasi Target:</b><br><span class="text-emerald-700 dark:text-emerald-300">✓ Struktur Target valid</span> · Jangka Pendek & Yang Akan Datang diperiksa terpisah</div>
                         </div>
                         <div class="mt-3 text-xs font-black text-slate-700 dark:text-slate-300">File valid untuk proses <span class="text-violet-700 dark:text-violet-300">${modeText}</span>.</div>`;
@@ -4858,6 +4981,39 @@
             if (box) box.innerHTML = '<div class="flex items-center gap-2 font-black text-sky-800 dark:text-sky-300"><i class="fa-solid fa-spinner fa-spin"></i> Memproses import...</div><div class="text-xs font-bold text-slate-600 dark:text-slate-400 mt-1">Jangan tutup halaman sampai selesai.</div>';
             if (action) action.classList.add('hidden');
             await window.importAllLocalDataFromCsv(file, mode, true);
+        };
+
+        window.renderVersionDataSummary = function(){
+            const box=document.getElementById('rqDataVersionSummary'); if(!box) return;
+            const list=window.rqGetVersionHistory ? window.rqGetVersionHistory() : [];
+            const latest=list[0];
+            const esc=v=>String(v??'-').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+            const name=localStorage.getItem('rq_version_operator_name')||localStorage.getItem('rq_import_operator_name')||'-';
+            const device=localStorage.getItem('rq_version_device')||window.rqDetectDeviceType?.()||'-';
+            const deviceName=localStorage.getItem('rq_version_device_name')||'';
+            box.innerHTML=latest ? `<b><i class="fa-solid fa-code-branch mr-1"></i> Versi File</b><br><span class="text-lg font-black">${esc(latest.sourceFileId)}</span> · ${esc(latest.sourceCreatedBy)} · ${esc(latest.sourceDevice)}${latest.sourceDeviceName?' · '+esc(latest.sourceDeviceName):''}<br><span class="text-[10px]">${esc(latest.sourceCreatedAtWib||'-')}</span><br><span class="text-[10px]">Perangkat ini: ${esc(device)}${deviceName?' · '+esc(deviceName):''} · Operator: ${esc(name)}</span>` : `<b><i class="fa-solid fa-code-branch mr-1"></i> Identitas File</b><br><span class="text-[10px]">Perangkat ini: ${esc(device)}${deviceName?' · '+esc(deviceName):''} · Operator: ${esc(name)}</span><br><span class="text-[10px]">Belum ada file yang didownload dari perangkat ini.</span>`;
+        };
+
+        window.renderVersiMenu = function(){
+            const nameEl=document.getElementById('rqVersionOperatorName');
+            const deviceEl=document.getElementById('rqVersionDevice');
+            const deviceNameEl=document.getElementById('rqVersionDeviceName');
+            if(nameEl) nameEl.value=localStorage.getItem('rq_version_operator_name') || localStorage.getItem('rq_import_operator_name') || '';
+            if(deviceEl) deviceEl.value=localStorage.getItem('rq_version_device') || window.rqDetectDeviceType();
+            if(deviceNameEl) deviceNameEl.value=localStorage.getItem('rq_version_device_name') || '';
+            const current=document.getElementById('rqVersionCurrentContainer');
+            const historyBox=document.getElementById('rqVersionHistoryContainer');
+            const list=window.rqGetVersionHistory();
+            const latest=list.find(x=>x?.action==='EXPORT') || list.find(x=>x?.action==='IMPORT') || null;
+            const esc=v=>String(v??'-').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+            if(current){
+                current.innerHTML=latest ? `<div class="bg-indigo-50 dark:bg-indigo-950/30 rounded-2xl border-2 border-indigo-300 dark:border-indigo-800 p-4 sm:p-5"><div class="text-xs font-black text-indigo-700 dark:text-indigo-300 mb-2">FILE TERBARU</div><div class="text-2xl sm:text-3xl font-black text-indigo-900 dark:text-indigo-100">${esc(latest.sourceFileId||'-')}</div><div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 mt-3 text-xs"><div><b>Dibuat oleh</b><br>${esc(latest.sourceCreatedBy)}</div><div><b>Perangkat</b><br>${esc(latest.sourceDevice)}${latest.sourceDeviceName?' · '+esc(latest.sourceDeviceName):''}</div><div><b>Waktu dibuat</b><br>${esc(latest.sourceCreatedAtWib||latest.sourceCreatedAt)}</div><div><b>Status</b><br>${esc(latest.status)}</div></div></div>` : '<div class="bg-slate-50 dark:bg-slate-900 rounded-2xl border-2 border-slate-200 dark:border-slate-700 p-4 text-xs font-bold text-slate-500">Belum ada riwayat Versi. Download CSV untuk membuat FILE-0001.</div>';
+            }
+            if(historyBox){
+                if(!list.length){ historyBox.innerHTML='<div class="text-xs font-bold text-slate-500">Belum ada riwayat.</div>'; return; }
+                historyBox.innerHTML=list.slice(0,50).map(x=>`<div class="border-b border-slate-200 dark:border-slate-700 py-3 last:border-b-0"><div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1"><div class="font-black text-sm text-slate-800 dark:text-slate-100">${esc(x.sourceFileId||'-')} ${x.action==='IMPORT'?'→ IMPORT':''}</div><div class="text-[10px] font-black text-slate-500">${esc(x.sourceCreatedAtWib||'-')}</div></div><div class="text-[11px] font-bold text-slate-600 dark:text-slate-300 mt-1">Dibuat: ${esc(x.sourceCreatedBy)} · ${esc(x.sourceDevice)}${x.sourceDeviceName?' · '+esc(x.sourceDeviceName):''}</div>${x.action==='IMPORT'?`<div class="text-[11px] font-bold text-emerald-700 dark:text-emerald-300 mt-1">Masuk ke perangkat: ${esc(x.importedDevice)} · ${esc(x.importedBy)} · ${esc(x.importedAtWib)} · Urutan FILE-IMPORT-${String(x.importNumber||0).padStart(4,'0')}</div>`:''}</div>`).join('');
+            }
+            window.renderVersionDataSummary?.();
         };
 
         // ============================================================
@@ -6666,6 +6822,7 @@
                 <button onclick="window.switchTab('laporan-grup')" id="btnTab-laporan-grup" class="px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold text-emerald-100 hover:bg-emerald-700/65 transition-all shrink-0">Laporan WA Grup</button>                                  <button onclick="window.switchTab('rekapan')" id="btnTab-rekapan" class="px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold text-emerald-100 hover:bg-emerald-700/65 transition-all shrink-0">Rekapan</button>
                 
                 <button onclick="window.switchTab('export')" id="btnTab-export" class="px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold text-emerald-100 hover:bg-emerald-700/65 transition-all shrink-0">Data</button>
+                <button onclick="window.switchTab('versi')" id="btnTab-versi" class="px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold text-emerald-100 hover:bg-emerald-700/65 transition-all shrink-0">Versi</button>
             </div>
         </div>
     </header>
@@ -7280,6 +7437,8 @@
                         </p>
                     </div>
 
+                    <div id="rqDataVersionSummary" class="p-3.5 bg-indigo-50 dark:bg-indigo-950/30 rounded-xl border-2 border-indigo-200 dark:border-indigo-800 text-xs font-bold text-indigo-900 dark:text-indigo-200">Identitas file: belum ada file Versi.</div>
+
                     <div class="p-3.5 bg-white/70 dark:bg-slate-900/60 rounded-xl border border-sky-200 dark:border-sky-800 space-y-2.5">
                         <div class="font-black text-sm text-sky-900 dark:text-sky-200 flex items-center gap-2">
                             <i class="fa-solid fa-download"></i> Download CSV
@@ -7398,6 +7557,39 @@
                     </button>
                     <button onclick="window.resetDailyLogsOnly()" class="px-4.5 py-3 bg-rose-500 hover:bg-rose-600 text-white rounded-xl font-black text-xs sm:text-sm shadow-md transition active:scale-95">⚠️ Reset Data Setoran Harian Saja</button>
                 </div>
+            </div>
+        </section>
+
+        <!-- SECTION: VERSI FILE -->
+        <section id="section-versi" class="hidden space-y-4">
+            <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border-2 border-indigo-200 dark:border-indigo-800 p-4 sm:p-5">
+                <div class="flex items-center gap-2 mb-1">
+                    <i class="fa-solid fa-code-branch text-indigo-600 dark:text-indigo-400"></i>
+                    <h2 class="font-black text-lg sm:text-xl text-slate-800 dark:text-white">Versi</h2>
+                </div>
+                <p class="text-[11px] sm:text-xs font-bold text-slate-500 dark:text-slate-400">Identitas file backup CSV, siapa yang membuat, perangkat, hari/tanggal/jam, serta urutan file saat masuk ke perangkat. Semua dicatat lokal dan tidak memakai Google Sheet.</p>
+            </div>
+            <div id="rqVersionCurrentContainer"></div>
+            <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border-2 border-slate-200 dark:border-slate-700 p-4 sm:p-5 space-y-3">
+                <div class="font-black text-sm text-slate-800 dark:text-slate-100"><i class="fa-solid fa-user-gear mr-1"></i> Identitas Perangkat Ini</div>
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <label class="text-xs font-black text-slate-700 dark:text-slate-200">Dibuat oleh
+                        <input id="rqVersionOperatorName" type="text" placeholder="Contoh: Ustadz Sidik" oninput="window.rqSaveVersionIdentity()" class="mt-1.5 w-full p-3 rounded-xl border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 font-black text-sm">
+                    </label>
+                    <label class="text-xs font-black text-slate-700 dark:text-slate-200">Perangkat
+                        <select id="rqVersionDevice" onchange="window.rqSaveVersionIdentity()" class="mt-1.5 w-full p-3 rounded-xl border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 font-black text-sm">
+                            <option value="HP">HP / Smartphone</option><option value="Laptop/PC">Laptop / PC</option>
+                        </select>
+                    </label>
+                    <label class="text-xs font-black text-slate-700 dark:text-slate-200">Nama perangkat
+                        <input id="rqVersionDeviceName" type="text" placeholder="Contoh: HP Sidik" oninput="window.rqSaveVersionIdentity()" class="mt-1.5 w-full p-3 rounded-xl border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 font-black text-sm">
+                    </label>
+                </div>
+                <div class="text-[10px] font-bold text-slate-500 dark:text-slate-400">Pengaturan ini hanya menentukan identitas pembuat file. Data santri dan data setoran tidak diubah.</div>
+            </div>
+            <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border-2 border-slate-200 dark:border-slate-700 p-4 sm:p-5">
+                <div class="font-black text-sm text-slate-800 dark:text-slate-100 mb-3"><i class="fa-solid fa-clock-rotate-left mr-1"></i> Riwayat Versi / File</div>
+                <div id="rqVersionHistoryContainer"></div>
             </div>
         </section>
 
@@ -10051,4 +10243,6 @@ html.dark #rqSafetyBackupBox #rqSafetyBackupLocation b{color:#ecfdf5 !important}
   // Target Report menu juga hanya menampilkan target yang mendapat izin.
   setTimeout(()=>{try{if(typeof window.renderTargetReport==='function')window.renderTargetReport();}catch(_){ }},160);
 })();
+
+        window.renderVersiMenu?.();
 </script>
