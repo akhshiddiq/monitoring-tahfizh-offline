@@ -873,6 +873,175 @@
         };
 
         // ============================================================
+        // Laporan AI v3 — hanya mengatur UI/flow Laporan AI.
+        // Tidak mengubah generator laporan lama.
+        // ============================================================
+        window._laporanAiCopyPlain = async function(text, buttonId) {
+            const value = String(text || '');
+            if (!value) return;
+            let copied = false;
+            try {
+                if (navigator.clipboard && window.isSecureContext) {
+                    await navigator.clipboard.writeText(value);
+                    copied = true;
+                }
+            } catch (_) {}
+            if (!copied) {
+                try {
+                    const ta = document.createElement('textarea');
+                    ta.value = value;
+                    ta.setAttribute('readonly','');
+                    ta.style.position='fixed'; ta.style.opacity='0'; ta.style.pointerEvents='none';
+                    document.body.appendChild(ta);
+                    ta.select(); ta.setSelectionRange(0, ta.value.length);
+                    copied = document.execCommand('copy');
+                    ta.remove();
+                } catch (_) {}
+            }
+            // Tidak ada popup/toast. Hanya perubahan label tombol sesaat.
+            const b=document.getElementById(buttonId);
+            if(b && copied){ const old=b.innerHTML; b.innerHTML='<i class="fa-solid fa-check"></i> Tersalin'; setTimeout(()=>{b.innerHTML=old;},900); }
+        };
+
+        window._laporanAiBuildPersonalFullData = function(student) {
+            const safe=v=>String(v==null?'':v).trim();
+            const h=window._laporanAiGetHistories();
+            const id=safe(student?.id).toLowerCase(), name=safe(student?.name).toLowerCase();
+            const match=(r)=>{
+                const rid=safe(r?.id||r?.studentId).toLowerCase(), rn=safe(r?.name).toLowerCase();
+                return (id&&rid===id)||(rn===name);
+            };
+            const lines=['DATA PERSONAL LENGKAP UNTUK AI — RQ AL-KHANSA','',
+                `Nama Lengkap: ${safe(student?.name)||'-'}`,`ID Santri: ${safe(student?.id)||'-'}`,
+                `Kelas: ${safe(student?.class)||'-'}`,`Pengajar: ${safe(student?.teacher)||'-'}`,`No WA: ${safe(student?.phone)||'-'}`,''];
+            const sections=[['BACAAN',h.bacaan],['HAFALAN',h.hafalan],['MUROJA\'AH',h.murojaah],['TUGAS',h.tugas]];
+            sections.forEach(([title,rows])=>{
+                lines.push(`===== RIWAYAT ${title} =====`);
+                const matched=(rows||[]).filter(match).sort((a,b)=>window._laporanAiTime(a)-window._laporanAiTime(b));
+                if(!matched.length) lines.push('(tidak ada data)');
+                matched.forEach((r,i)=>lines.push(`${i+1}. ${JSON.stringify(r)}`));
+                lines.push('');
+            });
+            // Target, rekapan, materi dan form input: hanya ambil record yang jelas terkait identitas santri.
+            const keys=['rq_target_hafalan_murojaah_v1','rq_target_hafalan_murojaah_v2','rq_history_rekapan','rq_materi_utama','rq_materi_tambahan','rq_form_input_state_v1'];
+            keys.forEach(k=>{
+                const raw=localStorage.getItem(k);
+                if(raw==null) return;
+                lines.push(`===== ${k} =====`);
+                try {
+                    const parsed=JSON.parse(raw);
+                    if(Array.isArray(parsed)) {
+                        const filtered=parsed.filter(x=>match(x)||(safe(x?.studentId).toLowerCase()===id)||(safe(x?.santriId).toLowerCase()===id)||(safe(x?.studentName).toLowerCase()===name)||(safe(x?.santriName).toLowerCase()===name));
+                        lines.push(JSON.stringify(filtered,null,2));
+                    } else if(parsed && typeof parsed==='object') {
+                        lines.push(JSON.stringify(parsed,null,2));
+                    } else lines.push(String(parsed));
+                } catch(_) { lines.push(raw); }
+                lines.push('');
+            });
+            lines.push('ATURAN: Gunakan hanya data yang tersedia. Jangan mengarang nama, ID, kelas, surat, ayat, tanggal, target, nilai, catatan, atau hasil.');
+            return lines.join('\n');
+        };
+
+        window._laporanAiBuildGroupFullData = function(className) {
+            const safe=v=>String(v==null?'':v).trim();
+            const cls=safe(className), master=(window.santriList||[]).filter(s=>safe(s?.class)===cls);
+            const h=window._laporanAiGetHistories();
+            const lines=['DATA GRUP/KELAS LENGKAP UNTUK AI — RQ AL-KHANSA','',`Kelas: ${cls}`,`Jumlah Santri Master: ${master.length}`,'','===== MASTER SANTRI ====='];
+            master.forEach((s,i)=>lines.push(`${i+1}. ${safe(s?.name)||'-'} | ID: ${safe(s?.id)||'-'} | Pengajar: ${safe(s?.teacher)||'-'} | No WA: ${safe(s?.phone)||'-'}`));
+            const sections=[['BACAAN',h.bacaan],['HAFALAN',h.hafalan],['MUROJA\'AH',h.murojaah],['TUGAS',h.tugas]];
+            sections.forEach(([title,rows])=>{
+                lines.push('',`===== RIWAYAT ${title} =====`);
+                const matched=(rows||[]).filter(r=>master.some(s=>{const id=safe(s?.id).toLowerCase(),name=safe(s?.name).toLowerCase();return (id&&safe(r?.id||r?.studentId).toLowerCase()===id)||safe(r?.name).toLowerCase()===name;}));
+                if(!matched.length) lines.push('(tidak ada data)');
+                matched.forEach((r,i)=>lines.push(`${i+1}. ${JSON.stringify(r)}`));
+            });
+            ['rq_target_hafalan_murojaah_v1','rq_target_hafalan_murojaah_v2','rq_history_rekapan','rq_materi_utama','rq_materi_tambahan'].forEach(k=>{
+                const raw=localStorage.getItem(k); if(raw==null)return;
+                lines.push('',`===== ${k} =====`);
+                try { lines.push(JSON.stringify(JSON.parse(raw),null,2)); } catch(_) { lines.push(raw); }
+            });
+            lines.push('','ATURAN: Gunakan hanya data yang tersedia. Jangan mengarang data santri yang tidak ada. Santri tanpa input tidak dibuatkan prestasi.');
+            return lines.join('\n');
+        };
+
+        window._laporanAiPersonalInstruction = function(student) {
+            const format=window._laporanAiReportFormat||'';
+            const personal=format.split('===== FORMAT WA GRUP =====')[0].trim();
+            return [
+                'PERINTAH LAPORAN AI — PERSONAL RQ AL-KHANSA',
+                'Gunakan DATA PERSONAL sebagai sumber fakta.',
+                'Ikuti FORMAT CONTOH di bawah ini secara persis.',
+                'Jangan mengubah emoji/emot, kata-kata tetap, urutan bagian, separator, tanda baca, dan penutup.',
+                'Hanya ganti bagian yang memang berubah sesuai data santri.',
+                'Jika suatu bagian tidak memiliki data, ikuti aturan format yang sudah ditetapkan; jangan mengarang.',
+                'Gunakan nama lengkap, ID, kelas, dan pengajar dari MASTER SANTRI.',
+                'Output akhir WAJIB berupa plain text WhatsApp yang siap copy-paste.',
+                '', '===== FORMAT CONTOH — IKUTI FORMAT INI =====', personal,
+                '', '===== DATA PERSONAL =====', window._laporanAiBuildPersonalFullData(student)
+            ].join('\n');
+        };
+        window._laporanAiGroupInstruction = function(className) {
+            const format=window._laporanAiReportFormat||'';
+            const p=format.indexOf('===== FORMAT WA GRUP ====='), q=format.indexOf('===== FORMAT YANG HARUS DIPERTAHANKAN =====');
+            const group=(p>=0?(format.slice(p, q>=0?q:format.length).trim()):'');
+            return [
+                'PERINTAH LAPORAN AI — GRUP RQ AL-KHANSA',
+                'Gunakan DATA GRUP/KELAS sebagai sumber fakta.',
+                'Ikuti FORMAT CONTOH di bawah ini secara persis.',
+                'Jangan mengubah emoji/emot, kata-kata tetap, urutan, separator, tanda baca, dan pembukaan/penutup yang sudah ditetapkan.',
+                'Urutkan santri mengikuti MASTER SANTRI.',
+                'Santri tanpa input tidak ditulis.',
+                'Jangan mengarang data, nilai, surat, ayat, target, tanggal, atau catatan.',
+                'Output akhir WAJIB berupa plain text WhatsApp yang siap copy-paste.',
+                '', '===== FORMAT CONTOH — IKUTI FORMAT INI =====', group,
+                '', '===== DATA GRUP/KELAS =====', window._laporanAiBuildGroupFullData(className)
+            ].join('\n');
+        };
+        window._laporanAiRefreshPersonal = function(){
+            const sel=document.getElementById('laporanAiStudentSelect');
+            const s=(window.santriList||[]).find(x=>x.name===sel?.value);
+            const data=document.getElementById('laporanAiPersonalData'), prompt=document.getElementById('laporanAiPersonalPrompt'), out=document.getElementById('laporanAiPersonalOutput'), words=document.getElementById('laporanAiPersonalWords');
+            if(!s){ if(data)data.value=''; if(prompt)prompt.value=''; if(out)out.value=''; if(words)words.value=''; return; }
+            const d=window._laporanAiBuildPersonalFullData(s); const p=window._laporanAiPersonalInstruction(s);
+            let report=''; try{ report=window._laporanAiGetPersonalReport(s)||''; }catch(_){}
+            if(data)data.value=d; if(prompt)prompt.value=p; if(out)out.value=report; if(words)words.value=report;
+        };
+        window._laporanAiRefreshGroup = function(){
+            const sel=document.getElementById('laporanAiClassSelect'), c=sel?.value||'';
+            const data=document.getElementById('laporanAiGroupData'), prompt=document.getElementById('laporanAiGroupPrompt'), out=document.getElementById('laporanAiGroupOutput'), words=document.getElementById('laporanAiGroupWords');
+            if(!c){ if(data)data.value=''; if(prompt)prompt.value=''; if(out)out.value=''; if(words)words.value=''; return; }
+            const d=window._laporanAiBuildGroupFullData(c), p=window._laporanAiGroupInstruction(c);
+            let report=''; try{ report=window._laporanAiGetGroupReport(c)||''; }catch(_){}
+            if(data)data.value=d; if(prompt)prompt.value=p; if(out)out.value=report; if(words)words.value=report;
+        };
+        window._laporanAiDownloadPersonalPrompt = function(){
+            const s=(window.santriList||[]).find(x=>x.name===document.getElementById('laporanAiStudentSelect')?.value); if(!s)return;
+            window._laporanAiDownload(`PROMPT_LAPORAN_PERSONAL_${s.name.replace(/[^a-zA-Z0-9_-]+/g,'_')}.txt`,window._laporanAiPersonalInstruction(s));
+        };
+        window._laporanAiDownloadGroupPrompt = function(){
+            const c=document.getElementById('laporanAiClassSelect')?.value||''; if(!c)return;
+            window._laporanAiDownload(`PROMPT_LAPORAN_GRUP_${c.replace(/[^a-zA-Z0-9_-]+/g,'_')}.txt`,window._laporanAiGroupInstruction(c));
+        };
+        window._laporanAiDownloadPersonalFullData = function(){
+            const s=(window.santriList||[]).find(x=>x.name===document.getElementById('laporanAiStudentSelect')?.value); if(!s)return;
+            window._laporanAiDownload(`DATA_LENGKAP_PERSONAL_${s.name.replace(/[^a-zA-Z0-9_-]+/g,'_')}.txt`,window._laporanAiBuildPersonalFullData(s));
+        };
+        window._laporanAiDownloadGroupFullData = function(){
+            const c=document.getElementById('laporanAiClassSelect')?.value||''; if(!c)return;
+            window._laporanAiDownload(`DATA_LENGKAP_GRUP_${c.replace(/[^a-zA-Z0-9_-]+/g,'_')}.txt`,window._laporanAiBuildGroupFullData(c));
+        };
+        window._laporanAiShowTab = function(tab){
+            const p=document.getElementById('laporanAiPanelPersonal'), g=document.getElementById('laporanAiPanelGroup');
+            const bp=document.getElementById('laporanAiTabPersonal'), bg=document.getElementById('laporanAiTabGroup');
+            const personal=tab!=='group';
+            if(p)p.classList.toggle('hidden',!personal); if(g)g.classList.toggle('hidden',personal);
+            if(bp){bp.className=personal?'px-4 py-3 rounded-xl bg-violet-600 text-white font-black text-xs sm:text-sm':'px-4 py-3 rounded-xl bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-slate-100 font-black text-xs sm:text-sm';}
+            if(bg){bg.className=!personal?'px-4 py-3 rounded-xl bg-violet-600 text-white font-black text-xs sm:text-sm':'px-4 py-3 rounded-xl bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-slate-100 font-black text-xs sm:text-sm';}
+        };
+        window._laporanAiRefreshAll = function(){ window._laporanAiRefreshPersonal(); window._laporanAiRefreshGroup(); };
+
+        // ============================================================
         // LAPORAN AI — PAKET PROMPT + DATA + CONTOH
         // Berdiri sendiri. Tidak mengubah mesin laporan/database existing.
         // ============================================================
@@ -1183,6 +1352,8 @@ window.initLaporanAiMenu = function() {
     const ps=document.getElementById('laporanAiStudentSelect'), pc=document.getElementById('laporanAiClassSelect');
     if(ps){ const old=ps.value; ps.innerHTML=(window.santriList||[]).map(s=>`<option value="${window._laporanAiEscape(s.name)}">${window._laporanAiEscape(s.name)} — ${window._laporanAiEscape(s.class||'-')}</option>`).join(''); if(old)ps.value=old; }
     if(pc && !pc.options.length){ ['Abdurrahman','Abu Ubaidah','Zubair','Ali','Utsman','Abu Bakar','Bilal','Hamzah','Fatimah','Umar'].forEach(c=>pc.insertAdjacentHTML('beforeend',`<option value="${c}">${c}</option>`)); }
+    window._laporanAiShowTab('personal');
+    window._laporanAiRefreshAll();
 };
 
         // ============================================================
@@ -7285,70 +7456,63 @@ window.initLaporanAiMenu = function() {
                     <div class="w-11 h-11 rounded-2xl bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300 flex items-center justify-center shrink-0"><i class="fa-solid fa-robot text-lg"></i></div>
                     <div>
                         <h3 class="font-black text-base sm:text-lg text-violet-800 dark:text-violet-300">Laporan AI</h3>
-                        <p class="text-xs sm:text-sm text-slate-500 font-bold">Siapkan prompt, data personal, data grup, dan contoh laporan untuk ChatGPT.</p>
+                        <p class="text-xs sm:text-sm text-slate-500 font-bold">Pilih Personal atau Grup. Data, langkah, prompt, contoh format, dan hasil akhir WA tersedia dalam satu alur.</p>
                     </div>
                 </div>
 
-                <div class="p-3.5 rounded-2xl bg-violet-50 dark:bg-violet-950/20 border border-violet-300 dark:border-violet-800 text-xs font-bold text-violet-900 dark:text-violet-200 leading-relaxed">
-                    Menu ini <b>tidak mengubah data</b>. Ia hanya membaca MASTER SANTRI dan histori lokal yang sudah ada, lalu membuat file bahan untuk ChatGPT.
+                <div class="grid grid-cols-2 gap-2">
+                    <button type="button" id="laporanAiTabPersonal" onclick="window._laporanAiShowTab('personal')" class="px-4 py-3 rounded-xl bg-violet-600 text-white font-black text-xs sm:text-sm"><i class="fa-solid fa-user"></i> Menu 1 — Laporan Personal</button>
+                    <button type="button" id="laporanAiTabGroup" onclick="window._laporanAiShowTab('group')" class="px-4 py-3 rounded-xl bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-slate-100 font-black text-xs sm:text-sm"><i class="fa-solid fa-users"></i> Menu 2 — Laporan Grup</button>
                 </div>
 
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <div id="laporanAiPanelPersonal" class="space-y-4">
                     <div class="p-4 rounded-2xl border bg-slate-50 dark:bg-slate-900 space-y-3">
-                        <div class="font-black text-sm text-slate-800 dark:text-slate-100">Data Personal Anak</div>
-                        <select id="laporanAiStudentSelect" class="w-full p-3 rounded-xl border bg-white dark:bg-slate-800 font-bold text-xs"></select>
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                            <button type="button" onclick="window._laporanAiDownloadPersonal()" class="px-3 py-3 bg-sky-600 hover:bg-sky-700 text-white rounded-xl font-black text-xs"><i class="fa-solid fa-download"></i> Download Data Personal</button>
-                            <button type="button" onclick="window._laporanAiDownloadPersonalExample()" class="px-3 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-black text-xs"><i class="fa-solid fa-file-lines"></i> Contoh Laporan Personal</button>
-                        </div>
+                        <div class="font-black text-sm">STEP 1 — PILIH SANTRI</div>
+                        <select id="laporanAiStudentSelect" onchange="window._laporanAiRefreshPersonal()" class="w-full p-3 rounded-xl border bg-white dark:bg-slate-800 font-bold text-xs"></select>
                     </div>
-
-                    <div class="p-4 rounded-2xl border-2 border-sky-300 dark:border-sky-800 bg-sky-50/60 dark:bg-sky-950/20 space-y-3">
-                        <div>
-                            <div class="font-black text-sm text-sky-900 dark:text-sky-200">Data Semua Santri untuk AI</div>
-                            <div class="text-[10px] text-slate-600 dark:text-slate-400 font-bold mt-1">Mengambil Master Santri dan seluruh data aplikasi <code>rq_*</code>, termasuk Bacaan, Hafalan, Muroja'ah, Tugas, Target, histori, rekapan, materi, dan data lain yang tersimpan.</div>
-                        </div>
-                        <button type="button" onclick="window._laporanAiDownloadAllData()" class="w-full px-4 py-3.5 bg-sky-600 hover:bg-sky-700 text-white rounded-xl font-black text-xs sm:text-sm shadow-md"><i class="fa-solid fa-database"></i> Download Data Semua Santri untuk AI</button>
+                    <div class="p-4 rounded-2xl border bg-sky-50/60 dark:bg-sky-950/20 space-y-3">
+                        <div class="flex items-center justify-between gap-2 flex-wrap"><div class="font-black text-sm">STEP 2 — SEMUA DATA PERSONAL UNTUK AI</div><button type="button" onclick="window._laporanAiDownloadPersonalFullData()" class="px-3 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-xl font-black text-xs"><i class="fa-solid fa-download"></i> Download Data</button></div>
+                        <textarea id="laporanAiPersonalData" readonly rows="12" class="w-full p-3 bg-white dark:bg-slate-800 border rounded-xl font-mono text-[10px] leading-relaxed"></textarea>
                     </div>
+                    <div class="p-4 rounded-2xl border bg-amber-50/60 dark:bg-amber-950/20 space-y-3">
+                        <div class="font-black text-sm">STEP 3 — KATA-KATA LAPORAN OTOMATIS SESUAI DATA</div>
+                        <textarea id="laporanAiPersonalWords" readonly rows="12" class="w-full p-3 bg-white dark:bg-slate-800 border rounded-xl font-mono text-[10px] leading-relaxed"></textarea>
+                    </div>
+                    <div class="p-4 rounded-2xl border bg-violet-50/60 dark:bg-violet-950/20 space-y-3">
+                        <div class="flex items-center justify-between gap-2 flex-wrap"><div class="font-black text-sm">STEP 4 — CONTOH FORMAT + PERINTAH AI</div><button type="button" onclick="window._laporanAiDownloadPersonalPrompt()" class="px-3 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-xl font-black text-xs"><i class="fa-solid fa-download"></i> Download Prompt</button></div>
+                        <div class="text-[10px] font-black text-violet-800 dark:text-violet-200">PERINTAH: IKUTI FORMAT INI SECARA PERSIS. JANGAN MENGUBAH EMOJI, KATA-KATA TETAP, URUTAN, SEPARATOR, DAN PENUTUP.</div>
+                        <textarea id="laporanAiPersonalPrompt" readonly rows="18" class="w-full p-3 bg-white dark:bg-slate-800 border rounded-xl font-mono text-[10px] leading-relaxed"></textarea>
+                    </div>
+                    <div class="p-4 rounded-2xl border-2 border-emerald-300 dark:border-emerald-800 bg-emerald-50/60 dark:bg-emerald-950/20 space-y-3">
+                        <div class="font-black text-sm text-emerald-900 dark:text-emerald-200">STEP 5 — BLOCK TEKS WA / PLAIN TEKS WA</div>
+                        <textarea id="laporanAiPersonalOutput" readonly rows="18" class="w-full p-3 bg-white dark:bg-slate-800 border rounded-xl font-mono text-xs leading-relaxed"></textarea>
+                        <button id="laporanAiCopyPersonal" type="button" onclick="window._laporanAiCopyPlain(document.getElementById('laporanAiPersonalOutput')?.value,'laporanAiCopyPersonal')" class="w-full px-4 py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-black text-sm"><i class="fa-solid fa-copy"></i> Salin Teks WA</button>
+                    </div>
+                </div>
 
+                <div id="laporanAiPanelGroup" class="hidden space-y-4">
                     <div class="p-4 rounded-2xl border bg-slate-50 dark:bg-slate-900 space-y-3">
-                        <div class="font-black text-sm text-slate-800 dark:text-slate-100">Data Grup / Kelas</div>
-                        <select id="laporanAiClassSelect" class="w-full p-3 rounded-xl border bg-white dark:bg-slate-800 font-bold text-xs"></select>
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                            <button type="button" onclick="window._laporanAiDownloadGroup()" class="px-3 py-3 bg-sky-600 hover:bg-sky-700 text-white rounded-xl font-black text-xs"><i class="fa-solid fa-download"></i> Download Data Grup</button>
-                            <button type="button" onclick="window._laporanAiDownloadGroupExample()" class="px-3 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-black text-xs"><i class="fa-solid fa-file-lines"></i> Contoh Laporan Grup</button>
-                        </div>
+                        <div class="font-black text-sm">STEP 1 — PILIH KELAS</div>
+                        <select id="laporanAiClassSelect" onchange="window._laporanAiRefreshGroup()" class="w-full p-3 rounded-xl border bg-white dark:bg-slate-800 font-bold text-xs"></select>
                     </div>
-                </div>
-
-                <div class="p-4 rounded-2xl border-2 border-emerald-300 dark:border-emerald-800 bg-emerald-50/60 dark:bg-emerald-950/20 space-y-3">
-                    <div>
-                        <div class="font-black text-sm text-emerald-900 dark:text-emerald-200">MASTER KATA-KATA / FORMAT LAPORAN</div>
-                        <div class="text-[10px] text-slate-600 dark:text-slate-400 font-bold mt-1">Acuan copy-paste agar kata pembuka, susunan laporan, separator, istilah, dan penutup tetap konsisten.</div>
+                    <div class="p-4 rounded-2xl border bg-sky-50/60 dark:bg-sky-950/20 space-y-3">
+                        <div class="flex items-center justify-between gap-2 flex-wrap"><div class="font-black text-sm">STEP 2 — SEMUA DATA GRUP/KELAS UNTUK AI</div><button type="button" onclick="window._laporanAiDownloadGroupFullData()" class="px-3 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-xl font-black text-xs"><i class="fa-solid fa-download"></i> Download Data</button></div>
+                        <textarea id="laporanAiGroupData" readonly rows="14" class="w-full p-3 bg-white dark:bg-slate-800 border rounded-xl font-mono text-[10px] leading-relaxed"></textarea>
                     </div>
-                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                        <button type="button" onclick="window._laporanAiDownloadReportFormat()" class="px-3 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-black text-xs"><i class="fa-solid fa-copy"></i> Download Master Format</button>
-                        <button type="button" onclick="window._laporanAiDownloadPersonalFormat()" class="px-3 py-3 bg-sky-600 hover:bg-sky-700 text-white rounded-xl font-black text-xs"><i class="fa-solid fa-user"></i> Format Personal</button>
-                        <button type="button" onclick="window._laporanAiDownloadGroupFormat()" class="px-3 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-black text-xs"><i class="fa-solid fa-users"></i> Format Grup</button>
+                    <div class="p-4 rounded-2xl border bg-amber-50/60 dark:bg-amber-950/20 space-y-3">
+                        <div class="font-black text-sm">STEP 3 — KATA-KATA LAPORAN OTOMATIS SESUAI DATA</div>
+                        <textarea id="laporanAiGroupWords" readonly rows="14" class="w-full p-3 bg-white dark:bg-slate-800 border rounded-xl font-mono text-[10px] leading-relaxed"></textarea>
                     </div>
-                    <textarea id="laporanAiReportFormatPreview" readonly rows="12" class="w-full p-3 bg-white dark:bg-slate-800 border rounded-xl font-mono text-[10px] leading-relaxed"></textarea>
-                </div>
-
-                <div class="p-4 rounded-2xl border bg-slate-50 dark:bg-slate-900 space-y-3">
-                    <div class="flex items-center justify-between gap-2 flex-wrap">
-                        <div>
-                            <div class="font-black text-sm">MASTER PROMPT LAPORAN AI</div>
-                            <div class="text-[10px] text-slate-500 font-bold">Prompt siap ditempel ke ChatGPT.</div>
-                        </div>
-                        <button type="button" onclick="window._laporanAiDownloadPrompt()" class="px-3 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-xl font-black text-xs"><i class="fa-solid fa-download"></i> Download Prompt</button>
+                    <div class="p-4 rounded-2xl border bg-violet-50/60 dark:bg-violet-950/20 space-y-3">
+                        <div class="flex items-center justify-between gap-2 flex-wrap"><div class="font-black text-sm">STEP 4 — CONTOH FORMAT + PERINTAH AI</div><button type="button" onclick="window._laporanAiDownloadGroupPrompt()" class="px-3 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-xl font-black text-xs"><i class="fa-solid fa-download"></i> Download Prompt</button></div>
+                        <div class="text-[10px] font-black text-violet-800 dark:text-violet-200">PERINTAH: IKUTI FORMAT INI SECARA PERSIS. JANGAN MENGUBAH EMOJI, KATA-KATA TETAP, URUTAN, SEPARATOR, DAN PEMBUKA/PENUTUP.</div>
+                        <textarea id="laporanAiGroupPrompt" readonly rows="20" class="w-full p-3 bg-white dark:bg-slate-800 border rounded-xl font-mono text-[10px] leading-relaxed"></textarea>
                     </div>
-                    <textarea id="laporanAiPromptPreview" readonly rows="14" class="w-full p-3 bg-white dark:bg-slate-800 border rounded-xl font-mono text-[10px] leading-relaxed"></textarea>
-                </div>
-
-                <div class="p-4 rounded-2xl border-2 border-amber-300 dark:border-amber-800 bg-amber-50/60 dark:bg-amber-950/20 space-y-3">
-                    <div class="font-black text-sm text-amber-900 dark:text-amber-200">Paket Lengkap</div>
-                    <p class="text-[11px] font-bold text-slate-600 dark:text-slate-400">Menggabungkan prompt + data personal + data grup + contoh laporan personal + contoh laporan grup dalam satu file TXT.</p>
-                    <button type="button" onclick="window._laporanAiDownloadPackage()" class="w-full px-4 py-3.5 bg-amber-500 hover:bg-amber-600 text-emerald-950 rounded-xl font-black text-xs sm:text-sm shadow-md"><i class="fa-solid fa-box-archive"></i> Download Paket Laporan AI Lengkap</button>
+                    <div class="p-4 rounded-2xl border-2 border-emerald-300 dark:border-emerald-800 bg-emerald-50/60 dark:bg-emerald-950/20 space-y-3">
+                        <div class="font-black text-sm text-emerald-900 dark:text-emerald-200">STEP 5 — BLOCK TEKS WA / PLAIN TEKS WA</div>
+                        <textarea id="laporanAiGroupOutput" readonly rows="20" class="w-full p-3 bg-white dark:bg-slate-800 border rounded-xl font-mono text-xs leading-relaxed"></textarea>
+                        <button id="laporanAiCopyGroup" type="button" onclick="window._laporanAiCopyPlain(document.getElementById('laporanAiGroupOutput')?.value,'laporanAiCopyGroup')" class="w-full px-4 py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-black text-sm"><i class="fa-solid fa-copy"></i> Salin Teks WA</button>
+                    </div>
                 </div>
             </div>
         </section>
