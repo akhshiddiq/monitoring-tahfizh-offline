@@ -1,7 +1,9 @@
+<!-- Target UI: panel target lama disembunyikan; fungsi penyimpanan lama dipertahankan sementara demi kompatibilitas data. -->
 <!-- V33 FIX: Target Muroja'ah Juz otomatis memakai pemetaan Juz, bukan nomor surat. -->
 <!DOCTYPE html>
 <html lang="id" class="h-full">
 <head>
+<!-- PATCH: Live WA menggunakan getTargetReportText; panel target legacy disembunyikan. -->
 <!-- FORM INPUT PERSISTENCE V2: persistent rq_form_input_state_v1 + history hydration -->
 <!-- LIVE WA AUTO UPDATE FIX 2026-09-28: report follows newest local history -->
     <meta charset="UTF-8">
@@ -597,7 +599,10 @@
             }
         }
 
-</style>
+
+        /* PATCH 2026-10-11: fokus pada target baru; panel target lama tidak ditampilkan. */
+        [data-legacy-target-panel], [data-legacy-target="akanDatang"] { display:none !important; visibility:hidden !important; max-height:0 !important; overflow:hidden !important; }
+        </style>
     <script>
         window.santriList = [
             { id: "IDSRQ001", name: "Alfatih Ahmad Badawi", class: "Abdurrahman", teacher: "Kak Sidik", phone: "+6285774042121", gender: "L" },
@@ -2111,22 +2116,9 @@
                 if (btnUlangi) btnUlangi.className = "flex-1 py-3 px-3 rounded-xl text-xs font-bold bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 transition min-h-[50px]";
             }
 
-            // STATUS LANGSUNG DISIMPAN KE RIWAYAT + DATABASE LOKAL.
-            // Jadi setelah Bacaan/Hafalan/Muroja'ah sudah diinput, menekan
-            // Lanjut/Ulangi langsung membuat rekaman status dan laporan orang tua.
-            if (category === 'bac' || category === 'haf' || category === 'mur') {
-                const sectionType = category === 'bac' ? 'bacaan' : (category === 'haf' ? 'hafalan' : 'murojaah');
-                const hasData = typeof window.extractSlotEntries === 'function' && window.extractSlotEntries(category, santriName) !== '-';
-                if (hasData) {
-                    clearTimeout(window._statusSaveTimers && window._statusSaveTimers[statusKey]);
-                    window._statusSaveTimers = window._statusSaveTimers || {};
-                    window._statusSaveTimers[statusKey] = setTimeout(() => {
-                        window.saveSectionData(santriName, sectionType);
-                    }, 60);
-                } else {
-                    window.showToast('Status dipilih. Isi setoran lalu tekan Simpan & Sinkron.', 'success');
-                }
-            }
+            // Lanjut/Ulangi hanya memilih keterangan status. Tidak menyimpan
+            // atau mengirim laporan sampai operator menekan tombol OK KIRIM.
+            window.showToast('Keterangan dipilih. Data belum dikirim; tekan OK KIRIM jika sudah siap.', 'success');
         };
 
         window.toggleSlotVisibility = function(category, slot, santriName) {
@@ -2336,7 +2328,7 @@
             }
         };
 
-        window.renderTripleInputSlot = function(category, santriName, borderClass) {
+        window.renderTripleInputSlot = function(category, santriName, borderClass, additionalOnly = false) {
             const slots = [1, 2, 3];
             const sObj = window.santriList.find(x => x.name === santriName);
             let cloudSlots = null;
@@ -2451,7 +2443,7 @@
 
                     </div>
                 `;
-            }).join('');
+            });
 
             const progressKey = `${santriName}_${category}_progress_status`;
             const progressStatus = window.getFormCache(progressKey, window.itemSlotStatus[progressKey] || '');
@@ -2466,7 +2458,10 @@
                     </div>
                 </div>`;
 
-            return slotsHtml + statusHtml;
+            // Pilihan tambahan Bacaan dirender terpisah agar bisa ditempatkan setelah tombol OK KIRIM.
+            // ID, cache, dan fungsi slot tetap sama; kategori lain tidak berubah.
+            if (additionalOnly) return slotsHtml.slice(1).join('');
+            return slotsHtml[0] + statusHtml;
         };
 
         window.renderCardCategoryHistoryList = function(santriName, categoryKey) {
@@ -2848,6 +2843,10 @@
                                 </div>
                                 <div id="card_section_content_bacaan_${s.name}" class="space-y-3.5 ">
                                     ${window.renderTripleInputSlot('bac', s.name, 'border-emerald-500')}
+                                    <div class="flex flex-col items-start gap-1.5 rounded-lg border border-emerald-200 dark:border-emerald-800 px-2.5 py-2">
+                                        <span id="bacaan_input_date_${s.name}" aria-live="polite" class="block text-[10px] font-bold text-slate-600 dark:text-slate-300">Input terakhir: belum ada input</span>
+                                        <button type="button" onclick="window.saveSectionData('${s.name}', 'bacaan')" class="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-black text-xs shadow-md transition active:scale-95"><i class="fa-solid fa-paper-plane mr-1"></i> OK KIRIM</button>
+                                    </div>
                                     <div class="pt-3.5 border-t border-emerald-200 dark:border-emerald-800 space-y-3">
                                         <div>
                                             <div class="flex items-center justify-between mb-1.5">
@@ -2879,12 +2878,16 @@
                                             <input type="text" id="bac_cat_desc_${s.name}" oninput="window.cacheFormInput(this, '${s.name}_bac_cat_desc')" value="${parsedBacCatDesc}" placeholder="Keterangan tambahan..." class="w-full p-4 bg-transparent border-2 border-slate-300 dark:border-slate-700 rounded-2xl text-sm sm:text-base font-black min-h-[60px]">
                                         </div>
                                     </div>
-                                    <div class="flex items-center gap-2">
-                                        <button type="button" onclick="window.saveSectionData('${s.name}', 'bacaan')" class="flex-1 py-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black text-sm sm:text-base shadow-md transition flex items-center justify-center gap-2 active:scale-95">
-                                            <i class="fa-solid fa-paper-plane"></i> Simpan &amp; Sinkron Bacaan (${s.name})
-                                        </button>
-                                    </div>
                                 </div>
+                                <details class="mt-3 rounded-xl border border-emerald-200 dark:border-emerald-800 bg-white/70 dark:bg-slate-900/30 p-3">
+                                    <summary class="cursor-pointer list-none flex items-center gap-2 text-xs sm:text-sm font-black text-emerald-800 dark:text-emerald-300">
+                                        <i class="fa-solid fa-plus"></i> Tambah Pilihan Bacaan Lagi
+                                        <span class="ml-auto text-[10px] font-bold text-slate-500">Buka / tutup</span>
+                                    </summary>
+                                    <div id="bacaan_additional_slots_${s.name}" class="space-y-3.5 mt-3">
+                                        ${window.renderTripleInputSlot('bac', s.name, 'border-emerald-500', true)}
+                                    </div>
+                                </details>
                                 <div class="pt-2 border-t">
                                     <button type="button" id="card_history_btn_Bacaan_${s.name}" onclick="window.toggleCardHistory('${s.name}', 'Bacaan')" class="w-full text-xs sm:text-sm font-black text-emerald-700 dark:text-emerald-400 hover:underline py-2 flex items-center justify-start gap-1.5">
                                         <i class="fa-solid ${isBacaanHistoryOpen ? 'fa-chevron-up' : 'fa-chevron-down'}"></i> ${isBacaanHistoryOpen ? 'Tutup Riwayat Bacaan' : 'Lihat Riwayat Bacaan'}
@@ -2912,42 +2915,11 @@
                                 </div>
                                 <div id="card_section_content_hafalan_${s.name}" class="space-y-3.5 ">
                                     ${window.renderTripleInputSlot('haf', s.name, 'border-rose-500')}
-                                    <div class="mt-3 p-3.5 rounded-2xl border border-emerald-200 dark:border-emerald-900/50 bg-white/70 dark:bg-slate-900/30 space-y-4">
-                                        <div class="flex items-center justify-between gap-2">
-                                            <div class="flex items-center gap-1.5 font-black text-xs text-emerald-800 dark:text-emerald-300"><i class="fa-solid fa-book-quran"></i> Target Hafalan</div>
-                                            <span class="text-[9px] font-black text-slate-400">2 target untuk santri ini</span>
-                                        </div>
-                                        <div class="p-3 rounded-2xl border border-emerald-200 dark:border-emerald-900/50 bg-emerald-50/40 dark:bg-emerald-950/20 space-y-3">
-                                            <div class="font-black text-[11px] text-emerald-700 dark:text-emerald-300">Target Jangka Pendek</div>
-                                            <div class="grid grid-cols-1 gap-3">
-                                                <label class="text-xs sm:text-sm font-black text-slate-500">Juz Otomatis<input id="inputTargetHafalanJangkaPendekJuz_${s.name}" type="text" placeholder="Otomatis dari surat/ayat" readonly class="rq-target-juz-auto mt-1 w-full p-4 rounded-2xl border-2 border-emerald-300 dark:border-emerald-700 text-sm sm:text-base font-black min-h-[60px]"></label>
-                                                <label class="text-xs sm:text-sm font-black text-slate-500">Nama Surat — Otomatis<select id="inputTargetHafalanJangkaPendekSurat_${s.name}" onchange="window.onInlineTargetSurahChange('hafalan','${s.name}','jangkaPendek')" class="mt-1 w-full p-4 rounded-2xl border-2 bg-white dark:bg-slate-900 text-sm sm:text-base font-black min-h-[60px]"><option value="">-- Pilih Surat --</option>${window.surahList.map(x => `<option value="${x.name}">${x.no}. ${x.name} (${x.ayat} ayat)</option>`).join('')}</select></label><div class="rq-target-surah-manual"><label class="text-xs sm:text-sm font-black text-slate-500">Nama Surat — Manual / Cari<input type="text" id="inputTargetHafalanJangkaPendekSuratSearch_${s.name}" placeholder="Ketik nama surat..." autocomplete="off" class="mt-1 w-full p-4 rounded-2xl border-2 bg-white dark:bg-slate-900 text-sm sm:text-base font-black min-h-[60px]" oninput="window.searchInlineTargetSurah('hafalan','${s.name}','jangkaPendek',this.value)" onfocus="window.searchInlineTargetSurah('hafalan','${s.name}','jangkaPendek',this.value)"><div id="inputTargetHafalanJangkaPendekSuratSearch_${s.name}_dropdown" class="hidden mt-1 max-h-56 overflow-y-auto bg-white dark:bg-slate-900 border-2 border-slate-300 dark:border-slate-700 rounded-xl shadow-xl"></div></label></div>
-                                                <label class="text-xs sm:text-sm font-black text-slate-500">Target ayat<input id="inputTargetHafalanJangkaPendekAyat_${s.name}" type="number" min="1" inputmode="numeric" placeholder="Jumlah ayat" class="mt-1 w-full p-4 rounded-2xl border-2 bg-white dark:bg-slate-900 text-sm sm:text-base font-black min-h-[60px]"></label>
-                                                <label class="flex items-center gap-2 p-2.5 rounded-xl border border-emerald-200 dark:border-emerald-800 bg-white/70 dark:bg-slate-900/60 text-[10px] font-black text-slate-700 dark:text-slate-300"><input type="checkbox" id="inputTargetHafalanJangkaPendekTampilLaporan_${s.name}" class="w-4 h-4 rounded text-emerald-600" checked onchange="window.onTargetReportPermissionChange('hafalan','${s.name}','jangkaPendek',this.checked)"><span>Izinkan surat ini tampil di Laporan / WA</span></label>
-                                                <div class="grid grid-cols-1 gap-3"><label class="text-xs sm:text-sm font-black text-slate-500">Tanggal mulai<input id="inputTargetHafalanJangkaPendekMulai_${s.name}" type="date" class="mt-1 w-full p-4 rounded-2xl border-2 bg-white dark:bg-slate-900 text-sm sm:text-base font-black min-h-[60px]"></label><label class="text-xs sm:text-sm font-black text-slate-500">Tanggal selesai<input id="inputTargetHafalanJangkaPendekSelesai_${s.name}" type="date" class="mt-1 w-full p-4 rounded-2xl border-2 bg-white dark:bg-slate-900 text-sm sm:text-base font-black min-h-[60px]"></label></div>
-                                            </div>
-                                            <div id="inputTargetHafalanJangkaPendekMulti_${s.name}" class="rq-target-multi-list"></div>
-                                            <button type="button" class="rq-target-multi-add" onclick='window.addTargetSurahRow(${JSON.stringify(s.name)},"jangkaPendek")'><i class="fa-solid fa-plus mr-1"></i> Tambah Surat Lagi</button>
-                                            <div id="inputTargetHafalanJangkaPendekInfo_${s.name}" class="text-[9px] font-bold text-slate-500"></div>
-                                            <button type="button" onclick='window.saveInputTarget("hafalan", ${JSON.stringify(s.name)}, "jangkaPendek")' class="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-black text-[10px] active:scale-[.99]"><i class="fa-solid fa-floppy-disk mr-1"></i> Simpan Target Jangka Pendek</button>
-                                            <div id="inputTargetHafalanJangkaPendekProgress_${s.name}"></div>
-                                        </div>
-                                        <div class="p-3 rounded-2xl border border-sky-200 dark:border-sky-900/50 bg-sky-50/40 dark:bg-sky-950/20 space-y-3">
-                                            <div class="font-black text-[11px] text-sky-700 dark:text-sky-300">Target Yang Akan Datang</div>
-                                            <div class="grid grid-cols-1 gap-3">
-                                                <label class="text-xs sm:text-sm font-black text-slate-500">Juz Otomatis<input id="inputTargetHafalanAkanDatangJuz_${s.name}" type="text" placeholder="Otomatis dari surat/ayat" readonly class="rq-target-juz-auto mt-1 w-full p-4 rounded-2xl border-2 border-emerald-300 dark:border-emerald-700 text-sm sm:text-base font-black min-h-[60px]"></label>
-                                                <label class="text-xs sm:text-sm font-black text-slate-500">Nama Surat — Otomatis<select id="inputTargetHafalanAkanDatangSurat_${s.name}" onchange="window.onInlineTargetSurahChange('hafalan','${s.name}','akanDatang')" class="mt-1 w-full p-4 rounded-2xl border-2 bg-white dark:bg-slate-900 text-sm sm:text-base font-black min-h-[60px]"><option value="">-- Pilih Surat --</option>${window.surahList.map(x => `<option value="${x.name}">${x.no}. ${x.name} (${x.ayat} ayat)</option>`).join('')}</select></label><div class="rq-target-surah-manual"><label class="text-xs sm:text-sm font-black text-slate-500">Nama Surat — Manual / Cari<input type="text" id="inputTargetHafalanAkanDatangSuratSearch_${s.name}" placeholder="Ketik nama surat..." autocomplete="off" class="mt-1 w-full p-4 rounded-2xl border-2 bg-white dark:bg-slate-900 text-sm sm:text-base font-black min-h-[60px]" oninput="window.searchInlineTargetSurah('hafalan','${s.name}','akanDatang',this.value)" onfocus="window.searchInlineTargetSurah('hafalan','${s.name}','akanDatang',this.value)"><div id="inputTargetHafalanAkanDatangSuratSearch_${s.name}_dropdown" class="hidden mt-1 max-h-56 overflow-y-auto bg-white dark:bg-slate-900 border-2 border-slate-300 dark:border-slate-700 rounded-xl shadow-xl"></div></label></div>
-                                                <label class="text-xs sm:text-sm font-black text-slate-500">Target ayat<input id="inputTargetHafalanAkanDatangAyat_${s.name}" type="number" min="1" inputmode="numeric" placeholder="Jumlah ayat" class="mt-1 w-full p-4 rounded-2xl border-2 bg-white dark:bg-slate-900 text-sm sm:text-base font-black min-h-[60px]"></label>
-                                                <label class="flex items-center gap-2 p-2.5 rounded-xl border border-sky-200 dark:border-sky-800 bg-white/70 dark:bg-slate-900/60 text-[10px] font-black text-slate-700 dark:text-slate-300"><input type="checkbox" id="inputTargetHafalanAkanDatangTampilLaporan_${s.name}" class="w-4 h-4 rounded text-sky-600" checked onchange="window.onTargetReportPermissionChange('hafalan','${s.name}','akanDatang',this.checked)"><span>Izinkan surat ini tampil di Laporan / WA</span></label>
-                                                <div class="grid grid-cols-1 gap-3"><label class="text-xs sm:text-sm font-black text-slate-500">Tanggal mulai<input id="inputTargetHafalanAkanDatangMulai_${s.name}" type="date" class="mt-1 w-full p-4 rounded-2xl border-2 bg-white dark:bg-slate-900 text-sm sm:text-base font-black min-h-[60px]"></label><label class="text-xs sm:text-sm font-black text-slate-500">Tanggal selesai<input id="inputTargetHafalanAkanDatangSelesai_${s.name}" type="date" class="mt-1 w-full p-4 rounded-2xl border-2 bg-white dark:bg-slate-900 text-sm sm:text-base font-black min-h-[60px]"></label></div>
-                                            </div>
-                                            <div id="inputTargetHafalanAkanDatangMulti_${s.name}" class="rq-target-multi-list"></div>
-                                            <button type="button" class="rq-target-multi-add" onclick='window.addTargetSurahRow(${JSON.stringify(s.name)},"akanDatang")'><i class="fa-solid fa-plus mr-1"></i> Tambah Surat Lagi</button>
-                                            <div id="inputTargetHafalanAkanDatangInfo_${s.name}" class="text-[9px] font-bold text-slate-500"></div>
-                                            <button type="button" onclick='window.saveInputTarget("hafalan", ${JSON.stringify(s.name)}, "akanDatang")' class="w-full py-2.5 bg-sky-600 hover:bg-sky-700 text-white rounded-xl font-black text-[10px] active:scale-[.99]"><i class="fa-solid fa-floppy-disk mr-1"></i> Simpan Target Yang Akan Datang</button>
-                                            <div id="inputTargetHafalanAkanDatangProgress_${s.name}"></div>
-                                        </div>
+                                    <div class="flex flex-col items-start gap-1.5 rounded-lg border border-rose-200 dark:border-rose-800 px-2.5 py-2">
+                                        <span id="hafalan_input_date_${s.name}" aria-live="polite" class="block text-[10px] font-bold text-slate-600 dark:text-slate-300">Input terakhir: belum ada input</span>
+                                        <button type="button" onclick="window.saveSectionData('${s.name}', 'hafalan')" class="px-4 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-black text-xs shadow-md transition active:scale-95"><i class="fa-solid fa-paper-plane mr-1"></i> OK KIRIM</button>
                                     </div>
+                                    
                                     <div class="pt-3.5 border-t border-rose-200 dark:border-rose-800 space-y-3">
                                         <div>
                                             <div class="flex items-center justify-between mb-1.5">
@@ -2979,12 +2951,12 @@
                                             <input type="text" id="haf_cat_desc_${s.name}" oninput="window.cacheFormInput(this, '${s.name}_haf_cat_desc')" value="${parsedHafCatDesc}" placeholder="Keterangan tambahan..." class="w-full p-4 bg-transparent border-2 border-slate-300 dark:border-slate-700 rounded-2xl text-sm sm:text-base font-black min-h-[60px]">
                                         </div>
                                     </div>
-                                    <div class="flex items-center gap-2">
-                                        <button type="button" onclick="window.saveSectionData('${s.name}', 'hafalan')" class="flex-1 py-4 bg-rose-600 hover:bg-rose-700 text-white rounded-2xl font-black text-sm sm:text-base shadow-md transition flex items-center justify-center gap-2 active:scale-95">
-                                            <i class="fa-solid fa-paper-plane"></i> Simpan &amp; Sinkron Hafalan Baru (${s.name})
-                                        </button>
-                                    </div>
+
                                 </div>
+                                <details class="mt-3 rounded-xl border border-rose-200 dark:border-rose-800 bg-white/70 dark:bg-slate-900/30 p-3">
+                                    <summary class="cursor-pointer list-none flex items-center gap-2 text-xs sm:text-sm font-black text-rose-700 dark:text-rose-300"><i class="fa-solid fa-plus"></i> Tambah Pilihan Hafalan Lagi <span class="ml-auto text-[10px] font-bold text-slate-500">Buka / tutup</span></summary>
+                                    <div id="hafalan_additional_slots_${s.name}" class="space-y-3.5 mt-3">${window.renderTripleInputSlot('haf', s.name, 'border-rose-500', true)}</div>
+                                </details>
                                 <div class="pt-2 border-t">
                                     <button type="button" id="card_history_btn_Hafalan_${s.name}" onclick="window.toggleCardHistory('${s.name}', 'Hafalan')" class="w-full text-xs sm:text-sm font-black text-rose-600 dark:text-rose-400 hover:underline py-1 flex items-center gap-1.5">
                                         <i class="fa-solid ${isHafalanHistoryOpen ? 'fa-chevron-up' : 'fa-chevron-down'}"></i> ${isHafalanHistoryOpen ? 'Tutup Riwayat Hafalan' : 'Lihat Riwayat Hafalan'}
@@ -3012,22 +2984,11 @@
                                 </div>
                                 <div id="card_section_content_murojaah_${s.name}" class="space-y-3.5 ">
                                     ${window.renderTripleInputSlot('mur', s.name, 'border-purple-500')}
-                                    <div class="mt-3 p-3.5 rounded-2xl border border-sky-200 dark:border-sky-900/50 bg-white/70 dark:bg-slate-900/30 space-y-3">
-                                        <div class="flex items-center justify-between gap-2">
-                                            <div class="flex items-center gap-1.5 font-black text-xs text-sky-800 dark:text-sky-300"><i class="fa-solid fa-rotate"></i> Target Muroja'ah</div>
-                                            <span class="text-[9px] font-black text-slate-400">Untuk santri ini</span>
-                                        </div>
-                                        <div class="grid grid-cols-1 gap-3">
-                                            <label class="text-xs sm:text-sm font-black text-slate-500">Juz Otomatis<input id="inputTargetMurojaahJuz_${s.name}" type="text" placeholder="Otomatis dari surat/ayat" readonly class="rq-target-juz-auto mt-1 w-full p-4 rounded-2xl border-2 border-emerald-300 dark:border-emerald-700 text-sm sm:text-base font-black min-h-[60px]"></label>
-                                            <label class="text-xs sm:text-sm font-black text-slate-500">Nama Surat — Otomatis<select id="inputTargetMurojaahSurat_${s.name}" onchange="window.onInlineTargetSurahChange('murojaah','${s.name}')" class="mt-1 w-full p-4 rounded-2xl border-2 bg-white dark:bg-slate-900 text-sm sm:text-base font-black min-h-[60px]"><option value="">-- Pilih Surat --</option>${window.surahList.map(x => `<option value="${x.name}">${x.no}. ${x.name} (${x.ayat} ayat)</option>`).join('')}</select></label><div class="rq-target-surah-manual"><label class="text-xs sm:text-sm font-black text-slate-500">Nama Surat — Manual / Cari<input type="text" id="inputTargetMurojaahSuratSearch_${s.name}" placeholder="Ketik nama surat..." autocomplete="off" class="mt-1 w-full p-4 rounded-2xl border-2 bg-white dark:bg-slate-900 text-sm sm:text-base font-black min-h-[60px]" oninput="window.searchInlineTargetSurah('murojaah','${s.name}','legacy',this.value)" onfocus="window.searchInlineTargetSurah('murojaah','${s.name}','legacy',this.value)"><div id="inputTargetMurojaahSuratSearch_${s.name}_dropdown" class="hidden mt-1 max-h-56 overflow-y-auto bg-white dark:bg-slate-900 border-2 border-slate-300 dark:border-slate-700 rounded-xl shadow-xl"></div></label></div>
-                                            <label class="text-xs sm:text-sm font-black text-slate-500">Target ayat<input id="inputTargetMurojaahAyat_${s.name}" type="number" min="1" inputmode="numeric" placeholder="Jumlah ayat" class="mt-1 w-full p-4 rounded-2xl border-2 bg-white dark:bg-slate-900 text-sm sm:text-base font-black min-h-[60px]"></label>
-                                            <label class="flex items-center gap-2 p-2.5 rounded-xl border border-sky-200 dark:border-sky-800 bg-white/70 dark:bg-slate-900/60 text-[10px] font-black text-slate-700 dark:text-slate-300"><input type="checkbox" id="inputTargetMurojaahTampilLaporan_${s.name}" class="w-4 h-4 rounded text-sky-600" checked onchange="window.onTargetReportPermissionChange('murojaah','${s.name}','legacy',this.checked)"><span>Izinkan surat ini tampil di Laporan / WA</span></label>
-                                            <div class="grid grid-cols-1 gap-3"><label class="text-xs sm:text-sm font-black text-slate-500">Tanggal mulai<input id="inputTargetMurojaahMulai_${s.name}" type="date" class="mt-1 w-full p-4 rounded-2xl border-2 bg-white dark:bg-slate-900 text-sm sm:text-base font-black min-h-[60px]"></label><label class="text-xs sm:text-sm font-black text-slate-500">Tanggal selesai<input id="inputTargetMurojaahSelesai_${s.name}" type="date" class="mt-1 w-full p-4 rounded-2xl border-2 bg-white dark:bg-slate-900 text-sm sm:text-base font-black min-h-[60px]"></label></div>
-                                        </div>
-                                        <div id="inputTargetMurojaahInfo_${s.name}" class="text-[9px] font-bold text-slate-500"></div>
-                                        <button type="button" onclick='window.saveInputTarget("murojaah", ${JSON.stringify(s.name)})' class="w-full py-2.5 bg-sky-600 hover:bg-sky-700 text-white rounded-xl font-black text-[10px] active:scale-[.99]"><i class="fa-solid fa-floppy-disk mr-1"></i> Simpan Target Muroja'ah</button>
-                                        <div id="inputTargetMurojaahProgress_${s.name}"></div>
+                                    <div class="flex flex-col items-start gap-1.5 rounded-lg border border-purple-200 dark:border-purple-800 px-2.5 py-2">
+                                        <span id="murojaah_input_date_${s.name}" aria-live="polite" class="block text-[10px] font-bold text-slate-600 dark:text-slate-300">Input terakhir: belum ada input</span>
+                                        <button type="button" onclick="window.saveSectionData('${s.name}', 'murojaah')" class="px-4 py-2.5 bg-purple-600 hover:bg-purple-700 text-white rounded-xl font-black text-xs shadow-md transition active:scale-95"><i class="fa-solid fa-paper-plane mr-1"></i> OK KIRIM</button>
                                     </div>
+                                    
                                     <div class="pt-3.5 border-t border-purple-200 dark:border-purple-800 space-y-3">
                                         <div>
                                             <div class="flex items-center justify-between mb-1.5">
@@ -3058,12 +3019,12 @@
                                             <input type="text" id="mur_cat_desc_${s.name}" oninput="window.cacheFormInput(this, '${s.name}_mur_cat_desc')" value="${parsedMurCatDesc}" placeholder="Keterangan tambahan..." class="w-full p-4 bg-transparent border-2 border-slate-300 dark:border-slate-700 rounded-2xl text-sm sm:text-base font-black min-h-[60px]">
                                         </div>
                                     </div>
-                                    <div class="flex items-center gap-2">
-                                        <button type="button" onclick="window.saveSectionData('${s.name}', 'murojaah')" class="flex-1 py-4 bg-purple-600 hover:bg-purple-700 text-white rounded-2xl font-black text-sm sm:text-base shadow-md transition flex items-center justify-center gap-2 active:scale-95">
-                                            <i class="fa-solid fa-paper-plane"></i> Simpan &amp; Sinkron Muroja'ah (${s.name})
-                                        </button>
-                                    </div>
+
                                 </div>
+                                <details class="mt-3 rounded-xl border border-purple-200 dark:border-purple-800 bg-white/70 dark:bg-slate-900/30 p-3">
+                                    <summary class="cursor-pointer list-none flex items-center gap-2 text-xs sm:text-sm font-black text-purple-700 dark:text-purple-300"><i class="fa-solid fa-plus"></i> Tambah Pilihan Muroja'ah Lagi <span class="ml-auto text-[10px] font-bold text-slate-500">Buka / tutup</span></summary>
+                                    <div id="murojaah_additional_slots_${s.name}" class="space-y-3.5 mt-3">${window.renderTripleInputSlot('mur', s.name, 'border-purple-500', true)}</div>
+                                </details>
                                 <div class="pt-2 border-t">
                                     <button type="button" id="card_history_btn_Murojaah_${s.name}" onclick="window.toggleCardHistory('${s.name}', 'Murojaah')" class="w-full text-xs sm:text-sm font-black text-purple-700 dark:text-purple-400 hover:underline py-2 flex items-center justify-start gap-1.5">
                                         <i class="fa-solid ${isMurojaahHistoryOpen ? 'fa-chevron-up' : 'fa-chevron-down'}"></i> ${isMurojaahHistoryOpen ? 'Tutup Riwayat Murojaah' : 'Lihat Riwayat Murojaah'}
@@ -3255,7 +3216,17 @@
                                 window.cardHistoryToggleState[`${name}_history_Bacaan`] = true;
                 const badge = document.getElementById(`save_badge_bacaan_${name}`);
                 if (badge) { badge.classList.remove('hidden'); setTimeout(() => badge.classList.add('hidden'), 3000); }
-                window.showToast("💾 Alhamdulillah sudah di input", "success");
+                const updateBacaanInputTimestamp = () => {
+                    const bacDateLabel = document.getElementById(`bacaan_input_date_${name}`);
+                    if (bacDateLabel) {
+                        // Samakan format hari, tanggal, dan jam dengan Live Laporan WA.
+                        bacDateLabel.textContent = `Input terakhir: ${formattedTimeStr}`;
+                    }
+                };
+                updateBacaanInputTimestamp();
+                // Jika tampilan kartu dirender ulang setelah penyimpanan, pasang lagi label waktunya.
+                requestAnimationFrame(updateBacaanInputTimestamp);
+                window.showToast("💾 Bacaan berhasil dikirim dan disimpan", "success");
             } 
             else if (sectionType === 'hafalan') {
                 const hafalanFormatted = window.extractSlotEntries('haf', name);
@@ -3299,7 +3270,10 @@
                     rekapanList.unshift({ timestamp: formattedTimeStr, tanggal: tanggalVal, rawTime: nowObj.getTime(), id: s.id, name: s.name, category: 'HAFALAN', catatan: hafalanCatCombined, type: 'rekapan' });
                 }
 
-                                window.cardHistoryToggleState[`${name}_history_Hafalan`] = true;
+                                const hafDateLabel = document.getElementById(`hafalan_input_date_${name}`);
+                if (hafDateLabel) hafDateLabel.textContent = `Input terakhir: ${formattedTimeStr}`;
+                requestAnimationFrame(() => { const el = document.getElementById(`hafalan_input_date_${name}`); if (el) el.textContent = `Input terakhir: ${formattedTimeStr}`; });
+                window.cardHistoryToggleState[`${name}_history_Hafalan`] = true;
                 const badge = document.getElementById(`save_badge_hafalan_${name}`);
                 if (badge) { badge.classList.remove('hidden'); setTimeout(() => badge.classList.add('hidden'), 3000); }
                 window.showToast("💾 Alhamdulillah sudah di input", "success");
@@ -3348,7 +3322,10 @@
                     rekapanList.unshift({ timestamp: formattedTimeStr, tanggal: tanggalVal, rawTime: nowObj.getTime(), id: s.id, name: s.name, category: "MUROJA'AH DI KELAS", catatan: murojaahCatCombined, type: 'rekapan' });
                 }
 
-                                window.cardHistoryToggleState[`${name}_history_Murojaah`] = true;
+                const murDateLabel = document.getElementById(`murojaah_input_date_${name}`);
+                if (murDateLabel) murDateLabel.textContent = `Input terakhir: ${formattedTimeStr}`;
+                requestAnimationFrame(() => { const el = document.getElementById(`murojaah_input_date_${name}`); if (el) el.textContent = `Input terakhir: ${formattedTimeStr}`; });
+                window.cardHistoryToggleState[`${name}_history_Murojaah`] = true;
                 const badge = document.getElementById(`save_badge_murojaah_${name}`);
                 if (badge) { badge.classList.remove('hidden'); setTimeout(() => badge.classList.add('hidden'), 3000); }
                 window.showToast("💾 Alhamdulillah sudah di input", "success");
@@ -3616,6 +3593,22 @@
 
             if (isValidText(bacaanVal)) {
                 let section = `📖 *Bacaan:*\n${waOneLine(bacaanVal)}`;
+                const showBacaanDate = localStorage.getItem('rq_inline_live_show_bacaan_date') === '1';
+                const bacaanDateValue = (bacSource === 'personal' ? (personal?.bacaanTanggal || personal?.tanggal || '') : (lastBacObj?.tanggal || ''));
+                if (showBacaanDate && bacaanDateValue) {
+                    const dateObj = new Date(`${bacaanDateValue}T00:00:00`);
+                    if (!Number.isNaN(dateObj.getTime())) {
+                        const days = ['Ahad','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
+                        const months = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+                        const sourceTimestamp = (bacSource === 'personal' ? (personal?.bacaanTimestamp || personal?.timestamp || '') : (lastBacObj?.rawTime || lastBacObj?.timestamp || ''));
+                        let timeText = '';
+                        if (sourceTimestamp) {
+                            const timeObj = typeof sourceTimestamp === 'number' ? new Date(sourceTimestamp) : new Date(sourceTimestamp);
+                            if (!Number.isNaN(timeObj.getTime())) timeText = ` pukul ${String(timeObj.getHours()).padStart(2,'0')}.${String(timeObj.getMinutes()).padStart(2,'0')} WIB`;
+                        }
+                        section += `\n- Input: ${days[dateObj.getDay()]}, ${dateObj.getDate()} ${months[dateObj.getMonth()]} ${dateObj.getFullYear()}${timeText}`;
+                    }
+                }
                 if (isValidText(bacaanStat)) section += `\n- Nilai: ${waOneLine(bacaanStat)}`;
                 if (isValidText(bacaanProgressStatus)) section += `\n- ${waOneLine(bacaanProgressStatus)}`;
                 if (isValidText(bacaanCat)) section += `\n- Catatan: ${waOneLine(bacaanCat)}`;
@@ -3625,58 +3618,28 @@
             // Target Tab 1 bersifat opsional. Jika checkbox dicentang,
             // target ditempatkan tepat setelah bagian yang bersangkutan:
             // Hafalan -> Target Hafalan, Muroja'ah -> Target Muroja'ah.
-            // Target Yang Akan Datang tetap hanya berada di Tab 2.
+            // Target lama tetap dipertahankan di penyimpanan untuk kompatibilitas, tetapi tidak ditampilkan dalam laporan baru.
             const includeTargetInLiveTab1 = localStorage.getItem('rq_inline_live_tab1_include_target') === '1';
-            const targetDbForLive = (() => { try { return JSON.parse(localStorage.getItem('rq_target_hafalan_murojaah_v2') || '{}') || {}; } catch (_) { return {}; } })();
-            const targetVisibleItemsForLive = (t) => Array.isArray(t?.items) && t.items.length
-                ? t.items.filter(x => x?.tampilLaporan !== false)
-                : (t?.surat ? [{surat:t.surat,ayat:Number(t.ayat)||0,juz:t.juz||'',tampilLaporan:t?.tampilLaporan!==false}] : []);
-            const targetForLive = (t) => { const items=targetVisibleItemsForLive(t); return items.length ? {...t, surat:items[0].surat, ayat:Number(items[0].ayat)||0, juz:items[0].juz||'', items:[{...items[0],tampilLaporan:true}]} : null; };
-            const targetLabelForLive = (t) => targetVisibleItemsForLive(t).map(x => `${x.surat || '-'} (${Number(x.ayat) || 0} ayat)`).join(' · ') || 'Belum ditentukan';
-            const targetJuzForLive = (t) => [...new Set(targetVisibleItemsForLive(t).map(x => String(x?.juz || '').trim()).filter(Boolean))].join(', ');
-            const periodeForLive = (mulai, selesai) => {
-                if (!mulai || !selesai) return '-';
-                const d1 = new Date(`${mulai}T00:00:00`), d2 = new Date(`${selesai}T00:00:00`);
-                const hari = Math.max(0, Math.round((d2 - d1) / 86400000));
-                const f = v => { const d = new Date(`${v}T00:00:00`); const m = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des']; return `${d.getDate()} ${m[d.getMonth()]}`; };
-                return `${f(mulai)} s.d ${f(selesai)} ( ${hari} Hari )`;
-            };
-            const currentHafalanTarget = targetDbForLive?.hafalan?.[s.name]?.jangkaPendek || null;
-            const murojaahTarget = targetDbForLive?.murojaah?.[s.name] || null;
+            // Live WA memakai fungsi laporan target yang sama dengan laporan personal/grup,
+            // agar target yang disimpan pada sistem target baru tampil konsisten.
             const targetHafalanLive = (() => {
-                if (!includeTargetInLiveTab1 || !currentHafalanTarget) return '';
-                const visibleTarget=targetForLive(currentHafalanTarget);
-                if(!visibleTarget)return '';
-                const q = window.rqTargetEngine?.calc('hafalan', s.name, visibleTarget) || {};
-                const desc = targetLabelForLive(currentHafalanTarget);
-                const juz = targetJuzForLive(currentHafalanTarget);
-                return [
-                    `🎯 *Target Hafalan*`,
-                    `• *Target Saat ini:* ${desc}`,
-                    juz ? `• *Juz:* ${juz}` : '',
-                    `• *Total Target Ayat:* ${Number(q.ayatTarget) || 0}`,
-                    `• *Total Realisasi Ayat:* ${Number(q.ayatReal) || 0}`,
-                    `• *Progress:* ${Number(q.ayatPct) || 0}%`,
-                    `• *Periode:* ${periodeForLive(currentHafalanTarget.mulai, currentHafalanTarget.selesai)}`
-                ].filter(Boolean).join('\n');
+                if (!includeTargetInLiveTab1 || typeof window.getTargetReportText !== 'function') return '';
+                return window.getTargetReportText('hafalan', s.name) || '';
             })();
             const targetMurojaahLive = (() => {
-                if (!includeTargetInLiveTab1 || !murojaahTarget || murojaahTarget.tampilLaporan === false) return '';
-                const q = window.rqTargetEngine?.calc('murojaah', s.name, murojaahTarget) || {};
-                const desc = targetLabelForLive(murojaahTarget);
-                const juz = targetJuzForLive(murojaahTarget);
-                return [
-                    `🎯 *Target Muroja’ah:* ${desc}`,
-                    juz ? `• *Juz:* ${juz}` : '',
-                    `• *Total Target Ayat:* ${Number(q.ayatTarget) || 0}`,
-                    `• *Total Realisasi Ayat:* ${Number(q.ayatReal) || 0}`,
-                    `• *Progress:* ${Number(q.pct) || 0}%`,
-                    `• *Periode:* ${periodeForLive(murojaahTarget.mulai, murojaahTarget.selesai)}`
-                ].filter(Boolean).join('\n');
+                if (!includeTargetInLiveTab1 || typeof window.getTargetReportText !== 'function') return '';
+                return window.getTargetReportText('murojaah', s.name) || '';
             })();
 
             if (isValidText(hafalanVal)) {
                 let section = `⭐ *Hafalan Baru:*\n${waOneLine(hafalanVal)}`;
+                if (localStorage.getItem('rq_inline_live_show_bacaan_date') === '1') {
+                    const dateValue = (hafSource === 'personal' ? (personal?.hafalanTanggal || personal?.tanggal || '') : (lastHafObj?.tanggal || ''));
+                    const stamp = (hafSource === 'personal' ? (personal?.hafalanTimestamp || personal?.timestamp || '') : (lastHafObj?.rawTime || lastHafObj?.timestamp || ''));
+                    const d = dateValue ? new Date(`${dateValue}T00:00:00`) : (stamp ? new Date(stamp) : null);
+                    const t = stamp ? new Date(stamp) : null;
+                    if (d && !Number.isNaN(d.getTime())) section += `\n- Input: ${['Ahad','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'][d.getDay()]}, ${d.getDate()} ${['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'][d.getMonth()]} ${d.getFullYear()}${t && !Number.isNaN(t.getTime()) ? ` pukul ${String(t.getHours()).padStart(2,'0')}.${String(t.getMinutes()).padStart(2,'0')} WIB` : ''}`;
+                }
                 if (isValidText(hafalanStat)) section += `\n- Nilai: ${waOneLine(hafalanStat)}`;
                 if (isValidText(hafalanProgressStatus)) section += `\n- ${waOneLine(hafalanProgressStatus)}`;
                 if (isValidText(hafalanCat)) section += `\n- Catatan: ${waOneLine(hafalanCat)}`;
@@ -3686,6 +3649,13 @@
 
             if (isValidText(murojaahVal)) {
                 let section = `🔄 *Muroja'ah di Kelas:*\n${waOneLine(murojaahVal)}`;
+                if (localStorage.getItem('rq_inline_live_show_bacaan_date') === '1') {
+                    const dateValue = (murSource === 'personal' ? (personal?.murojaahTanggal || personal?.tanggal || '') : (lastMurObj?.tanggal || ''));
+                    const stamp = (murSource === 'personal' ? (personal?.murojaahTimestamp || personal?.timestamp || '') : (lastMurObj?.rawTime || lastMurObj?.timestamp || ''));
+                    const d = dateValue ? new Date(`${dateValue}T00:00:00`) : (stamp ? new Date(stamp) : null);
+                    const t = stamp ? new Date(stamp) : null;
+                    if (d && !Number.isNaN(d.getTime())) section += `\n- Input: ${['Ahad','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'][d.getDay()]}, ${d.getDate()} ${['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'][d.getMonth()]} ${d.getFullYear()}${t && !Number.isNaN(t.getTime()) ? ` pukul ${String(t.getHours()).padStart(2,'0')}.${String(t.getMinutes()).padStart(2,'0')} WIB` : ''}`;
+                }
                 if (isValidText(murojaahStat)) section += `\n- Nilai: ${waOneLine(murojaahStat)}`;
                 if (isValidText(murojaahProgressStatus)) section += `\n- ${waOneLine(murojaahProgressStatus)}`;
                 if (isValidText(murojaahCat)) section += `\n- Catatan: ${waOneLine(murojaahCat)}`;
@@ -3707,7 +3677,7 @@
 
             // Laporan WA Personal di menu dan Live memakai format yang sama.
             // Tab 1 = Bacaan, Hafalan, Muroja'ah, Tugas.
-            // Tab 2 = Target Saat Ini dan Target Yang Akan Datang.
+            // Tab 2 = Target Hafalan dan Target Muroja’ah aktif.
             // Materi/Materi Tambahan TIDAK dimasukkan ke WA Personal.
             // LIVE WA dibuat benar-benar terpisah menjadi 2 tab.
             // Tab 1 tetap Bacaan + Hafalan + Muroja'ah + Tugas, dengan target opsional
@@ -3816,6 +3786,14 @@
             localStorage.setItem('rq_inline_live_tab1_include_target', checked ? '1' : '0');
             if (typeof window.generateWaReport === 'function') window.generateWaReport();
         };
+        window.toggleInlineLiveBacaanDate = function(checked) {
+            localStorage.setItem('rq_inline_live_show_bacaan_date', checked ? '1' : '0');
+            if (typeof window.generateWaReport === 'function') window.generateWaReport();
+        };
+        document.addEventListener('DOMContentLoaded', function() {
+            const dateToggle = document.getElementById('inlineLiveShowBacaanDate');
+            if (dateToggle) dateToggle.checked = localStorage.getItem('rq_inline_live_show_bacaan_date') === '1';
+        });
 
         window.switchInlineLiveReportTab = function(tab) {
             window.inlineLiveReportTab = Number(tab) === 2 ? 2 : 1;
@@ -4346,6 +4324,35 @@
                     localStorage.setItem('rq_version_operator_name', val);
                     localStorage.setItem('rq_import_operator_name', val);
                 }
+                // Ambil snapshot terbaru dari form yang sedang tampil sebelum membuat backup.
+                // Ini melengkapi rq_form_input_state_v1 tanpa menghapus kunci lama.
+                try {
+                    const cache = (window.localFormCache && typeof window.localFormCache === 'object')
+                        ? window.localFormCache : {};
+                    document.querySelectorAll('input[id], select[id], textarea[id]').forEach(el => {
+                        if (!el.id) return;
+                        if (el.type === 'file' || el.type === 'button' || el.type === 'submit') return;
+                        const value = el.type === 'checkbox' || el.type === 'radio'
+                            ? (el.checked ? (el.value || '1') : '')
+                            : String(el.value ?? '');
+                        cache[el.id] = value;
+                    });
+                    window.localFormCache = cache;
+                    localStorage.setItem('rq_form_input_state_v1', JSON.stringify(cache));
+                    // Simpan teks laporan yang sedang diketik/diedit, bukan hanya hasil generate terbaru.
+                    const reportDrafts = {};
+                    [
+                        'waMessagePreview','waMessagePreviewInline',
+                        'classReportMessagePreview','classReportMessagePreviewInline'
+                    ].forEach(id => {
+                        const el = document.getElementById(id);
+                        if (el) reportDrafts[id] = String(el.value ?? el.textContent ?? '');
+                    });
+                    localStorage.setItem('rq_csv_report_drafts_v1', JSON.stringify(reportDrafts));
+                } catch (snapshotError) {
+                    console.warn('Snapshot input/laporan CSV tidak lengkap:', snapshotError);
+                }
+
                 const now = new Date();
                 const wib = window.rqFormatWib(now);
                 const device = window.rqGetVersionDevice();
@@ -5375,6 +5382,21 @@
                     ['rq_massal_history_murojaah','Murojaah Bersama'],
                     ['rq_massal_history_tugas','Tugas Bersama']
                 ];
+                // Sertakan otomatis seluruh kunci riwayat tambahan yang digunakan versi aplikasi saat ini.
+                // Kunci yang sudah terdaftar tidak digandakan; data tetap dibaca apa adanya.
+                const knownHistoryKeys = new Set(historyDefs.map(x => x[0]));
+                for (let i = 0; i < localStorage.length; i++) {
+                    const key = localStorage.key(i);
+                    if (!key || knownHistoryKeys.has(key)) continue;
+                    if (/^rq_(?:history_|massal_history_)/i.test(key)) {
+                        const label = key
+                            .replace(/^rq_/i, '')
+                            .replace(/_/g, ' ')
+                            .replace(/\b\w/g, c => c.toUpperCase());
+                        historyDefs.push([key, label.slice(0,31)]);
+                        knownHistoryKeys.add(key);
+                    }
+                }
                 const commonCols=['No','Tanggal','Timestamp','ID Santri','Nama Santri','Kelas','Pengajar','Detail','Status','Progress','Catatan','Kategori','Data Lain'];
                 for(const [key,title] of historyDefs){
                     const arr=readArray(key).slice().sort((a,b)=>historyTime(b)-historyTime(a));
@@ -5388,8 +5410,14 @@
                 }
 
                 // 3. Target Hafalan/Murojaah sebagai cadangan tambahan.
-                const targetRaw=localStorage.getItem('rq_target_hafalan_murojaah_v2')||'';
-                let targetObj={}; try{targetObj=targetRaw?JSON.parse(targetRaw):{};}catch(_){targetObj={};}
+                // Ekspor target aktif yang dipakai aplikasi sekarang; fallback ke storage bila engine belum siap.
+                let targetObj={};
+                try {
+                    targetObj = window.rqTargetEngine?.getDB?.() || JSON.parse(localStorage.getItem('rq_target_hafalan_murojaah_v2')||'{}') || {};
+                } catch (_) {
+                    try { targetObj = JSON.parse(localStorage.getItem('rq_target_hafalan_murojaah_v2')||'{}') || {}; } catch(__) { targetObj={}; }
+                }
+                const targetRaw = JSON.stringify(targetObj);
                 const targetRows=[];
                 const walkTarget=(obj,path=[])=>{
                     if(obj && typeof obj==='object' && !Array.isArray(obj)){
@@ -5433,13 +5461,39 @@
 `<Worksheet ss:Name="Info"><Table>${header(['Informasi Backup','Nilai'])}${row(['Aplikasi','Monitoring Tahfizh RQ Al-Khansa'])}${row(['Tanggal Backup',now.toLocaleString('id-ID')])}${row(['Total Santri',master.length])}${row(['Catatan','Backup Excel berisi master santri, seluruh riwayat utama, target, kolom input, dan data localStorage non-undo. Data lokal tidak dihapus.'])}</Table></Worksheet>`+
  sheets.join('')+
 `</Workbook>`;
+                // Snapshot Kolom Input dan draft laporan WA ikut dimasukkan ke workbook.
+                let exportFormState={};
+                try { exportFormState=JSON.parse(localStorage.getItem('rq_form_input_state_v1')||'{}')||{}; } catch(_) { exportFormState={}; }
+                sheets.push(makeSheet('Kolom Input',['Kunci Input','Nilai Tersimpan'],Object.keys(exportFormState).map(k=>[k,safeText(exportFormState[k])])));
+                const visibleInputs=[];
+                try {
+                    document.querySelectorAll('input[id],select[id],textarea[id]').forEach(el=>{
+                        if(!el.id || ['file','button','submit'].includes(String(el.type||'').toLowerCase())) return;
+                        visibleInputs.push([el.id,el.type==='checkbox'||el.type==='radio'?(el.checked?(el.value||'1'):''):String(el.value??'')]);
+                    });
+                } catch(_) {}
+                sheets.push(makeSheet('Input Saat Download',['ID Kolom','Nilai Saat Download'],visibleInputs));
+                const draftRows=[];
+                ['waMessagePreview','waMessagePreviewInline','classReportMessagePreview','classReportMessagePreviewInline'].forEach(id=>{
+                    const el=document.getElementById(id);
+                    if(el) draftRows.push([id,String(el.value??el.textContent??'')]);
+                });
+                try {
+                    const drafts=JSON.parse(localStorage.getItem('rq_csv_report_drafts_v1')||'{}')||{};
+                    Object.keys(drafts).forEach(id=>{if(!draftRows.some(r=>r[0]===id))draftRows.push([id,safeText(drafts[id])]);});
+                } catch(_) {}
+                sheets.push(makeSheet('Draft Laporan WA',['ID Laporan','Teks Laporan'],draftRows));
+                const localRows=[];
+                for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&k.startsWith('rq_'))localRows.push([k,localStorage.getItem(k)??'']);}
+                sheets.push(makeSheet('Semua Data Lokal',['Key','Value'],localRows));
+
                 const blob=new Blob([workbook],{type:'application/vnd.ms-excel;charset=utf-8;'});
                 const url=URL.createObjectURL(blob);
                 const a=document.createElement('a'); a.href=url; a.download=`Backup_Rekapan_RQ_Al-Khansa_${stamp}.xls`;
                 document.body.appendChild(a); a.click(); a.remove();
                 setTimeout(()=>URL.revokeObjectURL(url),2000);
                 const totalHistory=historyDefs.reduce((n,[key])=>n+readArray(key).length,0);
-                window.showToast?.(`Backup Excel berhasil: ${master.length} santri + ${totalHistory} riwayat.`, 'success');
+                window.showToast?.(`Download Excel berhasil: ${master.length} santri + ${totalHistory} riwayat dari penyimpanan saat ini.`, 'success');
             }catch(e){
                 console.error('Backup Excel rekapan gagal:',e);
                 window.showToast?.('Download Excel gagal: '+(e?.message||e),'error');
@@ -7325,7 +7379,7 @@
                     <div id="inlineLiveWaContent" class="p-2.5 sm:p-3 space-y-2">
                         <div class="grid grid-cols-2 gap-2 p-1 rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-700">
                             <button type="button" id="inlineLiveTab1Btn" onclick="window.switchInlineLiveReportTab(1)" class="px-2.5 py-2 rounded-lg text-[9px] sm:text-[10px] font-black bg-emerald-600 text-white shadow-sm leading-tight">Tab 1<br><span class="font-bold">Bacaan · Hafalan · Muroja'ah · Tugas</span></button>
-                            <button type="button" id="inlineLiveTab2Btn" onclick="window.switchInlineLiveReportTab(2)" class="px-2.5 py-2 rounded-lg text-[9px] sm:text-[10px] font-black text-slate-700 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-800 leading-tight">Tab 2<br><span class="font-bold">Target Saat Ini · Yang Akan Datang</span></button>
+                            <button type="button" id="inlineLiveTab2Btn" onclick="window.switchInlineLiveReportTab(2)" class="px-2.5 py-2 rounded-lg text-[9px] sm:text-[10px] font-black text-slate-700 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-800 leading-tight">Tab 2<br><span class="font-bold">Target Hafalan &amp; Muroja’ah</span></button>
                         </div>
                         <textarea id="waMessagePreviewInline" rows="14" oninput="const x=document.getElementById('waMessagePreview'); if(x) x.value=this.value" class="wa-report-textarea w-full p-3 border rounded-xl font-mono leading-relaxed custom-scrollbar" style="font-size:14px; line-height:1.65; height:60vh; min-height:380px; max-height:680px; overflow-y:auto; overflow-x:hidden; resize:vertical; scrollbar-gutter:stable;"></textarea>
                         <div class="grid grid-cols-2 gap-2">
@@ -7336,6 +7390,10 @@
                         <label class="mt-2 flex items-center gap-2 px-3 py-2.5 rounded-xl border border-emerald-300 dark:border-emerald-700 bg-emerald-50/70 dark:bg-emerald-950/30 cursor-pointer select-none">
                             <input type="checkbox" id="inlineLiveIncludeTargetTab1" onchange="window.toggleInlineLiveTargetInTab1(this.checked)" class="w-5 h-5 accent-emerald-600 shrink-0">
                             <span class="text-[10px] sm:text-[11px] font-black text-emerald-800 dark:text-emerald-200 leading-tight">Tampilkan Target Hafalan &amp; Muroja'ah di Tab 1</span>
+                        </label>
+                        <label class="flex items-center gap-2 px-3 py-2.5 rounded-xl border border-sky-300 dark:border-sky-700 bg-sky-50/70 dark:bg-sky-950/30 cursor-pointer select-none">
+                            <input type="checkbox" id="inlineLiveShowBacaanDate" onchange="window.toggleInlineLiveBacaanDate(this.checked)" class="w-5 h-5 accent-sky-600 shrink-0">
+                            <span class="text-[10px] sm:text-[11px] font-black text-sky-800 dark:text-sky-200 leading-tight">Tampilkan hari, tanggal, dan jam input pada bagian Bacaan</span>
                         </label>
                     </div>
                 </aside>
@@ -7588,6 +7646,10 @@
                         </div>
                     </div>
 
+                    <label class="flex items-center gap-2 px-3 py-2.5 rounded-xl border border-emerald-300 dark:border-emerald-700 bg-emerald-50/70 dark:bg-emerald-950/30 cursor-pointer select-none">
+                        <input type="checkbox" id="includeTargetWaCheckbox" checked onchange="window.generateWaReport()" class="w-5 h-5 accent-emerald-600 shrink-0">
+                        <span class="text-xs font-extrabold text-emerald-800 dark:text-emerald-200">Cantumkan target dan progres Ananda di laporan WA</span>
+                    </label>
                     <div>
                         <div class="flex items-center justify-between gap-2 flex-wrap">
                             <label class="font-black text-xs sm:text-sm text-slate-700 dark:text-slate-200">Preview Pesan:</label>
@@ -8006,7 +8068,12 @@ Ikuti aturan berikut:
 - Jangan langsung mengubah atau membuat file sebelum saya memberikan instruksi.
 
 Setelah saya mengirim file HTML dan file data, pahami terlebih dahulu seluruh struktur dan formatnya.
-Jangan melakukan perubahan apa pun sampai saya memberikan data dan instruksi berikutnya.</pre>
+Jangan melakukan perubahan apa pun sampai saya memberikan data dan instruksi berikutnya.
+
+ATURAN BACKUP TERBARU:
+- Backup CSV menu Data menggunakan format Type, Key, Value.
+- Data penting bukan hanya riwayat: rq_form_input_state_v1, tanggal/jam dan nilai terakhir Kolom Input, draft WA personal/grup, target, tracking, serta kunci rq_* yang relevan harus dipertahankan.
+- Jangan menghapus fitur atau struktur lain yang tidak diminta.</pre>
                                 <button type="button" onclick="window.rqCopyChatPrompt('rqChatPrompt1',this)" class="mt-2 w-full px-4 py-2.5 bg-violet-600 hover:bg-violet-700 text-white rounded-xl font-black text-xs flex items-center justify-center gap-2 shadow-md active:scale-95"><i class="fa-solid fa-copy"></i> Salin Prompt Tahap 1</button>
                             </div>
                         </div>
@@ -8040,7 +8107,12 @@ Tugas kamu:
 10. Identifikasi file/data apa yang perlu saya berikan agar data lama tetap lengkap.
 
 Setelah selesai memahami HTML, jangan langsung mengolah data.
-Beritahu saya bahwa kamu sudah memahami struktur HTML dan kemudian tunggu saya memberikan file CSV data terbaru dari web.</pre>
+Beritahu saya bahwa kamu sudah memahami struktur HTML dan kemudian tunggu saya memberikan file CSV data terbaru dari web.
+
+PEMERIKSAAN KHUSUS BACKUP:
+- Pelajari fungsi Download Semua Data CSV di menu Data dan Download Excel Semua Santri + Riwayat di menu Rekapan.
+- Pastikan ekspor mencakup master santri, semua riwayat, rq_form_input_state_v1, nilai Input terkini beserta tanggal/jam, draft WA personal/grup, target, tracking, dan data lokal penting.
+- Pada tahap ini jangan mengubah kode atau data.</pre>
                                 <button type="button" onclick="window.rqCopyChatPrompt('rqChatPrompt3',this)" class="mt-2 w-full px-4 py-2.5 bg-violet-600 hover:bg-violet-700 text-white rounded-xl font-black text-xs flex items-center justify-center gap-2 shadow-md active:scale-95"><i class="fa-solid fa-copy"></i> Salin Prompt Tahap 3</button>
                             </div>
                         </div>
@@ -8069,7 +8141,12 @@ Tugas kamu:
 Untuk sementara jangan membuat file hasil akhir.
 Cukup pahami dan siapkan data tersebut sebagai data dasar.
 
-Setelah selesai, beri tahu saya bahwa data lama sudah siap dan saya akan mulai memberikan data baru.</pre>
+Setelah selesai, beri tahu saya bahwa data lama sudah siap dan saya akan mulai memberikan data baru.
+
+PEMERIKSAAN ISI BACKUP:
+- Periksa kunci rq_* penting, terutama rq_form_input_state_v1, tanggal/jam Input, draft WA personal/grup, target, tracking, dan semua riwayat.
+- Jangan anggap CSV lengkap hanya karena berhasil dibuka; periksa isi Type, Key, Value.
+- Jangan menghapus atau mengganti data lama.</pre>
                                 <button type="button" onclick="window.rqCopyChatPrompt('rqChatPrompt4',this)" class="mt-2 w-full px-4 py-2.5 bg-violet-600 hover:bg-violet-700 text-white rounded-xl font-black text-xs flex items-center justify-center gap-2 shadow-md active:scale-95"><i class="fa-solid fa-copy"></i> Salin Prompt Tahap 4</button>
                             </div>
                         </div>
@@ -8099,7 +8176,14 @@ Aturan pencocokan:
 7. Pertahankan seluruh data lama dan tambahkan data baru sesuai instruksi saya.
 8. Jangan menghapus atau menimpa riwayat lama secara sembarangan.
 
-Saya akan melanjutkan memberikan nama, kelas, lalu data hafalan/bacaan/murojaah.</pre>
+Saya akan melanjutkan memberikan nama, kelas, lalu data hafalan/bacaan/murojaah.
+
+ATURAN DATA INPUT DAN BACKUP:
+- Proses hanya santri dan jenis data yang saya sebut.
+- Pertahankan tanggal/jam yang saya berikan atau tersimpan di Kolom Input.
+- Jangan menimpa draft WA personal/grup yang sudah diketik jika tidak saya minta.
+- Untuk pemindahan antarperangkat, sertakan rq_form_input_state_v1 dan data Input relevan, bukan hanya riwayat.
+- Jika nama, tanggal, atau ayat tidak jelas, tanyakan; jangan menebak.</pre>
                                 <button type="button" onclick="window.rqCopyChatPrompt('rqChatPrompt5',this)" class="mt-2 w-full px-4 py-2.5 bg-violet-600 hover:bg-violet-700 text-white rounded-xl font-black text-xs flex items-center justify-center gap-2 shadow-md active:scale-95"><i class="fa-solid fa-copy"></i> Salin Prompt Tahap 5</button>
                             </div>
                         </div>
@@ -8142,7 +8226,13 @@ Data → Import Data → Gabungkan.
 
 File hasil harus tetap kompatibel dengan format CSV web RQ Al-Khansa. Jangan mengubah format CSV yang dibutuhkan oleh web.
 
-PENTING: jangan memilih atau menyarankan mode Ganti. Hasil ini ditujukan untuk mode Gabungkan agar data lama tetap dipertahankan.</pre>
+PENTING: jangan memilih atau menyarankan mode Ganti. Hasil ini ditujukan untuk mode Gabungkan agar data lama tetap dipertahankan.
+
+PEMERIKSAAN WAJIB SEBELUM FILE FINAL:
+- Sertakan dan verifikasi master santri, seluruh riwayat, rq_form_input_state_v1, tanggal/jam dan nilai terakhir Kolom Input, draft WA personal/grup, target, tracking, serta kunci rq_* yang relevan.
+- Gunakan format Type, Key, Value sesuai CSV backup web; jangan membuat format impor baru.
+- Data yang tidak disebut harus tetap sama. Gunakan MERGE, bukan REPLACE.
+- Berikan ringkasan jumlah santri, jumlah riwayat, dan kategori data yang dibawa. Jangan mengklaim sudah terimpor ke web.</pre>
                                 <button type="button" onclick="window.rqCopyChatPrompt('rqChatPrompt6',this)" class="mt-2 w-full px-4 py-2.5 bg-violet-600 hover:bg-violet-700 text-white rounded-xl font-black text-xs flex items-center justify-center gap-2 shadow-md active:scale-95"><i class="fa-solid fa-copy"></i> Salin Prompt Tahap 6</button>
                             </div>
                             <div class="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/20 border border-rose-200 dark:border-rose-800 text-[10px] sm:text-[11px] font-black text-rose-800 dark:text-rose-200">Saat memasukkan hasil kembali ke web, gunakan <b>Gabungkan</b> agar data lama tetap dipertahankan. Jangan pilih <b>Ganti</b> kecuali memang ingin mengganti seluruh data.</div>
@@ -8776,8 +8866,8 @@ html.dark #rqSafetyBackupBox #rqSafetyBackupLocation b{color:#ecfdf5 !important}
   };
   const getDB=()=>{try{
     const cur=JSON.parse(localStorage.getItem(KEY)||'{}')||{};
-    const old=JSON.parse(localStorage.getItem('rq_target_hafalan_murojaah_v1')||'{}')||{};
-    if(!Object.keys(cur).length&&Object.keys(old).length){ localStorage.setItem(KEY,JSON.stringify(old)); return old; }
+    // Sistem aktif hanya membaca target dari rq_target_hafalan_murojaah_v2.
+    // Kunci v1 tidak lagi dimigrasikan otomatis ke laporan target aktif.
     if(cur.hafalan){
       for(const name of Object.keys(cur.hafalan)){
         const t=cur.hafalan[name];
@@ -9095,7 +9185,7 @@ html.dark #rqSafetyBackupBox #rqSafetyBackupLocation b{color:#ecfdf5 !important}
 (function(){
  const KEY='rq_target_hafalan_murojaah_v2';
  const esc=v=>String(v??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');
- const getDB=()=>{try{const cur=JSON.parse(localStorage.getItem(KEY)||'{}')||{};const old=JSON.parse(localStorage.getItem('rq_target_hafalan_murojaah_v1')||'{}')||{};if(!Object.keys(cur).length&&Object.keys(old).length){localStorage.setItem(KEY,JSON.stringify(old));return old;}if(cur.hafalan){for(const name of Object.keys(cur.hafalan)){const t=cur.hafalan[name];if(t&&t.ayat&&!t.jangkaPendek&&!t.akanDatang){cur.hafalan[name]={jangkaPendek:t,akanDatang:null};}}}return cur;}catch(_){return {}}};
+ const getDB=()=>{try{const cur=JSON.parse(localStorage.getItem(KEY)||'{}')||{};if(cur.hafalan){for(const name of Object.keys(cur.hafalan)){const t=cur.hafalan[name];if(t&&t.ayat&&!t.jangkaPendek&&!t.akanDatang){cur.hafalan[name]={jangkaPendek:t,akanDatang:null};}}}return cur;}catch(_){return {}}};
  const putDB=db=>localStorage.setItem(KEY,JSON.stringify(db));
  const hist=(type,name)=>{const k=type==='hafalan'?'rq_history_hafalan':'rq_history_murojaah';try{return JSON.parse(localStorage.getItem(k)||'[]').filter(x=>String(x?.name||'').trim().toLowerCase()===String(name||'').trim().toLowerCase());}catch(_){return []}};
  const dateKey=value=>{if(!value)return '';const raw=String(value).trim();let m=raw.match(/^(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})/);if(m)return `${m[1]}-${String(m[2]).padStart(2,'0')}-${String(m[3]).padStart(2,'0')}`;m=raw.match(/^(\d{1,2})[\/](\d{1,2})[\/](\d{4})/);if(m)return `${m[3]}-${String(m[2]).padStart(2,'0')}-${String(m[1]).padStart(2,'0')}`;const d=new Date(value);if(isNaN(d.getTime()))return '';return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`};
@@ -9126,17 +9216,17 @@ html.dark #rqSafetyBackupBox #rqSafetyBackupLocation b{color:#ecfdf5 !important}
  const targetItemList=t=>Array.isArray(t?.items)&&t.items.length?t.items:(t&&String(t.surat||'').trim()&&Number(t.ayat)>0?[{surat:t.surat,ayat:Number(t.ayat),juz:t.juz||''}]:[]);
  const targetItemsLabel=t=>targetItemList(t).map(x=>`${x.surat||'-'} (${Number(x.ayat)||0} ayat)`).join(' · ');
  const targetItemsJuz=t=>[...new Set(targetItemList(t).map(x=>String(x.juz||'').trim()).filter(Boolean))].join(', ');
- window.getTargetReportText=(type,name)=>{const fmtPeriode=(mulai,selesai)=>{if(!mulai||!selesai)return '-';const d1=new Date(`${mulai}T00:00:00`),d2=new Date(`${selesai}T00:00:00`),hari=Math.max(0,Math.round((d2-d1)/86400000));const f=v=>{const d=new Date(`${v}T00:00:00`),m=['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];return `${d.getDate()} ${m[d.getMonth()]}`};return `${f(mulai)} s.d ${f(selesai)} ( ${hari} Hari )`};if(type==='hafalan'){const d=getDB().hafalan?.[name];if(!d)return '';const a=d.jangkaPendek||null,b=d.akanDatang||null;const f=(label,t)=>{if(!t||t.tampilLaporan===false)return '';const q=calc('hafalan',name,t),desc=targetItemsLabel(t),juz=targetItemsJuz(t);return [`• *${label}:* ${desc||'Belum ditentukan'}`,juz?`• *Juz:* ${juz}`:'',`• *Total Target Ayat:* ${q.ayatTarget}`,`• *Total Realisasi Ayat:* ${q.ayatReal}`,`• *Progress:* ${q.ayatPct}%`,`• *Periode:*  ${fmtPeriode(t.mulai,t.selesai)}`].filter(Boolean).join('\n')};return [f('Target Saat ini',a),f('Target Yang Akan Datang',b)].filter(Boolean).join('\n\n');}const t=getDB()[type]?.[name];if(!t||t.tampilLaporan===false)return '';const q=calc(type,name,t),desc=targetItemsLabel(t),juz=targetItemsJuz(t);return [`• *Target Saat ini:* ${desc||'Belum ditentukan'}`,juz?`• *Juz:* ${juz}`:'',`• *Total Target Ayat:* ${q.ayatTarget}`,`• *Total Realisasi Ayat:* ${q.ayatReal}`,`• *Progress:* ${q.pct}%`,`• *Periode:*  ${fmtPeriode(t.mulai,t.selesai)}`].filter(Boolean).join('\n');};
- window.getTargetReportBlock=name=>{
+ window.getTargetReportText=(type,name)=>{const fmtPeriode=(mulai,selesai)=>{if(!mulai||!selesai)return '-';const f=v=>{const d=new Date(`${v}T00:00:00`),m=['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];return `${d.getDate()} ${m[d.getMonth()]}`};return `${f(mulai)} s.d. ${f(selesai)}`};const db=getDB();let t=null;if(type==='hafalan'){const d=db.hafalan?.[name];t=d?.jangkaPendek||((d&&!d.akanDatang&&!d.jangkaPendek&&d.ayat)?d:null)||d?.akanDatang||null}else t=db[type]?.[name]||null;if(!t||t.tampilLaporan===false)return '';const q=calc(type,name,t),items=targetItemList(t).filter(x=>x?.tampilLaporan!==false&&String(x?.surat||t.surat||'').trim()&&Number(x?.ayat||t.ayat)>0);if(!items.length)return '';const detail=items.map(x=>`${x.surat||t.surat||'Surat belum dipilih'} ayat 1–${Number(x.ayat||t.ayat)||0}`).join('; ');const total=Number(q.ayatTarget)||items.reduce((n,x)=>n+(Number(x.ayat)||0),0);const real=Math.min(total,Number(q.ayatReal)||0),pct=total>0?Math.max(0,Math.min(100,Math.round(real/total*100))):0;return [`🎯 *Target ${type==='hafalan'?'Hafalan':'Muroja’ah'} Ananda*`,`📖 ${detail}`,`📊 Progres: ${real} ayat dari ${total} ayat (${pct}%)`,`📝 Sisa ayat: ${Math.max(0,total-real)} ayat`,t.mulai&&t.selesai?`📅 Tanggal target: ${fmtPeriode(t.mulai,t.selesai)}`:''].filter(Boolean).join('\n')};
+  window.getTargetReportBlock=name=>{
   const db=getDB();
   const fmtP=(mulai,selesai)=>{if(!mulai||!selesai)return '-';const d1=new Date(`${mulai}T00:00:00`),d2=new Date(`${selesai}T00:00:00`),hari=Math.max(0,Math.round((d2-d1)/86400000));const f=v=>{const d=new Date(`${v}T00:00:00`),m=['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];return `${d.getDate()} ${m[d.getMonth()]}`};return `${f(mulai)} s.d ${f(selesai)} ( ${hari} Hari )`};
-  const validTarget=t=>!!(targetItemList(t).length&&String(t.mulai||'').trim()&&String(t.selesai||'').trim());
+  const validTarget=t=>!!(targetItemList(t).some(x=>String(x?.surat||t?.surat||'').trim()&&Number(x?.ayat||t?.ayat)>0)&&String(t.mulai||'').trim()&&String(t.selesai||'').trim());
   const blocks=[];
   const d=db.hafalan?.[name]||{};
-  const addHafalan=(label,t)=>{if(!validTarget(t))return;const q=calc('hafalan',name,t),desc=targetItemsLabel(t),juz=targetItemsJuz(t);blocks.push([`• *${label}:* ${desc}`,juz?`• *Juz:* ${juz}`:'',`• *Total Target Ayat:* ${q.ayatTarget}`,`• *Total Realisasi Ayat:* ${q.ayatReal}`,`• *Progress:* ${q.ayatPct}%`,`• *Periode:*  ${fmtP(t.mulai,t.selesai)}`].filter(Boolean).join('\n'));};
-  addHafalan('Target Saat ini',d.jangkaPendek); addHafalan('Target Yang Akan Datang',d.akanDatang);
+  const addHafalan=(label,t)=>{if(!validTarget(t))return;const q=calc('hafalan',name,t),desc=targetItemsLabel(t),juz=targetItemsJuz(t);blocks.push([`• *${label}:* ${desc}`,juz?`• *Juz:* ${juz}`:'',`• *Total Target Ayat:* ${q.ayatTarget}`,`• *Total Realisasi Ayat:* ${q.ayatReal}`,`• *Progress:* ${q.ayatPct}%`,`• *Sisa Ayat:* ${Math.max(0,Number(q.ayatTarget||0)-Number(q.ayatReal||0))} ayat`,`• *Tanggal Target:* ${fmtP(t.mulai,t.selesai)}`].filter(Boolean).join('\n'));};
+  addHafalan('Target Hafalan',d.jangkaPendek);
   const m=db.murojaah?.[name];
-  if(validTarget(m)){const q=calc('murojaah',name,m),desc=targetItemsLabel(m),juz=targetItemsJuz(m);blocks.push([`• *Target Muroja’ah:* ${desc}`,juz?`• *Juz:* ${juz}`:'',`• *Total Target Ayat:* ${q.ayatTarget}`,`• *Total Realisasi Ayat:* ${q.ayatReal}`,`• *Progress:* ${q.pct}%`,`• *Periode:*  ${fmtP(m.mulai,m.selesai)}`].filter(Boolean).join('\n'));}
+  if(validTarget(m)){const q=calc('murojaah',name,m),desc=targetItemsLabel(m),juz=targetItemsJuz(m);blocks.push([`• *Target Muroja’ah:* ${desc}`,juz?`• *Juz:* ${juz}`:'',`• *Total Target Ayat:* ${q.ayatTarget}`,`• *Total Realisasi Ayat:* ${q.ayatReal}`,`• *Progress:* ${q.pct}%`,`• *Sisa Ayat:* ${Math.max(0,Number(q.ayatTarget||0)-Number(q.ayatReal||0))} ayat`,`• *Tanggal Target:* ${fmtP(m.mulai,m.selesai)}`].filter(Boolean).join('\n'));}
   return blocks.length?`🎯 *Target & Perkembangan:*\n${blocks.join('\n\n')}`:'';
 };
  window.refreshInlineTargets=()=>{(window.santriList||[]).forEach(s=>{const n=String(s?.name||'').trim();if(document.getElementById(ids('hafalan',n,'jangkaPendek').j))load('hafalan',n,'jangkaPendek');if(document.getElementById(ids('hafalan',n,'akanDatang').j))load('hafalan',n,'akanDatang');if(document.getElementById(ids('murojaah',n).j))load('murojaah',n)})};
@@ -9165,9 +9255,19 @@ html.dark #rqSafetyBackupBox #rqSafetyBackupLocation b{color:#ecfdf5 !important}
   function calcTarget(name,t){if(!t)return {real:0,target:0,pct:0,rows:[],completeDate:'',lastAyat:0};const q=window.rqTargetEngine?.calc('hafalan',name,t)||{};return {real:Number(q.ayatCount)||0,target:Number(q.ayatTarget)||0,pct:Number(q.pct)||0,rows:q.rows||[],completeDate:q.completeDate||'',lastAyat:Number(q.lastAyat)||0};}
   function statusResult(t,q){if(!t)return {status:'Belum Mulai',result:'Belum dinilai'};const today=dkey(new Date()),mulai=dkey(t.mulai),selesai=dkey(t.selesai);if(today<mulai)return {status:'Belum Mulai',result:'Belum dinilai'};if(q.pct>=100)return {status:'Selesai',result:'Berhasil'};if(today>selesai)return {status:'Terlewat',result:'Tidak Berhasil'};return {status:'Sedang Berjalan',result:'Belum dinilai'};}
   function fmtDate(v){const d=dkey(v);if(!d)return '-';const [y,m,day]=d.split('-');return `${day}-${m}-${y}`;}
-  function targetText(name){const db=targetDB(),d=db.hafalan?.[name]||{};let legacy=d.ayat&&!d.jangkaPendek&&!d.akanDatang?d:null;const short=d.jangkaPendek||legacy||null,future=d.akanDatang||null;let out=`LAPORAN TARGET HAFALAN\nNama: ${name}\n\n`;
-    const block=(label,t)=>{if(!t||!t.mulai||!t.selesai)return '';const items=Array.isArray(t.items)&&t.items.length?t.items.filter(x=>x?.tampilLaporan!==false):(t.surat&&Number(t.ayat)>0?[{surat:t.surat,ayat:Number(t.ayat)||0,juz:t.juz||'-',tampilLaporan:t.tampilLaporan!==false}]:[]);if(!items.length)return '';return items.map(item=>{const one={...t,surat:item.surat||t.surat,ayat:Number(item.ayat)||0,juz:item.juz||t.juz,items:[{...item,tampilLaporan:true}]};const q=calcTarget(name,one),sr=statusResult(one,q),suratText=`${item.surat||'-'} (${Number(item.ayat)||0} ayat)`,juzText=String(item.juz||'-').trim();let s=`${label}\nSurat: ${suratText}\nJuz: ${juzText||'-'}\nTarget: ${q.target} ayat\nRealisasi: ${q.real}/${q.target} ayat\nProgress: ${q.pct}%\nPeriode: ${fmtDate(t.mulai)} s.d. ${fmtDate(t.selesai)}\nStatus: ${sr.status}\nHasil: ${sr.result}`;if(q.completeDate)s+=`\nTuntas: ${fmtDate(q.completeDate)}`;return s+'\n';}).join('\n');};
-    out+=block('TARGET JANGKA PENDEK',short)+'\n'+block('TARGET YANG AKAN DATANG',future);return out.trim();}
+  // Semua laporan target membaca sumber target aktif yang sama dengan laporan WA.
+  function targetText(name){
+    if(typeof window.getTargetReportBlock==='function'){
+      const block=window.getTargetReportBlock(name);
+      if(block) return `LAPORAN TARGET HAFALAN & MUROJA’AH\nNama: ${name}\n\n${block.replace(/\*+/g,'')}`;
+    }
+    if(typeof window.getTargetReportText==='function'){
+      const haf=window.getTargetReportText('hafalan',name)||'';
+      const mur=window.getTargetReportText('murojaah',name)||'';
+      return [`LAPORAN TARGET HAFALAN & MUROJA’AH\nNama: ${name}`,haf,mur].filter(Boolean).join('\n\n');
+    }
+    return `LAPORAN TARGET HAFALAN & MUROJA’AH\nNama: ${name}\nTarget belum tersedia.`;
+  }
   window.renderTargetReport=function(){const sel=document.getElementById('targetReportClassFilter'),grid=document.getElementById('targetReportSantriGrid'),ta=document.getElementById('targetReportPreview');if(!sel||!grid||!ta)return;if(!sel.options.length)sel.innerHTML=classes.map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join('');sel.value=window.targetReportClass||classes[0]||'';const list=(window.santriList||[]).filter(s=>s.class===window.targetReportClass);if(!window.selectedTargetReportSantri||!list.some(s=>s.name===window.selectedTargetReportSantri))window.selectedTargetReportSantri=list[0]?.name||'';grid.innerHTML=list.length?list.map(s=>`<button type="button" onclick='window.selectTargetReportSantri(${JSON.stringify(s.name)})' class="p-3 rounded-2xl border-2 font-black text-xs sm:text-sm ${s.name===window.selectedTargetReportSantri?'border-emerald-500 bg-emerald-50 dark:bg-emerald-950/40':'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800'}">${esc(s.name)}</button>`).join(''):'<div class="text-xs text-slate-400 font-bold col-span-full">Tidak ada santri pada kelas ini.</div>';ta.value=window.selectedTargetReportSantri?targetText(window.selectedTargetReportSantri):'Pilih santri untuk melihat laporan target.';}
   window.filterTargetReportClass=function(cls){window.targetReportClass=cls;window.selectedTargetReportSantri='';window.renderTargetReport();};
   window.selectTargetReportSantri=function(name){window.selectedTargetReportSantri=name;window.renderTargetReport();};
@@ -9175,6 +9275,11 @@ html.dark #rqSafetyBackupBox #rqSafetyBackupLocation b{color:#ecfdf5 !important}
   window.copyTargetReportText=async function(){const ta=document.getElementById('targetReportPreview');if(!ta)return;await window.copyTextRobust?.(ta.value,'Laporan target berhasil disalin.');};
   window.sendTargetReportDirect=function(){const text=document.getElementById('targetReportPreview')?.value||'';if(!text)return;const s=(window.santriList||[]).find(x=>x.name===window.selectedTargetReportSantri);const phone=(document.getElementById('waPhoneInput')?.value||s?.phone||'').replace(/[^0-9]/g,'');if(!phone)return window.showToast?.('Nomor WA wali belum tersedia.','error');window.open(`https://wa.me/${phone}?text=${encodeURIComponent(text)}`,'_blank');};
   window.jumpToInputSantriFromTargetReport=function(){const n=window.selectedTargetReportSantri;if(!n)return;window.selectedInputSantriName=n;if(typeof window.showSection==='function')window.showSection('input');setTimeout(()=>{const el=document.getElementById('card_'+n)||document.querySelector(`[id*="${CSS.escape(n)}"]`);el?.scrollIntoView({behavior:'smooth',block:'start'});},250);};
+  window.refreshAllTargetReports=function(name){
+    try { if(typeof window.generateWaReport==='function') window.generateWaReport(); } catch(_) {}
+    try { if(typeof window.renderTargetReport==='function' && (!name || name===window.selectedTargetReportSantri)) window.renderTargetReport(); } catch(_) {}
+    try { if(typeof window.renderSantriCardsAndTable==='function') window.renderSantriCardsAndTable(); } catch(_) {}
+  };
   document.addEventListener('DOMContentLoaded',()=>{setTimeout(()=>{const sel=document.getElementById('targetReportClassFilter');if(sel&&!sel.options.length){sel.innerHTML=classes.map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join('');sel.value=window.targetReportClass||classes[0]||'';}},300);});
 })();
 </script>
@@ -10207,6 +10312,68 @@ html.dark #rqSafetyBackupBox #rqSafetyBackupLocation b{color:#ecfdf5 !important}
 <style id="rq-hide-live-report-top-bar-all-devices">
   #inlineLiveReportBar { display: none !important; }
 </style>
+<script id="rq-slot-targets-v1">
+(function(){
+ const STORE='rq_slot_targets_v1';
+ const safeRead=()=>{try{return JSON.parse(localStorage.getItem(STORE)||'{}')}catch(e){return {}}};
+ const safeWrite=o=>{try{localStorage.setItem(STORE,JSON.stringify(o));return true}catch(e){return false}};
+ const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+ const getSurah=(cat,n,slot)=>document.getElementById(`${cat}_surah_search_${slot}_${n}`)?.value||document.getElementById(`${cat}_surah_${slot}_${n}`)?.value||'';
+ const getInput=(id)=>document.getElementById(id);
+ function pctFor(cat,name,slot,targetAyat,surah){
+   const keys=cat==='haf'?['rq_history_hafalan']:['rq_history_murojaah','rq_history_muroja\'ah']; let rows=[];
+   for(const k of keys){try{const a=JSON.parse(localStorage.getItem(k)||'[]');if(Array.isArray(a)){rows=a;break}}catch(e){}}
+   const done=new Set(); const norm=x=>String(x||'').trim().toLowerCase().replace(/[’']/g,'');
+   rows.filter(r=>r&&r.name===name).forEach(r=>{const sl=Array.isArray(r.slots)?r.slots[slot-1]:null;if(!sl||norm(sl.item)!==norm(surah))return;const a=parseInt(sl.start,10),b=parseInt(sl.end,10);if(Number.isFinite(a)&&Number.isFinite(b)&&a>0&&b>=a){for(let i=a;i<=b;i++)done.add(i)}});
+   return Math.max(0,Math.min(100,Math.round(done.size/Math.max(1,Number(targetAyat)||1)*100)));
+ }
+ function renderOne(cat,name,slot){
+   const cont=getInput(`slot_container_${cat}_${slot}_${name}`);if(!cont||cont.querySelector('.rq-slot-target-panel'))return;
+   const kind=cat==='haf'?'Hafalan':'Muroja’ah',color=cat==='haf'?'rose':'purple',key=`${cat}|${name}|${slot}`,db=safeRead(),v=db[key]||{};
+   const panel=document.createElement('div');panel.className=`rq-slot-target-panel mt-3 p-3 rounded-xl border-2 border-${color}-300 dark:border-${color}-800 bg-white/80 dark:bg-slate-900/50 space-y-2`;panel.innerHTML=`<div class="font-black text-xs text-${color}-700 dark:text-${color}-300">Target ${kind} ${slot}</div><label class="block text-[11px] font-bold">Surat target (otomatis dari input)<input class="rq-st-surah mt-1 w-full p-3 rounded-xl border-2 bg-white dark:bg-slate-900 text-sm font-black" readonly value="${esc(getSurah(cat,name,slot)||v.surah||'')}" /></label><label class="block text-[11px] font-bold">Target ayat<input class="rq-st-ayat mt-1 w-full p-3 rounded-xl border-2 bg-white dark:bg-slate-900 text-sm font-black" type="number" min="1" value="${esc(v.ayat||'')}" placeholder="Masukkan target ayat" /></label><div class="grid grid-cols-1 sm:grid-cols-2 gap-2"><label class="block text-[11px] font-bold">Tanggal mulai<input class="rq-st-start mt-1 w-full p-3 rounded-xl border-2 bg-white dark:bg-slate-900 text-sm" type="date" value="${esc(v.mulai||'')}" /></label><label class="block text-[11px] font-bold">Tanggal selesai<input class="rq-st-end mt-1 w-full p-3 rounded-xl border-2 bg-white dark:bg-slate-900 text-sm" type="date" value="${esc(v.selesai||'')}" /></label></div><div class="rq-st-progress text-[11px] font-black">Progress: 0%</div><div class="h-2 rounded-full bg-slate-200 overflow-hidden"><div class="rq-st-bar h-full bg-${color}-500 rounded-full" style="width:0%"></div></div><div class="grid grid-cols-2 gap-2"><button type="button" class="rq-st-reset py-2 rounded-xl border-2 border-slate-300 dark:border-slate-600 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-black text-xs">Reset</button><button type="button" class="rq-st-save py-2 rounded-xl bg-${color}-600 hover:bg-${color}-700 text-white font-black text-xs">Simpan Target ${kind} ${slot}</button></div>`;
+   cont.appendChild(panel);
+   const surahEl=panel.querySelector('.rq-st-surah'),ayatEl=panel.querySelector('.rq-st-ayat'),startEl=panel.querySelector('.rq-st-start'),endEl=panel.querySelector('.rq-st-end');
+   function syncSurah(){const current=getSurah(cat,name,slot);if(current){surahEl.value=current;const cache=safeRead();if(cache[key]&&cache[key].surah!==current){cache[key].surah=current;safeWrite(cache)}}updatePct()}
+   function updatePct(){const d=safeRead()[key]||{};const current=surahEl.value||d.surah||'';const pct=pctFor(cat,name,slot,d.ayat||ayatEl.value,current);panel.querySelector('.rq-st-progress').textContent=`Progress pilihan ${slot}: ${pct}%`;panel.querySelector('.rq-st-bar').style.width=pct+'%'}
+   panel.querySelector('.rq-st-reset').addEventListener('click',()=>{
+     const ok=confirm(`Reset Target ${kind} ${slot}?\n\nTarget ayat dan tanggal pada kolom ini akan dikosongkan, dan target tersimpan untuk pilihan ini dihapus. Riwayat hafalan/muroja’ah dan kolom Input tidak dihapus.`);
+     if(!ok)return;
+     ayatEl.value='';startEl.value='';endEl.value='';
+     const data=safeRead();delete data[key];safeWrite(data);
+     updatePct();window.showToast?.(`Kolom Target ${kind} ${slot} berhasil direset.`,'success');
+   });
+   panel.querySelector('.rq-st-save').addEventListener('click',()=>{const surah=surahEl.value||getSurah(cat,name,slot),ayat=Number(ayatEl.value),mulai=startEl.value,selesai=endEl.value;if(!surah)return window.showToast?.('Pilih surat pada input utama terlebih dahulu.','error');if(!Number.isInteger(ayat)||ayat<1)return window.showToast?.('Isi target ayat minimal 1.','error');if(!mulai||!selesai||selesai<mulai)return window.showToast?.('Periksa tanggal mulai dan selesai target.','error');const data=safeRead();data[key]={surah,ayat,mulai,selesai,updatedAt:new Date().toISOString()};if(!safeWrite(data))return window.showToast?.('Target tidak tersimpan karena kapasitas browser penuh.','error');updatePct();window.showToast?.(`Target ${kind} ${slot} tersimpan.`,'success')});
+   const search=getInput(`${cat}_surah_search_${slot}_${name}`),select=getInput(`${cat}_surah_${slot}_${name}`);[search,select].filter(Boolean).forEach(el=>el.addEventListener('change',syncSurah));if(search)search.addEventListener('input',syncSurah);syncSurah();
+ }
+ function scan(){if(!Array.isArray(window.santriList))return;window.santriList.forEach(s=>{[1,2,3].forEach(slot=>{renderOne('haf',s.name,slot);renderOne('mur',s.name,slot)})})}
+ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',scan);else scan();
+ const obs=new MutationObserver(()=>scan());obs.observe(document.body,{childList:true,subtree:true});setTimeout(scan,700);setTimeout(scan,1800);
+})();
+</script>
+ 
+<script id="rq-csv-report-draft-restore-v1">
+(function(){
+  function restoreDrafts(){
+    try {
+      const raw = localStorage.getItem('rq_csv_report_drafts_v1');
+      if (!raw) return;
+      const drafts = JSON.parse(raw);
+      if (!drafts || typeof drafts !== 'object') return;
+      Object.keys(drafts).forEach(id => {
+        const el = document.getElementById(id);
+        const value = drafts[id];
+        if (el && typeof value === 'string' && value.length) el.value = value;
+      });
+    } catch(e) { console.warn('Pemulihan draft laporan CSV gagal:', e); }
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', function(){ setTimeout(restoreDrafts, 2200); });
+  } else {
+    setTimeout(restoreDrafts, 2200);
+  }
+})();
+</script>
+
 </body>
 
 <script>
@@ -11074,9 +11241,9 @@ html.dark #rqSafetyBackupBox #rqSafetyBackupLocation b{color:#ecfdf5 !important}
       const parts=[];
       const fmtP=(mulai,selesai)=>{if(!mulai||!selesai)return '-';const d1=new Date(`${mulai}T00:00:00`),d2=new Date(`${selesai}T00:00:00`);const hari=Math.max(0,Math.round((d2-d1)/86400000));const f=v=>{const d=new Date(`${v}T00:00:00`),mm=['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];return `${d.getDate()} ${mm[d.getMonth()]}`};return `${f(mulai)} s.d ${f(selesai)} ( ${hari} Hari )`};
       const items=t=>Array.isArray(t?.items)&&t.items.length?t.items:(t&&t.surat&&Number(t.ayat)>0?[{surat:t.surat,ayat:Number(t.ayat),juz:t.juz||'',tampilLaporan:t.tampilLaporan!==false}]:[]);
-      const allowedItems=t=>items(t).filter(x=>x.tampilLaporan!==false);
-      const add=(label,type,t)=>{const visible=allowedItems(t);if(!t||!visible.length||!t.mulai||!t.selesai)return;visible.forEach((item,idx)=>{const calcTarget={...t,surat:item.surat,ayat:Number(item.ayat)||0,juz:item.juz||'',items:[{...item,tampilLaporan:true}]};const q=window.rqTargetEngine?.calc(type,name,calcTarget)||{};const desc=`${item.surat||'-'} (${Number(item.ayat)||0} ayat)`;const juz=String(item.juz||'').trim();parts.push([`• *${label}:* ${desc}`,juz?`• *Juz:* ${juz}`:'',`• *Total Target Ayat:* ${Number(q.ayatTarget)||0}`,`• *Total Realisasi Ayat:* ${Number(q.ayatReal)||0}`,`• *Progress:* ${Number(q.ayatPct ?? q.pct)||0}%`,`• *Periode:*  ${fmtP(t.mulai,t.selesai)}`].filter(Boolean).join('\n'));});};
-      add('Target Saat ini','hafalan',d.jangkaPendek);add('Target Yang Akan Datang','hafalan',d.akanDatang);add('Target Muroja’ah','murojaah',m);
+      const allowedItems=t=>items(t).filter(x=>x.tampilLaporan!==false&&String(x?.surat||t?.surat||'').trim()&&Number(x?.ayat||t?.ayat)>0);
+      const add=(label,type,t)=>{const visible=allowedItems(t);if(!t||!visible.length||!t.mulai||!t.selesai)return;visible.forEach((item,idx)=>{const calcTarget={...t,surat:item.surat,ayat:Number(item.ayat)||0,juz:item.juz||'',items:[{...item,tampilLaporan:true}]};const q=window.rqTargetEngine?.calc(type,name,calcTarget)||{};const desc=`${item.surat||'-'} (${Number(item.ayat)||0} ayat)`;const juz=String(item.juz||'').trim();parts.push([`• *${label}:* ${desc}`,juz?`• *Juz:* ${juz}`:'',`• *Total Target Ayat:* ${Number(q.ayatTarget)||0}`,`• *Total Realisasi Ayat:* ${Number(q.ayatReal)||0}`,`• *Progress:* ${Number(q.ayatPct ?? q.pct)||0}%`,`• *Sisa Ayat:* ${Math.max(0,Number(q.ayatTarget||0)-Number(q.ayatReal||0))} ayat`,`• *Tanggal Target:* ${fmtP(t.mulai,t.selesai)}`].filter(Boolean).join('\n'));});};
+      add('Target Hafalan','hafalan',d.jangkaPendek);add('Target Muroja’ah','murojaah',m);
       return parts.length?`🎯 *Target & Perkembangan:*\n${parts.join('\n\n')}`:'';
     };
   }
@@ -11351,8 +11518,8 @@ html.dark #rqSafetyBackupBox #rqSafetyBackupLocation b{color:#ecfdf5 !important}
   window.rqDeleteFullHistoryKeepInput=function(){
     const ok=confirm(
       'HAPUS FULL RIWAYAT?\n\n'+
-      'Riwayat Bacaan, Hafalan, Murojaah, Tugas, Rekapan, Murojaah Bersama, dan Tugas Bersama akan dibersihkan.\n\n'+
-      'Data yang masih ada pada KOLom INPUT dipertahankan dan tetap digunakan untuk Laporan WA Live Personal dan Laporan WA Grup.\n\n'+
+      'Riwayat Bacaan, Hafalan, Murojaah, Tugas, Rekapan, dan seluruh riwayat tambahan akan dihapus.\n\n'+
+      'Kolom Input beserta tanggal/jam, teks laporan WA Personal, teks laporan WA Grup, Master Santri, Target, dan pengaturan tetap dipertahankan.\n\n'+
       'Data Master Santri, Target, Tracking, dan data penting lainnya tidak dihapus.\n\nLanjutkan?'
     );
     if(!ok)return;
@@ -11371,15 +11538,23 @@ html.dark #rqSafetyBackupBox #rqSafetyBackupLocation b{color:#ecfdf5 !important}
         byKey[key]=r.deleted;
         total+=r.deleted;
       }
-      for(const key of EXTRA_HISTORY_KEYS){
+      // Hapus seluruh key riwayat yang dikenal dan key riwayat tambahan rq_history_*
+      // / rq_massal_history_* agar ukuran penyimpanan benar-benar berkurang.
+      const dynamicHistoryKeys = new Set(EXTRA_HISTORY_KEYS);
+      for(let i=0;i<localStorage.length;i++){
+        const key=localStorage.key(i);
+        if(!key) continue;
+        if(/^rq_(?:history_|massal_history_)/i.test(key)) dynamicHistoryKeys.add(key);
+      }
+      for(const key of dynamicHistoryKeys){
+        if(CLEAN_HISTORY_KEYS.includes(key)) continue;
         const old=readArray(key);
         byKey[key]=old.length;
         total+=old.length;
         localStorage.removeItem(key);
       }
 
-      // Form Input TIDAK disentuh.
-      // Ini juga memastikan Live WA memakai data yang baru saja dipertahankan.
+      // Form Input, tanggal, jam, draft WA personal/grup, dan target tidak dihapus.
       try{ window.persistFormCache?.(true); }catch(_){}
       const summary=saveSummary(total,byKey);
       renderSummary();
@@ -11414,7 +11589,7 @@ html.dark #rqSafetyBackupBox #rqSafetyBackupLocation b{color:#ecfdf5 !important}
         <div>
           <div class="font-black text-base text-rose-700 dark:text-rose-300">Hapus Full Riwayat</div>
           <div class="text-[11px] sm:text-xs font-bold text-slate-600 dark:text-slate-400 mt-1">
-            Menghapus riwayat lama, tetapi data yang masih ada pada Kolom Input tetap dipertahankan untuk Laporan WA Live Personal dan Grup.
+            Menghapus riwayat saja. Kolom Input, tanggal/jam, draft WA Personal dan WA Grup, serta data santri tetap dipertahankan.
           </div>
         </div>
         <button type="button" onclick="window.rqDeleteFullHistoryKeepInput()" class="shrink-0 px-4 py-3 bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-black text-xs sm:text-sm shadow-md active:scale-95 transition">
