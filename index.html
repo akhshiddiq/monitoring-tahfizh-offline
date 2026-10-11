@@ -4643,6 +4643,32 @@
                 for (const key of relevantAuditKeys) {
                     try { beforeStorage[key] = localStorage.getItem(key); } catch (_) { beforeStorage[key] = null; }
                 }
+                // Snapshot seluruh kunci rq_* sebelum import. Jika browser kehabisan kuota,
+                // perubahan yang sempat ditulis dibatalkan agar tidak meninggalkan gabungan setengah jadi.
+                const importRollbackSnapshot = {};
+                try {
+                    for (let i = 0; i < localStorage.length; i++) {
+                        const k = localStorage.key(i);
+                        if (k && k.startsWith('rq_')) importRollbackSnapshot[k] = localStorage.getItem(k);
+                    }
+                } catch (_) {}
+                const restoreImportSnapshot = () => {
+                    try {
+                        const now = [];
+                        for (let i = 0; i < localStorage.length; i++) {
+                            const k = localStorage.key(i);
+                            if (k && k.startsWith('rq_')) now.push(k);
+                        }
+                        for (const k of now) if (!(k in importRollbackSnapshot)) {
+                            try { localStorage.removeItem(k); } catch (_) {}
+                        }
+                        for (const [k,v] of Object.entries(importRollbackSnapshot)) {
+                            try { localStorage.setItem(k, v); } catch (_) {}
+                        }
+                    } catch (rollbackError) {
+                        console.error('Pemulihan import tidak lengkap:', rollbackError);
+                    }
+                };
 
                 const parseJson = value => { try { return value == null || value === '' ? null : JSON.parse(value); } catch (_) { return null; } };
                 const isObj = v => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -4830,7 +4856,18 @@
                 window.showToast(`Import CSV ${mode==='merge'?'gabung antar-perangkat':'ganti'} berhasil.`,'success');
                 window.rqPendingCsvParsed=null;
                 setTimeout(()=>location.reload(),2200);
-            } catch(e) { console.error(e); window.showToast('Import CSV gagal: '+(e?.message||e),'error'); }
+            } catch(e) {
+                console.error(e);
+                // Jika error terjadi karena kuota saat proses simpan, pulihkan data
+                // rq_* yang sempat berubah sebelum menampilkan pesan kepada pengguna.
+                try { if (typeof restoreImportSnapshot === 'function') restoreImportSnapshot(); } catch (_) {}
+                const msg = String(e?.message || e || '');
+                if (/quota|exceeded the quota|storage/i.test(msg)) {
+                    window.showToast('Import CSV dibatalkan karena ruang penyimpanan browser tidak cukup. Data yang sempat berubah sudah dicoba dipulihkan. Jangan hapus data; ekspor cadangan terlebih dahulu. Gunakan file HTML versi penyimpanan besar setelah perbaikan lanjutan.', 'error');
+                } else {
+                    window.showToast('Import CSV gagal: '+msg,'error');
+                }
+            }
         };
 
         window.rqPendingCsvFile = null;
