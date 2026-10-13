@@ -9216,17 +9216,17 @@ html.dark #rqSafetyBackupBox #rqSafetyBackupLocation b{color:#ecfdf5 !important}
  const targetItemList=t=>Array.isArray(t?.items)&&t.items.length?t.items:(t&&String(t.surat||'').trim()&&Number(t.ayat)>0?[{surat:t.surat,ayat:Number(t.ayat),juz:t.juz||''}]:[]);
  const targetItemsLabel=t=>targetItemList(t).map(x=>`${x.surat||'-'} (${Number(x.ayat)||0} ayat)`).join(' · ');
  const targetItemsJuz=t=>[...new Set(targetItemList(t).map(x=>String(x.juz||'').trim()).filter(Boolean))].join(', ');
- window.getTargetReportText=(type,name)=>{const fmtPeriode=(mulai,selesai)=>{if(!mulai||!selesai)return '-';const f=v=>{const d=new Date(`${v}T00:00:00`),m=['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];return `${d.getDate()} ${m[d.getMonth()]}`};return `${f(mulai)} s.d. ${f(selesai)}`};const db=getDB();let t=null;if(type==='hafalan'){const d=db.hafalan?.[name];t=d?.jangkaPendek||((d&&!d.akanDatang&&!d.jangkaPendek&&d.ayat)?d:null)||d?.akanDatang||null}else t=db[type]?.[name]||null;if(!t||t.tampilLaporan===false)return '';const q=calc(type,name,t),items=targetItemList(t).filter(x=>x?.tampilLaporan!==false&&String(x?.surat||t.surat||'').trim()&&Number(x?.ayat||t.ayat)>0);if(!items.length)return '';const detail=items.map(x=>`${x.surat||t.surat||'Surat belum dipilih'} ayat 1–${Number(x.ayat||t.ayat)||0}`).join('; ');const total=Number(q.ayatTarget)||items.reduce((n,x)=>n+(Number(x.ayat)||0),0);const real=Math.min(total,Number(q.ayatReal)||0),pct=total>0?Math.max(0,Math.min(100,Math.round(real/total*100))):0;return [`🎯 *Target ${type==='hafalan'?'Hafalan':'Muroja’ah'} Ananda*`,`📖 ${detail}`,`📊 Progres: ${real} ayat dari ${total} ayat (${pct}%)`,`📝 Sisa ayat: ${Math.max(0,total-real)} ayat`,t.mulai&&t.selesai?`📅 Tanggal target: ${fmtPeriode(t.mulai,t.selesai)}`:''].filter(Boolean).join('\n')};
+ window.getTargetReportText=(type,name)=>{const fmtPeriode=(mulai,selesai)=>{if(!mulai||!selesai)return '-';const f=v=>{const d=new Date(`${v}T00:00:00`),m=['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];return `${d.getDate()} ${m[d.getMonth()]}`};return `${f(mulai)} s.d. ${f(selesai)}`};const db=getDB();let t=null;if(type==='hafalan'){const d=db.hafalan?.[name];t=d?.jangkaPendek||((d&&!d.akanDatang&&!d.jangkaPendek&&d.ayat)?d:null)||d?.akanDatang||null}else t=db[type]?.[name]||null;if(!t||t.tampilLaporan===false)return '';const q=calc(type,name,t),items=targetItemList(t).filter(x=>x?.tampilLaporan!==false&&String(x?.surat||t.surat||'').trim()&&Number(x?.ayat||t.ayat)>0);if(!items.length)return '';const detail=items.map(x=>`${x.surat||t.surat||'Surat belum dipilih'} ayat 1–${Number(x.ayat||t.ayat)||0}`).join('; ');const total=items.reduce((n,x)=>n+Math.max(0,Number(x.ayat||t.ayat)||0),0);const real=Math.min(total,Math.max(0,Number(q.ayatReal)||0)),pct=total>0?Math.max(0,Math.min(100,Math.round(real/total*100))):0;return [`🎯 *Target ${type==='hafalan'?'Hafalan':'Muroja’ah'} Ananda*`,`📖 ${detail}`,`📊 Progres: ${real} ayat dari ${total} ayat (${pct}%)`,`📝 Sisa ayat: ${Math.max(0,total-real)} ayat`,t.mulai&&t.selesai?`📅 Tanggal target: ${fmtPeriode(t.mulai,t.selesai)}`:''].filter(Boolean).join('\n')};
   window.getTargetReportBlock=name=>{
   const db=getDB();
   const fmtP=(mulai,selesai)=>{if(!mulai||!selesai)return '-';const d1=new Date(`${mulai}T00:00:00`),d2=new Date(`${selesai}T00:00:00`),hari=Math.max(0,Math.round((d2-d1)/86400000));const f=v=>{const d=new Date(`${v}T00:00:00`),m=['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];return `${d.getDate()} ${m[d.getMonth()]}`};return `${f(mulai)} s.d ${f(selesai)} ( ${hari} Hari )`};
   const validTarget=t=>!!(targetItemList(t).some(x=>String(x?.surat||t?.surat||'').trim()&&Number(x?.ayat||t?.ayat)>0)&&String(t.mulai||'').trim()&&String(t.selesai||'').trim());
   const blocks=[];
   const d=db.hafalan?.[name]||{};
-  const addHafalan=(label,t)=>{if(!validTarget(t))return;const q=calc('hafalan',name,t),desc=targetItemsLabel(t),juz=targetItemsJuz(t);blocks.push([`• *${label}:* ${desc}`,juz?`• *Juz:* ${juz}`:'',`• *Total Target Ayat:* ${q.ayatTarget}`,`• *Total Realisasi Ayat:* ${q.ayatReal}`,`• *Progress:* ${q.ayatPct}%`,`• *Sisa Ayat:* ${Math.max(0,Number(q.ayatTarget||0)-Number(q.ayatReal||0))} ayat`,`• *Tanggal Target:* ${fmtP(t.mulai,t.selesai)}`].filter(Boolean).join('\n'));};
+  const addHafalan=(label,t)=>{if(!validTarget(t))return;const q=calc('hafalan',name,t),desc=targetItemsLabel(t),juz=targetItemsJuz(t),targetTotal=targetItemList(t).filter(x=>x?.tampilLaporan!==false).reduce((n,x)=>n+Math.max(0,Number(x?.ayat||t?.ayat)||0),0),real=Math.min(targetTotal,Math.max(0,Number(q.ayatReal)||0)),pct=targetTotal?Math.max(0,Math.min(100,Math.round(real/targetTotal*100))):0;blocks.push([`• *${label}:* ${desc}`,juz?`• *Juz:* ${juz}`:'',`• *Total Target Ayat:* ${targetTotal}`,`• *Total Realisasi Ayat:* ${real}`,`• *Progress:* ${pct}%`,`• *Sisa Ayat:* ${Math.max(0,targetTotal-real)} ayat`,`• *Tanggal Target:* ${fmtP(t.mulai,t.selesai)}`].filter(Boolean).join('\n'));};
   addHafalan('Target Hafalan',d.jangkaPendek);
   const m=db.murojaah?.[name];
-  if(validTarget(m)){const q=calc('murojaah',name,m),desc=targetItemsLabel(m),juz=targetItemsJuz(m);blocks.push([`• *Target Muroja’ah:* ${desc}`,juz?`• *Juz:* ${juz}`:'',`• *Total Target Ayat:* ${q.ayatTarget}`,`• *Total Realisasi Ayat:* ${q.ayatReal}`,`• *Progress:* ${q.pct}%`,`• *Sisa Ayat:* ${Math.max(0,Number(q.ayatTarget||0)-Number(q.ayatReal||0))} ayat`,`• *Tanggal Target:* ${fmtP(m.mulai,m.selesai)}`].filter(Boolean).join('\n'));}
+  if(validTarget(m)){const q=calc('murojaah',name,m),desc=targetItemsLabel(m),juz=targetItemsJuz(m),targetTotal=targetItemList(m).filter(x=>x?.tampilLaporan!==false).reduce((n,x)=>n+Math.max(0,Number(x?.ayat||m?.ayat)||0),0),real=Math.min(targetTotal,Math.max(0,Number(q.ayatReal)||0)),pct=targetTotal?Math.max(0,Math.min(100,Math.round(real/targetTotal*100))):0;blocks.push([`• *Target Muroja’ah:* ${desc}`,juz?`• *Juz:* ${juz}`:'',`• *Total Target Ayat:* ${targetTotal}`,`• *Total Realisasi Ayat:* ${real}`,`• *Progress:* ${pct}%`,`• *Sisa Ayat:* ${Math.max(0,targetTotal-real)} ayat`,`• *Tanggal Target:* ${fmtP(m.mulai,m.selesai)}`].filter(Boolean).join('\n'));}
   return blocks.length?`🎯 *Target & Perkembangan:*\n${blocks.join('\n\n')}`:'';
 };
  window.refreshInlineTargets=()=>{(window.santriList||[]).forEach(s=>{const n=String(s?.name||'').trim();if(document.getElementById(ids('hafalan',n,'jangkaPendek').j))load('hafalan',n,'jangkaPendek');if(document.getElementById(ids('hafalan',n,'akanDatang').j))load('hafalan',n,'akanDatang');if(document.getElementById(ids('murojaah',n).j))load('murojaah',n)})};
@@ -10351,10 +10351,12 @@ html.dark #rqSafetyBackupBox #rqSafetyBackupLocation b{color:#ecfdf5 !important}
      const ok=confirm(`Reset Target ${kind} ${slot}?\n\nTarget ayat dan tanggal pada kolom ini akan dikosongkan, dan target tersimpan untuk pilihan ini dihapus. Riwayat hafalan/muroja’ah dan kolom Input tidak dihapus.`);
      if(!ok)return;
      ayatEl.value='';startEl.value='';endEl.value='';
-     const data=safeRead();delete data[key];safeWrite(data);
-     updatePct();window.showToast?.(`Kolom Target ${kind} ${slot} berhasil direset.`,'success');
+     const data=safeRead();delete data[key];if(!safeWrite(data)){window.showToast?.('Target gagal direset karena penyimpanan browser bermasalah.','error');return;}
+     updatePct();
+     try{window.generateWaReport?.();window.generateClassReport?.();window.renderTargetReport?.();window.refreshInlineTargets?.();}catch(_){}
+     window.showToast?.(`Kolom Target ${kind} ${slot} berhasil direset.`,'success');
    });
-   panel.querySelector('.rq-st-save').addEventListener('click',()=>{const surah=surahEl.value||getSurah(cat,name,slot),ayat=Number(ayatEl.value),mulai=startEl.value,selesai=endEl.value;if(!surah)return window.showToast?.('Pilih surat pada input utama terlebih dahulu.','error');if(!Number.isInteger(ayat)||ayat<1)return window.showToast?.('Isi target ayat minimal 1.','error');if(!mulai||!selesai||selesai<mulai)return window.showToast?.('Periksa tanggal mulai dan selesai target.','error');const data=safeRead();data[key]={surah,ayat,mulai,selesai,updatedAt:new Date().toISOString()};if(!safeWrite(data))return window.showToast?.('Target tidak tersimpan karena kapasitas browser penuh.','error');updatePct();window.showToast?.(`Target ${kind} ${slot} tersimpan.`,'success')});
+   panel.querySelector('.rq-st-save').addEventListener('click',()=>{const surah=surahEl.value||getSurah(cat,name,slot),ayat=Number(ayatEl.value),mulai=startEl.value,selesai=endEl.value;if(!surah)return window.showToast?.('Pilih surat pada input utama terlebih dahulu.','error');if(!Number.isInteger(ayat)||ayat<1)return window.showToast?.('Isi target ayat minimal 1.','error');if(!mulai||!selesai||selesai<mulai)return window.showToast?.('Periksa tanggal mulai dan selesai target.','error');const data=safeRead();data[key]={surah,ayat,mulai,selesai,updatedAt:new Date().toISOString()};if(!safeWrite(data))return window.showToast?.('Target tidak tersimpan karena kapasitas browser penuh.','error');updatePct();try{window.generateWaReport?.();window.generateClassReport?.();window.renderTargetReport?.();window.refreshInlineTargets?.();}catch(_){}window.showToast?.(`Target ${kind} ${slot} tersimpan.`,'success')});
    const search=getInput(`${cat}_surah_search_${slot}_${name}`),select=getInput(`${cat}_surah_${slot}_${name}`);[search,select].filter(Boolean).forEach(el=>el.addEventListener('change',syncSurah));if(search)search.addEventListener('input',syncSurah);syncSurah();
  }
  function scan(){if(!Array.isArray(window.santriList))return;window.santriList.forEach(s=>{[1,2,3].forEach(slot=>{renderOne('haf',s.name,slot);renderOne('mur',s.name,slot)})})}
@@ -10383,6 +10385,75 @@ html.dark #rqSafetyBackupBox #rqSafetyBackupLocation b{color:#ecfdf5 !important}
   } else {
     setTimeout(restoreDrafts, 2200);
   }
+})();
+</script>
+
+<!-- PATCH TERISOLASI 2026-10-13: laporan target membaca target kanonis terbaru, termasuk target hafalan akan datang dan item multi-surat. -->
+<script>
+(function(){
+  'use strict';
+  const KEY='rq_target_hafalan_murojaah_v2';
+  const readDB=()=>{try{const v=JSON.parse(localStorage.getItem(KEY)||'{}');return v&&typeof v==='object'?v:{}}catch(_){return {}}};
+  const norm=v=>String(v??'').trim().toLowerCase().replace(/\s+/g,' ');
+  const dateFmt=(v)=>{if(!v)return '';const d=new Date(String(v).slice(0,10)+'T00:00:00');if(Number.isNaN(d.getTime()))return String(v);return `${d.getDate()} ${['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'][d.getMonth()]} ${d.getFullYear()}`};
+  const itemList=t=>Array.isArray(t?.items)&&t.items.length?t.items:(t?.surat&&Number(t?.ayat)>0?[{surat:t.surat,ayat:Number(t.ayat),juz:t.juz||'',tampilLaporan:t.tampilLaporan!==false}]:[]);
+  const allowed=t=>itemList(t).filter(i=>i&&i.tampilLaporan!==false&&String(i.surat||t?.surat||'').trim()&&Number(i.ayat??t?.ayat)>0);
+  const fmtPeriod=t=>t?.mulai||t?.selesai?`${dateFmt(t.mulai)||'-'} s.d. ${dateFmt(t.selesai)||'-'}`:'Periode tidak diisi';
+  window.getTargetReportBlock=function(name){
+    const db=readDB();
+    const key=norm(name);
+    const findByName=obj=>{if(!obj||typeof obj!=='object')return null;if(Object.prototype.hasOwnProperty.call(obj,name))return obj[name];const k=Object.keys(obj).find(x=>norm(x)===key);return k?obj[k]:null};
+    const haf=findByName(db.hafalan)||{};
+    const mur=findByName(db.murojaah);
+    const targets=[
+      ['Target Hafalan — Jangka Pendek','hafalan',haf.jangkaPendek || ((!haf.jangkaPendek&&!haf.akanDatang&&haf.ayat)?haf:null)],
+      ['Target Hafalan — Yang Akan Datang','hafalan',haf.akanDatang],
+      ['Target Muroja’ah','murojaah',mur]
+    ];
+    const parts=[];
+    for(const [label,type,t] of targets){
+      const items=allowed(t);
+      if(!t||t.tampilLaporan===false||!items.length)continue;
+      for(const item of items){
+        const targetAyat=Math.max(0,Number(item.ayat??t.ayat)||0);
+        const one={...t,surat:String(item.surat||t.surat||''),ayat:targetAyat,juz:item.juz??t.juz??'',items:[{...item,surat:String(item.surat||t.surat||''),ayat:targetAyat,tampilLaporan:true}]};
+        let q={};
+        try{q=window.rqTargetEngine?.calc(type,name,one)||{}}catch(_){q={}}
+        const total=Math.max(0,Number(q.ayatTarget)||targetAyat);
+        const real=Math.max(0,Math.min(total,Number(q.ayatReal??q.ayatCount)||0));
+        const pct=total?Math.max(0,Math.min(100,Math.round(real/total*100))):0;
+        const lines=[`• *${label}:* ${one.surat} (ayat 1–${targetAyat})`];
+        if(String(one.juz||'').trim())lines.push(`• *Juz:* ${one.juz}`);
+        lines.push(`• *Total Target Ayat:* ${total}`,`• *Total Realisasi Ayat:* ${real}`,`• *Progress:* ${pct}%`,`• *Sisa Ayat:* ${Math.max(0,total-real)} ayat`,`• *Tanggal Target:* ${fmtPeriod(t)}`);
+        parts.push(lines.join('\n'));
+      }
+    }
+    return parts.length?`🎯 *Target & Perkembangan:*\n${parts.join('\n\n')}`:'';
+  };
+  // Refresh laporan setelah penyimpanan target berhasil; tidak mengganti alur penyimpanan master.
+  const oldSave=window.saveInputTarget;
+  if(typeof oldSave==='function'&&!oldSave.__rqTargetWaRefreshPatch){
+    const wrapped=function(){
+      const result=oldSave.apply(this,arguments);
+      const type=arguments[0],name=arguments[1];
+      // Render sinkron setelah handler simpan menulis data. Bila handler lama memakai validasi,
+      // laporan hanya membaca isi database yang benar-benar tersimpan.
+      try{window.generateWaReport?.()}catch(_){}
+      try{window.generateClassReport?.()}catch(_){}
+      try{window.renderTargetReport?.()}catch(_){}
+      try{window.refreshInlineTargets?.()}catch(_){}
+      return result;
+    };
+    wrapped.__rqTargetWaRefreshPatch=true;
+    window.saveInputTarget=wrapped;
+  }
+  // Pembaruan laporan saat tab diganti tetap menggunakan sumber target yang sama.
+  const oldTab=window.switchInlineLiveReportTab;
+  if(typeof oldTab==='function'&&!oldTab.__rqTargetWaRefreshPatch){
+    const wrappedTab=function(){const r=oldTab.apply(this,arguments);try{window.generateWaReport?.()}catch(_){}return r};
+    wrappedTab.__rqTargetWaRefreshPatch=true;window.switchInlineLiveReportTab=wrappedTab;
+  }
+  document.addEventListener('rq:db-updated',()=>{try{window.generateWaReport?.();window.generateClassReport?.();window.renderTargetReport?.()}catch(_){} });
 })();
 </script>
 
@@ -11620,5 +11691,104 @@ html.dark #rqSafetyBackupBox #rqSafetyBackupLocation b{color:#ecfdf5 !important}
   else setTimeout(installDataButton,300);
   setTimeout(installDataButton,1200);
   setTimeout(renderSummary,1500);
+})();
+</script>
+
+
+<script id="rq-canonical-slot-target-reports-v2">
+(function(){
+ 'use strict';
+ const STORE='rq_slot_targets_v1';
+ const read=()=>{try{const x=JSON.parse(localStorage.getItem(STORE)||'{}');return x&&typeof x==='object'?x:{}}catch(_){return {}}};
+ const norm=v=>String(v??'').trim().toLowerCase().replace(/[’‘`´]/g,"'").replace(/\s+/g,' ');
+ const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+ const dateFmt=v=>{if(!v)return '';const d=new Date(String(v)+'T00:00:00');if(Number.isNaN(d.getTime()))return '';return `${d.getDate()} ${['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'][d.getMonth()]}`};
+ function targetRows(type,name){
+   const db=read(),cat=type==='hafalan'?'haf':'mur',out=[];
+   for(let slot=1;slot<=3;slot++){
+     const t=db[`${cat}|${name}|${slot}`];
+     if(!t||!String(t.surah||'').trim()||!Number.isInteger(Number(t.ayat))||Number(t.ayat)<1)continue;
+     out.push({...t,slot,category:type,surah:String(t.surah).trim(),ayat:Number(t.ayat)});
+   }
+   return out;
+ }
+ function realAyat(type,name,slot,surah,target,targetData){
+   // Progres laporan hanya dihitung dari riwayat yang sudah tersimpan,
+   // kategori yang tepat, santri yang tepat, surat yang cocok, dan periode target.
+   // Semua slot input diperiksa; nomor slot target bukan nomor slot riwayat.
+   const key=type==='hafalan'?'rq_history_hafalan':'rq_history_murojaah';
+   let rows=[];
+   try{const v=JSON.parse(localStorage.getItem(key)||'[]');if(Array.isArray(v))rows=v;}catch(_){}
+   const dateKey=v=>{
+     if(!v)return '';
+     const raw=String(v).trim();let m=raw.match(/^(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})/);
+     if(m)return `${m[1]}-${String(m[2]).padStart(2,'0')}-${String(m[3]).padStart(2,'0')}`;
+     m=raw.match(/^(\d{1,2})[\/](\d{1,2})[\/](\d{4})/);
+     if(m)return `${m[3]}-${String(m[2]).padStart(2,'0')}-${String(m[1]).padStart(2,'0')}`;
+     const d=new Date(raw);return Number.isNaN(d.getTime())?'':`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+   };
+   const startDate=dateKey(targetData?.mulai),endDate=dateKey(targetData?.selesai);
+   const normSurah=v=>norm(v).normalize('NFKC').replace(/[‘’‚‛′`´]/g,"'").replace(/[‐‑‒–—]/g,'-').replace(/^\d+\.\s*/,'').replace(/\s*\(\s*\d+\s*ayat\s*\)$/i,'').replace(/\s+/g,' ');
+   const targetSurah=normSurah(surah),done=new Set();
+   // Riwayat percobaan yang sudah dikonfirmasi pengguna tidak dihapus dari sejarah,
+   // tetapi dikecualikan dari realisasi target agar tidak dianggap setoran sah.
+   // Identifikasi menggunakan rawTime unik dari ekspor 2026-10-13.
+   const excludedTrialRawTimes=new Set(['1791864303671','1791864447082']);
+   rows.filter(r=>{
+     if(!r||norm(r.name)!==norm(name))return false;
+     const rawTime=String(r.rawTime??'');
+     if(excludedTrialRawTimes.has(rawTime))return false;
+     return true;
+   }).forEach(r=>{
+     const rawDate=r.tanggal||r.date||r.rawDate||r.timestamp||((Number(r.rawTime)||0)?new Date(Number(r.rawTime)).toISOString():'');
+     const d=dateKey(rawDate);
+     if(startDate&&endDate&&(!d||d<startDate||d>endDate))return;
+     const slots=Array.isArray(r.slots)?r.slots.filter(x=>x&&x.item&&x.item!=='-'):[];
+     let matched=false;
+     for(const sl of slots){
+       if(normSurah(sl.item)!==targetSurah)continue;
+       matched=true;const a=Number(sl.start),b=Number(sl.end);
+       if(!Number.isFinite(a)||!Number.isFinite(b)||a<1||b<a)continue;
+       for(let i=Math.max(1,a);i<=Math.min(target,b);i++)done.add(i);
+     }
+     // Kompatibilitas riwayat lama tanpa struktur slots: gunakan detail hanya
+     // jika menyebut surat target dan berada dalam periode target.
+     if(!slots.length&&normSurah(r.detail).includes(targetSurah)){
+       const re=/(?:ayat|ay)?\s*(\d+)\s*[-–]\s*(\d+)/gi;let m;
+       while((m=re.exec(String(r.detail||'')))){const a=Number(m[1]),b=Number(m[2]);if(Number.isFinite(a)&&Number.isFinite(b)&&a>=1&&b>=a)for(let i=Math.max(1,a);i<=Math.min(target,b);i++)done.add(i);}
+     }
+   });
+   // Progres berurutan: ayat setelah celah belum dianggap tercapai.
+   let contiguous=0;while(contiguous<target&&done.has(contiguous+1))contiguous++;
+   return contiguous;
+ }
+ function formatOne(type,name,t){
+   const real=realAyat(type,name,t.slot,t.surah,t.ayat,t),pct=Math.max(0,Math.min(100,Math.round(real/t.ayat*100)));
+   const label=type==='hafalan'?'Hafalan':'Muroja’ah';
+   const date=t.mulai&&t.selesai?`${dateFmt(t.mulai)||t.mulai} s.d. ${dateFmt(t.selesai)||t.selesai}`:'';
+   return [
+     `🎯 *Target ${label} Ananda*`,
+     `📖 ${t.surah} ayat 1–${t.ayat}`,
+     `📊 Progres: ${real} ayat dari ${t.ayat} ayat (${pct}%)`,
+     `📝 Sisa ayat: ${Math.max(0,t.ayat-real)} ayat`,
+     date?`📅 Tanggal target: ${date}`:''
+   ].filter(Boolean).join('\n');
+ }
+ window.getTargetReportText=function(type,name){
+   if(type!=='hafalan'&&type!=='murojaah')return '';
+   return targetRows(type,name).map(t=>formatOne(type,name,t)).join('\n');
+ };
+ window.getTargetReportBlock=function(name){
+   const parts=[...targetRows('hafalan',name).map(t=>formatOne('hafalan',name,t)),...targetRows('murojaah',name).map(t=>formatOne('murojaah',name,t))];
+   return parts.length?`🎯 *Target & Perkembangan:*\n${parts.join('\n\n')}`:'';
+ };
+ // Keep all report surfaces in sync with the canonical slot-target store.
+ window.rqRefreshCanonicalTargetReports=function(){
+   try{window.generateWaReport?.();}catch(_){}
+   try{window.generateClassReport?.();}catch(_){}
+   try{window.renderTargetReport?.();}catch(_){}
+ };
+ window.addEventListener('storage',e=>{if(e.key===STORE)window.rqRefreshCanonicalTargetReports();});
+ document.addEventListener('DOMContentLoaded',()=>setTimeout(()=>window.rqRefreshCanonicalTargetReports(),0));
 })();
 </script>
