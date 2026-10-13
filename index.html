@@ -2899,7 +2899,7 @@
                             </div>
 
                             <!-- HAFALAN BARU -->
-                            <div class="p-4 sm:p-5 rounded-2xl border-2 border-rose-500 bg-rose-50 dark:bg-rose-950/20 space-y-3.5">
+                            <div id="card_section_hafalan_${s.name}" class="p-4 sm:p-5 rounded-2xl border-2 border-rose-500 bg-rose-50 dark:bg-rose-950/20 space-y-3.5">
                                 <div class="flex items-center justify-between border-b border-rose-200 dark:border-rose-800 pb-3 flex-wrap gap-2.5">
                                     <div class="flex items-center gap-2 flex-wrap">
                                         <span class="font-black text-xs sm:text-sm text-rose-800 dark:text-rose-300 uppercase flex items-center gap-1.5">
@@ -2968,7 +2968,7 @@
                             </div>
 
                             <!-- MUROJA'AH DI KELAS -->
-                            <div class="p-4 sm:p-5 rounded-2xl border-2 border-purple-500 bg-purple-50 dark:bg-purple-950/20 space-y-3.5">
+                            <div id="card_section_murojaah_${s.name}" class="p-4 sm:p-5 rounded-2xl border-2 border-purple-500 bg-purple-50 dark:bg-purple-950/20 space-y-3.5">
                                 <div class="flex items-center justify-between border-b border-purple-200 dark:border-purple-800 pb-3 flex-wrap gap-2.5">
                                     <div class="flex items-center gap-2 flex-wrap">
                                         <span class="font-black text-xs sm:text-sm text-purple-800 dark:text-purple-300 uppercase flex items-center gap-1.5">
@@ -3036,7 +3036,7 @@
                             </div>
 
                             <!-- TUGAS TAMBAHAN -->
-                            <div class="p-4 sm:p-5 rounded-2xl border-2 border-amber-800 bg-[#f3e4d2] dark:bg-[#3a2a1d] space-y-3.5">
+                            <div id="card_section_tugas_${s.name}" class="p-4 sm:p-5 rounded-2xl border-2 border-amber-800 bg-[#f3e4d2] dark:bg-[#3a2a1d] space-y-3.5">
                                 <div class="flex items-center justify-between border-b border-amber-300 dark:border-amber-800 pb-3 flex-wrap gap-2.5">
                                     <div class="flex items-center gap-2 flex-wrap">
                                         <span class="font-black text-xs sm:text-sm text-amber-900 dark:text-amber-200 uppercase flex items-center gap-1.5">
@@ -3486,7 +3486,7 @@
                 return Number.isFinite(d) ? d : 0;
             };
             const latestLocalByName = (history) => (history || [])
-                .filter(item => String(item?.name || '').trim().toLowerCase() === targetKeyName)
+                .filter(item => String(item?.name || '').trim().toLowerCase() === targetKeyName && !item?.rqResetInactive)
                 .sort((a,b) => historyTime(b) - historyTime(a))[0] || null;
 
             const lastBacObj = latestLocalByName(bacaanHistoryList);
@@ -4089,7 +4089,7 @@
             const latestLocalByName = (history, name) => {
                 const target = String(name || '').trim().toLowerCase();
                 return (history || [])
-                    .filter(item => String(item?.name || '').trim().toLowerCase() === target)
+                    .filter(item => String(item?.name || '').trim().toLowerCase() === target && !item?.rqResetInactive)
                     .sort((a, b) => historyTime(b) - historyTime(a))[0] || null;
             };
 
@@ -10457,6 +10457,154 @@ html.dark #rqSafetyBackupBox #rqSafetyBackupLocation b{color:#ecfdf5 !important}
 })();
 </script>
 
+<!-- PATCH TERISOLASI: Reset per bagian Input dengan penanda nonaktif untuk laporan aktif; riwayat asli dipertahankan. -->
+<script>
+(function(){
+ 'use strict';
+ const HIST={bacaan:'rq_history_bacaan',hafalan:'rq_history_hafalan',murojaah:'rq_history_murojaah',tugas:'rq_history_tugas'};
+ const LABEL={bacaan:'Bacaan',hafalan:'Hafalan Baru',murojaah:"Muroja’ah di Kelas",tugas:'Tugas'};
+ const PREFIX={bacaan:'bac',hafalan:'haf',murojaah:'mur',tugas:'tug'};
+ function parse(key){try{return JSON.parse(localStorage.getItem(key)||'[]')}catch(_){return []}}
+ function persistCache(){try{window.persistFormCache?.(true)}catch(_){}}
+ function confirmReset(type,name){
+   return new Promise(resolve=>{
+     const old=document.getElementById('rq-reset-confirm-modal'); if(old)old.remove();
+     const overlay=document.createElement('div');overlay.id='rq-reset-confirm-modal';
+     overlay.className='fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-slate-950/60';
+     overlay.innerHTML=`<div role="dialog" aria-modal="true" aria-labelledby="rq-reset-confirm-title" class="w-full max-w-md rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-2xl p-5 space-y-4"><h3 id="rq-reset-confirm-title" class="text-base font-black text-slate-900 dark:text-white">Konfirmasi Reset Input</h3><p class="text-sm text-slate-700 dark:text-slate-200">Reset <b>${LABEL[type]}</b> untuk santri <b></b>? Input aktif kategori ini akan dikosongkan dan entri aktif terbaru dikeluarkan dari laporan. Riwayat tetap disimpan dan kategori lain tidak berubah.</p><div class="flex flex-wrap justify-end gap-2"><button type="button" data-rq-reset-cancel class="px-4 py-2 rounded-xl border border-slate-300 dark:border-slate-600 font-bold text-sm">Batal</button><button type="button" data-rq-reset-accept class="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-black text-sm">Setuju, Reset</button></div></div>`;
+     const bold=overlay.querySelector('p b + b'); if(bold)bold.textContent=name;
+     const finish=value=>{overlay.remove();resolve(value)};
+     overlay.querySelector('[data-rq-reset-cancel]').addEventListener('click',()=>finish(false),{once:true});
+     overlay.querySelector('[data-rq-reset-accept]').addEventListener('click',()=>finish(true),{once:true});
+     overlay.addEventListener('click',e=>{if(e.target===overlay)finish(false)});
+     document.addEventListener('keydown',function esc(e){if(e.key==='Escape'){document.removeEventListener('keydown',esc);finish(false)}},{once:true});
+     document.body.appendChild(overlay);overlay.querySelector('[data-rq-reset-cancel]').focus();
+   });
+ }
+ function clearSection(name,type){
+   const card=document.getElementById(`card_section_${type}_${name}`); if(!card) throw new Error('Bagian input tidak ditemukan.');
+   // Nonaktifkan hanya entri aktif terbaru kategori ini. Riwayat tetap tersimpan untuk audit.
+   const key=HIST[type], rows=parse(key), norm=x=>String(x||'').trim().toLocaleLowerCase('id-ID');
+   // Laporan menggunakan entri terbaru per kategori. Menandai satu baris saja
+   // tidak cukup karena baris lama dapat terpilih lagi sebagai fallback.
+   // Tandai seluruh entri kategori milik santri ini nonaktif untuk laporan,
+   // tetapi jangan menghapusnya dari penyimpanan/halaman Riwayat.
+   let changed=false; const resetAt=new Date().toISOString();
+   rows.forEach(r=>{if(norm(r.name)===norm(name) && !r.rqResetInactive){r.rqResetInactive=true;r.rqResetAt=resetAt;r.rqResetReason='reset-input-aktif';changed=true;}});
+   if(changed)localStorage.setItem(key,JSON.stringify(rows));
+   // Tandai reset secara persisten agar snapshot laporan lama tidak menghidupkan
+   // kembali kategori yang sudah dikosongkan setelah refresh/reload.
+   const tombKey='rq_reset_active_categories_v1'; let tomb={};
+   try{tomb=JSON.parse(localStorage.getItem(tombKey)||'{}')||{}}catch(_){tomb={}}
+   tomb[norm(name)+'|'+type]={name:name,type:type,at:resetAt};
+   localStorage.setItem(tombKey,JSON.stringify(tomb));
+   const clearCategoryFields=row=>{
+     if(!row || norm(row.name)!==norm(name))return;
+     const fields=type==='bacaan'?['bacaan','bacaanNilai','bacaanStatus','bacaanKeterangan','bacaanTanggal','bacaanTimestamp','bacaanRawTime']
+       :type==='hafalan'?['hafalan','hafalanNilai','hafalanStatus','hafalanKeterangan','hafalanTanggal','hafalanTimestamp','hafalanRawTime']
+       :type==='murojaah'?['murojaah','murojaahNilai','murojaahStatus','murojaahKeterangan','murojaahTanggal','murojaahTimestamp','murojaahRawTime']
+       :['tugas','tugasKeterangan','tugasTanggal','tugasTimestamp','tugasRawTime'];
+     fields.forEach(f=>{if(f in row)row[f]='';});
+   };
+   (window._laporanWaPersonalCloud||[]).forEach(clearCategoryFields);
+   (window._laporanGrupWaCloud||[]).forEach(clearCategoryFields);
+   const student=(window.santriList||[]).find(x=>norm(x.name)===norm(name));
+   if(student){const fields=type==='bacaan'?['lastBacaan','lastBacaanDate','cloudBacSlots','cloudBacStat','cloudBacCat','cloudBacProgressStatus']
+     :type==='hafalan'?['lastHafalan','lastHafalanDate','cloudHafSlots','cloudHafStat','cloudHafCat','cloudHafProgressStatus']
+     :type==='murojaah'?['lastMurojaah','lastMurojaahDate','cloudMurSlots','cloudMurStat','cloudMurCat','cloudMurProgressStatus']
+     :['lastTugas','lastTugasDate','cloudTugStat','cloudTugCat'];
+     fields.forEach(f=>{if(f in student)student[f]=Array.isArray(student[f])?[]:'';});
+   }
+   // Kosongkan semua kontrol kategori terkait dan cache-nya saja.
+   const prefix=PREFIX[type];
+   card.querySelectorAll('input,select,textarea').forEach(el=>{
+     if(el.type==='hidden') return;
+     if(el.tagName==='SELECT') el.selectedIndex=0; else if(el.type==='checkbox'||el.type==='radio') el.checked=false; else el.value='';
+     el.dispatchEvent(new Event('change',{bubbles:true}));
+   });
+   const cache=window.localFormCache||{}; const namePrefix=String(name)+'_';
+   Object.keys(cache).forEach(k=>{
+     if(!k.startsWith(namePrefix)) return;
+     const rest=k.slice(namePrefix.length);
+     const belongs=type==='bacaan' ? /^(bac|bac_stat|bac_cat_|bacaan_)/i.test(rest)
+       : type==='hafalan' ? /^(haf|haf_stat|haf_cat_|hafalan_)/i.test(rest)
+       : type==='murojaah' ? /^(mur|mur_stat|mur_cat_|murojaah_)/i.test(rest)
+       : /^(tug|tug_cat|tugas_)/i.test(rest);
+     if(belongs) delete cache[k];
+   });
+   persistCache();
+   const dateLabel=document.getElementById(({bacaan:'bacaan_input_date_',hafalan:'hafalan_input_date_',murojaah:'murojaah_input_date_'}[type]||'')+name);
+   if(dateLabel) dateLabel.textContent='Input terakhir: belum ada input';
+   const badge=document.getElementById(({bacaan:'save_badge_bacaan_',hafalan:'save_badge_hafalan_',murojaah:'save_badge_murojaah_',tugas:'save_badge_tugas_'}[type])+name); badge?.classList.add('hidden');
+   // Refresh laporan dalam mode baca yang mengecualikan entri reset, tanpa menyembunyikannya dari menu Riwayat.
+   window.__rqResetReportRead=(window.__rqResetReportRead||0)+1;
+   try{window.generateWaReport?.();window.generateClassReport?.();window.refreshInlineLiveReport?.();window.refreshInlineTargets?.();window.refreshLiveMurojaahReport?.();}finally{window.__rqResetReportRead=Math.max(0,(window.__rqResetReportRead||1)-1)}
+ }
+ // Terapkan penanda reset pada snapshot laporan setiap kali laporan dibuat,
+ // termasuk setelah halaman dibuka ulang sehingga snapshot lama tidak menghidupkan data.
+ function applyResetTombstones(){
+   let tomb={};try{tomb=JSON.parse(localStorage.getItem('rq_reset_active_categories_v1')||'{}')||{}}catch(_){tomb={}}
+   const norm=x=>String(x||'').trim().toLocaleLowerCase('id-ID');
+   Object.values(tomb).forEach(t=>{
+     if(!t?.name||!t?.type)return;
+     const type=t.type,name=norm(t.name);
+     const fields=type==='bacaan'?['bacaan','bacaanNilai','bacaanStatus','bacaanKeterangan','bacaanTanggal','bacaanTimestamp','bacaanRawTime']
+       :type==='hafalan'?['hafalan','hafalanNilai','hafalanStatus','hafalanKeterangan','hafalanTanggal','hafalanTimestamp','hafalanRawTime']
+       :type==='murojaah'?['murojaah','murojaahNilai','murojaahStatus','murojaahKeterangan','murojaahTanggal','murojaahTimestamp','murojaahRawTime']
+       :['tugas','tugasKeterangan','tugasTanggal','tugasTimestamp','tugasRawTime'];
+     const clear=row=>{if(!row||norm(row.name)!==name)return;fields.forEach(f=>{if(f in row)row[f]='';});};
+     (window._laporanWaPersonalCloud||[]).forEach(clear);
+     (window._laporanGrupWaCloud||[]).forEach(clear);
+     const student=(window.santriList||[]).find(x=>norm(x.name)===name);
+     if(student){const sf=type==='bacaan'?['lastBacaan','lastBacaanDate','cloudBacSlots','cloudBacStat','cloudBacCat','cloudBacProgressStatus']
+       :type==='hafalan'?['lastHafalan','lastHafalanDate','cloudHafSlots','cloudHafStat','cloudHafCat','cloudHafProgressStatus']
+       :type==='murojaah'?['lastMurojaah','lastMurojaahDate','cloudMurSlots','cloudMurStat','cloudMurCat','cloudMurProgressStatus']
+       :['lastTugas','lastTugasDate','cloudTugStat','cloudTugCat'];
+       sf.forEach(f=>{if(f in student)student[f]=Array.isArray(student[f])?[]:'';});}
+   });
+ }
+ ['generateWaReport','generateClassReport','refreshInlineLiveReport','refreshLiveMurojaahReport'].forEach(fn=>{
+   const old=window[fn];if(typeof old!=='function'||old.__rqResetTombstoneWrapped)return;
+   const wrapped=function(){applyResetTombstones();return old.apply(this,arguments)};
+   wrapped.__rqResetTombstoneWrapped=true;window[fn]=wrapped;
+ });
+ // Saat pembentukan laporan/progres, history reader mengabaikan entri yang ditandai reset.
+ const originalGet=Storage.prototype.getItem;
+ if(!Storage.prototype.__rqResetFilterInstalled){
+   Storage.prototype.getItem=function(key){
+     const raw=originalGet.call(this,key);
+     if(!window.__rqResetReportRead || !HIST_KEYS.has(key) || !raw) return raw;
+     try{return JSON.stringify(JSON.parse(raw).filter(r=>!r?.rqResetInactive))}catch(_){return raw}
+   };
+   const HIST_KEYS=new Set(Object.values(HIST));
+   Storage.prototype.__rqResetFilterInstalled=true;
+ }
+ function addButtons(){
+   Object.keys(LABEL).forEach(type=>{
+     document.querySelectorAll(`[id^="card_section_${type}_"]`).forEach(section=>{
+       const name=section.id.slice((`card_section_${type}_`).length);
+       const send=section.querySelector(`button[onclick*="saveSectionData('${name}', '${type}')"]`); if(!send||section.querySelector('.rq-input-reset-btn'))return;
+       const btn=document.createElement('button');btn.type='button';btn.className='rq-input-reset-btn px-4 py-2.5 rounded-xl border border-rose-300 bg-rose-50 hover:bg-rose-100 text-rose-700 dark:bg-rose-950/30 dark:text-rose-300 dark:border-rose-800 font-black text-xs shadow-sm active:scale-95';btn.innerHTML='<i class="fa-solid fa-rotate-left mr-1"></i> Reset';
+       btn.addEventListener('click',async e=>{
+         e.preventDefault();e.stopPropagation();
+         const santri=(window.santriList||[]).find(x=>String(x.name)===name); if(!santri){window.showToast?.('Santri tidak ditemukan.','error');return}
+         if(!await confirmReset(type,name))return;
+         try{clearSection(name,type);window.showToast?.(`Input ${LABEL[type]} untuk ${name} berhasil direset. Riwayat tetap dipertahankan.`,'success')}
+         catch(e){console.error('Reset input gagal',e);window.showToast?.(`Reset ${LABEL[type]} gagal: ${e?.message||e}`,'error')}
+       });
+       const actionRow=send.parentElement;
+       actionRow.insertBefore(btn,send);
+       actionRow.classList.remove('flex-col','items-start');
+       actionRow.classList.add('flex','flex-row','flex-wrap','items-center','gap-2');
+       btn.classList.add('flex-1','min-w-0','justify-center');
+       send.classList.add('flex-1','min-w-0','justify-center');
+     });
+   });
+ }
+ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',addButtons);else addButtons();
+ const observer=new MutationObserver(addButtons); if(document.body)observer.observe(document.body,{childList:true,subtree:true});
+})();
+</script>
 </body>
 
 <script>
@@ -10821,7 +10969,7 @@ html.dark #rqSafetyBackupBox #rqSafetyBackupLocation b{color:#ecfdf5 !important}
   }
   function latestFor(history,name){
     const n=String(name||'').trim().toLowerCase();
-    return history.filter(x=>String(x?.name||'').trim().toLowerCase()===n)
+    return history.filter(x=>String(x?.name||'').trim().toLowerCase()===n && !x?.rqResetInactive)
       .sort((a,b)=>rowTime(b)-rowTime(a))[0]||null;
   }
   function localHistories(){
