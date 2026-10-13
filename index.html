@@ -4131,27 +4131,47 @@
                     cloudReport ? cloudReport.tugas : (sTug ? sTug.detail : (s.lastTugas !== '-' ? s.lastTugas : ''))
                 );
 
-                // Target hanya untuk Laporan Grup WA dan dikendalikan oleh checkbox
-                // "Cantumkan Target". Default tetap ON agar perilaku lama tidak berubah.
+                // Sumber kanonis target untuk Laporan WA Grup adalah kartu Target baru
+                // (rq_slot_targets_v1), sama dengan yang dipakai laporan target terbaru.
+                // Jangan membaca rq_target_hafalan_murojaah_v2 / cache target legacy.
+                // Checkbox hanya mengatur tampilan laporan, bukan mengubah data tersimpan.
+                let targetHafalanText = '';
+                let targetMurojaahText = '';
                 let targetText = '';
                 try {
-                    const targetDB = window.rqTargetEngine?.getDB?.() || {};
-                    const targetData = targetDB.hafalan?.[s.name] || {};
-                    const targetNow = targetData.jangkaPendek || (targetData.ayat ? targetData : null);
-                    if (targetNow?.tampilLaporan === false) { targetText = ''; }
-                    const targetItems = targetNow?.tampilLaporan === false ? [] : (Array.isArray(targetNow?.items) && targetNow.items.length
-                        ? targetNow.items.filter(item => item?.tampilLaporan !== false)
-                        : (targetNow?.surat && Number(targetNow?.ayat) > 0
-                            ? [{ surat: targetNow.surat, ayat: Number(targetNow.ayat), juz: targetNow.juz || '' }]
-                            : []));
-                    if (targetItems.length) {
-                        targetText = targetItems.map(item => {
-                            const surat = String(item?.surat || '').trim();
-                            const ayat = Number(item?.ayat) || 0;
-                            return surat ? `${surat} (sampai Ayat ${ayat})` : '';
-                        }).filter(Boolean).join(' + ');
-                    }
-                } catch (_) {}
+                    const targetStore = JSON.parse(localStorage.getItem('rq_slot_targets_v1') || '{}');
+                    const formatTargetDate = value => {
+                        if (!value) return '';
+                        const raw = String(value).trim();
+                        const m = raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+                        if (!m) return raw;
+                        const months = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+                        return `${Number(m[3])} ${months[Number(m[2])-1] || m[2]}`;
+                    };
+                    const buildSavedTargets = cat => {
+                        const rows = [];
+                        for (let slot = 1; slot <= 3; slot++) {
+                            const item = targetStore[`${cat}|${s.name}|${slot}`];
+                            if (!item || item.rqResetInactive === true) continue;
+                            const surat = String(item.surah || '').trim();
+                            const ayat = Number(item.ayat);
+                            if (!surat || !Number.isInteger(ayat) || ayat < 1) continue;
+                            let line = `- ${surat} ayat 1–${ayat}`;
+                            const mulai = formatTargetDate(item.mulai);
+                            const selesai = formatTargetDate(item.selesai);
+                            if (mulai || selesai) line += `\n  Tanggal target: ${mulai || item.mulai || '-'} s.d. ${selesai || item.selesai || '-'}`;
+                            rows.push(line);
+                        }
+                        return rows.join('\n');
+                    };
+                    targetHafalanText = buildSavedTargets('haf');
+                    targetMurojaahText = buildSavedTargets('mur');
+                    targetText = [targetHafalanText, targetMurojaahText].filter(Boolean).join('\n');
+                } catch (_) {
+                    targetHafalanText = '';
+                    targetMurojaahText = '';
+                    targetText = '';
+                }
 
                 const hasAnySetoran = (bacaanVal && bacaanVal !== '-') || (hafalanVal && hafalanVal !== '-') || (murojaahVal && murojaahVal !== '-') || (tugasVal && tugasVal !== '-');
                 const showSantriInGroupReport = hasAnySetoran || (includeTargetClass && !!targetText);
@@ -4164,8 +4184,11 @@
                     if (murojaahVal && murojaahVal !== '-') santriLine += `\n    - Muroja'ah di Kelas: ${murojaahVal}`;
                     if (tugasVal && tugasVal !== '-') santriLine += `\n    - Tugas: ${tugasVal}`;
 
-                    if (includeTargetClass && targetText) {
-                        santriLine += `\n    - Target : ${targetText}`;
+                    if (includeTargetClass && targetHafalanText) {
+                        santriLine += `\n\n*Target Hafalan:*\n${targetHafalanText}`;
+                    }
+                    if (includeTargetClass && targetMurojaahText) {
+                        santriLine += `\n\n*Target Muroja’ah:*\n${targetMurojaahText}`;
                     }
 
                     msg += santriLine + `\n`;
