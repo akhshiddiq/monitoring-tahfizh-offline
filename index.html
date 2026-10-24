@@ -12205,3 +12205,59 @@ html.dark #rqSafetyBackupBox #rqSafetyBackupLocation b{color:#ecfdf5 !important}
   window.addEventListener('storage',function(e){if(e.key===STORE_KEY)renderList()});
 })();
 </script>
+
+
+<!-- Minimal additive patch: double-click/two-tap compact mode for the existing floating file info -->
+<style id="rq-floating-file-double-toggle-style">
+#rqFloatingFileVersion{transition:width .18s ease,min-width .18s ease,max-width .18s ease,padding .18s ease,border-radius .18s ease,box-shadow .18s ease;}
+#rqFloatingFileVersion.rqfv-compact{width:100px!important;min-width:100px!important;max-width:calc(100vw - 16px)!important;padding:7px 8px!important;border-radius:10px!important;}
+#rqFloatingFileVersion.rqfv-compact .rqfv-meta{display:none!important;}
+#rqFloatingFileVersion.rqfv-compact .rqfv-label{display:block!important;font-size:8px!important;margin:0 0 3px!important;}
+#rqFloatingFileVersion.rqfv-compact .rqfv-number{display:block!important;font-size:19px!important;line-height:1.05!important;margin:0!important;overflow-wrap:anywhere!important;}
+#rqFloatingFileVersion{user-select:none;-webkit-user-select:none;}
+</style>
+<script id="rq-floating-file-double-toggle">
+(function(){
+ 'use strict';
+ function init(){
+  const el=document.getElementById('rqFloatingFileVersion');
+  if(!el||el.dataset.rqDoubleToggleReady==='1')return;
+  el.dataset.rqDoubleToggleReady='1';
+  let lastTouchTap=0, lastToggle=0, startX=0, startY=0, moved=false;
+  function toggle(){
+   const now=Date.now();
+   if(now-lastToggle<250)return;
+   lastToggle=now;
+   el.classList.toggle('rqfv-compact');
+   el.setAttribute('aria-expanded',el.classList.contains('rqfv-compact')?'false':'true');
+   el.setAttribute('aria-label',el.classList.contains('rqfv-compact')?'Info file diperkecil. Klik dua kali untuk memperbesar':'Info file diperbesar. Klik dua kali untuk memperkecil');
+   // Keep the floating panel inside the visible viewport after its size changes.
+   requestAnimationFrame(()=>{
+    const r=el.getBoundingClientRect();
+    if(r.right>window.innerWidth){el.style.left=Math.max(0,window.innerWidth-el.offsetWidth-8)+'px';el.style.right='auto';}
+    if(r.bottom>window.innerHeight){el.style.top=Math.max(0,window.innerHeight-el.offsetHeight-8)+'px';el.style.bottom='auto';}
+   });
+  }
+  el.addEventListener('dblclick',function(e){
+   if(Date.now()-lastToggle<350)return;
+   e.preventDefault();toggle();
+  });
+  // Mobile fallback: two quick taps, ignoring a gesture that moved the panel.
+  el.addEventListener('touchstart',function(e){
+   if(!e.touches||!e.touches[0])return;
+   startX=e.touches[0].clientX;startY=e.touches[0].clientY;moved=false;
+  },{passive:true});
+  el.addEventListener('touchmove',function(e){
+   if(!e.touches||!e.touches[0])return;
+   if(Math.abs(e.touches[0].clientX-startX)>8||Math.abs(e.touches[0].clientY-startY)>8)moved=true;
+  },{passive:true});
+  el.addEventListener('touchend',function(e){
+   if(moved)return;
+   const now=Date.now();
+   if(now-lastTouchTap>0&&now-lastTouchTap<360){lastTouchTap=0;toggle();}
+   else lastTouchTap=now;
+  },{passive:true});
+ }
+ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
+})();
+</script>
