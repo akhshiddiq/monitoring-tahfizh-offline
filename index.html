@@ -4407,11 +4407,37 @@
                     } catch (_) {}
                 }
                 if (Array.isArray(masterSantri)) rows.push(['santriList', '__santriList', JSON.stringify(masterSantri)]);
+                // Ekspor seluruh kunci aplikasi rq_ tanpa memilih hanya kategori tertentu.
+                // Ini mencakup target dari kolom Input yang sudah dikirim, target lama/baru,
+                // riwayat bacaan, hafalan, muroja'ah, tugas, rekapan, metadata file, dan pengaturan.
+                const exportedKeys = [];
                 for (let i = 0; i < localStorage.length; i++) {
                     const key = localStorage.key(i);
                     if (!key || !key.startsWith('rq_')) continue;
-                    rows.push(['localStorage', key, localStorage.getItem(key) ?? '']);
+                    const value = localStorage.getItem(key) ?? '';
+                    rows.push(['localStorage', key, value]);
+                    exportedKeys.push(key);
                 }
+
+                // Catatan cakupan ekspor ditambahkan sebagai baris meta agar tetap kompatibel
+                // dengan format Type, Key, Value. Importer lama mengabaikan meta yang tidak dikenal.
+                const hasKey = key => exportedKeys.includes(key);
+                const targetKeys = ['rq_slot_targets_v1', 'rq_target_hafalan_murojaah_v2'];
+                const historyKeys = [
+                    'rq_history_bacaan', 'rq_history_hafalan',
+                    'rq_history_murojaah', 'rq_history_tugas', 'rq_history_rekapan'
+                ];
+                const exportCoverage = {
+                    localStorageRqKeyCount: exportedKeys.length,
+                    masterSantriIncluded: Array.isArray(masterSantri),
+                    targetKeysPresent: targetKeys.filter(hasKey),
+                    targetKeysMissing: targetKeys.filter(key => !hasKey(key)),
+                    historyKeysPresent: historyKeys.filter(hasKey),
+                    historyKeysMissing: historyKeys.filter(key => !hasKey(key)),
+                    santriListIncluded: Array.isArray(masterSantri),
+                    note: 'Semua kunci localStorage berawalan rq_ dan santriList diekspor; metadata cakupan bukan pengganti data asli.'
+                };
+                rows.push(['meta', 'exportCoverage', JSON.stringify(exportCoverage)]);
 
                 const esc = value => `"${String(value ?? '').replace(/"/g, '""')}"`;
                 const csv = '\uFEFF' + rows.map(row => row.map(esc).join(',')).join('\r\n') + '\r\n';
@@ -7957,7 +7983,7 @@
                             <i class="fa-solid fa-download"></i> Download CSV
                         </div>
                         <p class="text-[11px] text-slate-600 dark:text-slate-400 font-bold">
-                            Mengunduh seluruh data aplikasi yang tersimpan di perangkat dalam satu file CSV.
+                            Mengunduh seluruh data aplikasi yang tersimpan di perangkat dalam satu file CSV, termasuk master santri, semua kunci data aplikasi rq_, target, riwayat, serta target yang sudah dikirim melalui kolom Input.
                         </p>
                         <button onclick="window.exportAllLocalDataToCsv()" class="w-full px-4 py-3 bg-sky-600 hover:bg-sky-700 text-white rounded-xl font-black text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md transition active:scale-95">
                             <i class="fa-solid fa-download"></i> Download Semua Data CSV
