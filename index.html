@@ -10628,6 +10628,225 @@ html.dark #rqSafetyBackupBox #rqSafetyBackupLocation b{color:#ecfdf5 !important}
  const observer=new MutationObserver(addButtons); if(document.body)observer.observe(document.body,{childList:true,subtree:true});
 })();
 </script>
+
+<script id="rq-download-info-popup-v1">
+(function(){
+  'use strict';
+  const STORE_KEY='rq_file_notes_v1';
+  const esc=(v)=>String(v==null?'':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  function notes(){try{const a=JSON.parse(localStorage.getItem(STORE_KEY)||'[]');return Array.isArray(a)?a.filter(x=>x&&typeof x==='object'):[]}catch(_){return []}}
+  function nextNo(a){let max=0;a.forEach(x=>{const m=String(x.noFile||'').match(/(\d+)/);if(m)max=Math.max(max,Number(m[1])||0)});return String(max+1).padStart(4,'0')}
+  function parts(d){return {day:new Intl.DateTimeFormat('id-ID',{timeZone:'Asia/Jakarta',weekday:'long'}).format(d),date:new Intl.DateTimeFormat('id-ID',{timeZone:'Asia/Jakarta',day:'2-digit',month:'long',year:'numeric'}).format(d),time:new Intl.DateTimeFormat('id-ID',{timeZone:'Asia/Jakarta',hour:'2-digit',minute:'2-digit',hour12:false}).format(d)}}
+  function complete(n){return !!(n&&String(n.nama||'').trim()&&['HP','Laptop'].includes(n.device)&&String(n.noFile||'').trim()&&n.day&&n.date&&n.time)}
+  function latestComplete(){return notes().slice().reverse().find(complete)||null}
+  function renderSavedList(){
+    const host=document.getElementById('rqFileNotesList'); if(!host)return;
+    const list=notes().slice().reverse();
+    if(!list.length){host.innerHTML='<div class="rounded-xl border border-dashed border-slate-300 dark:border-slate-600 p-4 text-sm text-slate-500 dark:text-slate-400">Belum ada data file yang tersimpan.</div>';return}
+    host.innerHTML=list.map(n=>`<article class="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-3 sm:p-4"><div class="flex flex-wrap items-center justify-between gap-2"><strong class="text-sm text-sky-800 dark:text-sky-300">${esc(String(n.noFile||'-').replace(/^FILE-KET-/i,''))}</strong><span class="text-xs font-bold text-slate-500 dark:text-slate-400">${esc(n.day||'-')}, ${esc(n.date||'-')} · ${esc(n.time||'-')} WIB</span></div><div class="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2 text-xs text-slate-600 dark:text-slate-300"><div><b>Nama Penginput:</b> ${esc(n.nama||'-')}</div><div><b>Device:</b> ${esc(n.device||'-')}</div></div></article>`).join('');
+  }
+  let modal, pendingDownload=false, busy=false;
+  function ensureModal(){
+    if(modal)return modal;
+    modal=document.createElement('div');modal.id='rqDownloadInfoModal';modal.className='fixed inset-0 z-[30000] hidden items-center justify-center bg-slate-950/60 p-3 sm:p-5';modal.setAttribute('role','dialog');modal.setAttribute('aria-modal','true');
+    modal.innerHTML=`<div class="w-full max-w-lg max-h-[92vh] overflow-y-auto rounded-2xl border border-violet-200 dark:border-violet-800 bg-white dark:bg-slate-900 p-5 sm:p-6 shadow-2xl"><div class="flex items-start justify-between gap-3"><div><h3 id="rqDownloadPopupTitle" class="text-lg font-black text-violet-800 dark:text-violet-200">Informasi File</h3><p id="rqDownloadPopupDesc" class="mt-1 text-sm text-slate-600 dark:text-slate-300">Lengkapi informasi file sebelum mengunduh data.</p></div><button type="button" id="rqDownloadPopupX" class="rounded-lg px-3 py-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800" aria-label="Tutup">✕</button></div><form id="rqDownloadPopupForm" class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3"><label class="text-xs font-bold text-slate-700 dark:text-slate-200">Nama Penginput<input id="rqDownloadNama" class="mt-1.5 w-full rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-950 p-3 text-sm" placeholder="Nama penginput" autocomplete="name" required></label><label class="text-xs font-bold text-slate-700 dark:text-slate-200">No File<input id="rqDownloadNo" class="mt-1.5 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 p-3 text-sm font-black" readonly></label><label class="text-xs font-bold text-slate-700 dark:text-slate-200 sm:col-span-2">Device<select id="rqDownloadDevice" class="mt-1.5 w-full rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-950 p-3 text-sm" required><option value="">Pilih perangkat</option><option value="HP">HP</option><option value="Laptop">Laptop</option></select></label><div class="rounded-xl border border-slate-200 dark:border-slate-700 p-3"><div class="text-xs text-slate-500 dark:text-slate-400">Hari (otomatis)</div><div id="rqDownloadDay" class="mt-1 text-sm font-bold"></div></div><div class="rounded-xl border border-slate-200 dark:border-slate-700 p-3"><div class="text-xs text-slate-500 dark:text-slate-400">Jam (otomatis)</div><div id="rqDownloadTime" class="mt-1 text-sm font-bold"></div></div><div class="rounded-xl border border-slate-200 dark:border-slate-700 p-3 sm:col-span-2"><div class="text-xs text-slate-500 dark:text-slate-400">Tanggal (otomatis)</div><div id="rqDownloadDate" class="mt-1 text-sm font-bold"></div></div><div id="rqDownloadConfirmDetails" class="hidden sm:col-span-2 rounded-xl bg-violet-50 dark:bg-violet-950/40 p-4 text-sm text-slate-700 dark:text-slate-200"></div><div class="sm:col-span-2 flex flex-wrap justify-end gap-2 pt-2"><button type="button" id="rqDownloadCancel" class="rounded-xl border border-slate-300 dark:border-slate-600 px-4 py-2.5 text-sm font-bold">Tutup / Batal</button><button type="submit" id="rqDownloadSubmit" class="rounded-xl bg-violet-600 hover:bg-violet-700 px-5 py-2.5 text-sm font-black text-white shadow">Simpan dan Download</button></div></form></div>`;
+    document.body.appendChild(modal);
+    const close=()=>{modal.classList.add('hidden');modal.classList.remove('flex');pendingDownload=false};
+    modal.querySelector('#rqDownloadPopupX').addEventListener('click',close);
+    modal.querySelector('#rqDownloadCancel').addEventListener('click',close);
+    modal.addEventListener('click',e=>{if(e.target===modal)close()});
+    modal.querySelector('#rqDownloadPopupForm').addEventListener('submit',e=>{
+      e.preventDefault();
+      const form=modal.querySelector('#rqDownloadPopupForm');
+      if(form.dataset.mode==='confirm'){close();runDownload();return}
+      const nama=modal.querySelector('#rqDownloadNama').value.trim();
+      const device=modal.querySelector('#rqDownloadDevice').value;
+      if(!nama){modal.querySelector('#rqDownloadNama').focus();return}
+      if(!['HP','Laptop'].includes(device)){modal.querySelector('#rqDownloadDevice').focus();return}
+      const now=new Date(),p=parts(now),list=notes();
+      const entry={id:'rq-file-note-'+Date.now()+'-'+Math.random().toString(36).slice(2,7),keterangan:'',nama,noFile:nextNo(list),day:p.day,time:p.time,date:p.date,device,createdAt:now.toISOString(),timezone:'Asia/Jakarta'};
+      try{list.push(entry);localStorage.setItem(STORE_KEY,JSON.stringify(list));renderSavedList();
+        const mainName=document.getElementById('rqFileNoteNama');if(mainName)mainName.value=nama;
+        const mainDevice=document.getElementById('rqFileNoteDevice');if(mainDevice)mainDevice.value=device;
+        const mainNo=document.getElementById('rqFileNoteNo');if(mainNo)mainNo.value=nextNo(list);
+        close();runDownload();
+      }catch(err){alert('Gagal menyimpan informasi file. Download dibatalkan agar metadata tidak hilang. '+(err&&err.message?err.message:''))}
+    });
+    return modal;
+  }
+  function show(mode,n){
+    const m=ensureModal(),form=m.querySelector('#rqDownloadPopupForm'),title=m.querySelector('#rqDownloadPopupTitle'),desc=m.querySelector('#rqDownloadPopupDesc'),submit=m.querySelector('#rqDownloadSubmit'),details=m.querySelector('#rqDownloadConfirmDetails');
+    form.dataset.mode=mode;
+    const now=new Date(),p=parts(now);
+    m.querySelector('#rqDownloadNo').value=mode==='form'?nextNo(notes()):String(n.noFile||'-').replace(/^FILE-KET-/i,'');
+    m.querySelector('#rqDownloadDay').textContent=mode==='form'?p.day:(n.day||'-');
+    m.querySelector('#rqDownloadTime').textContent=(mode==='form'?p.time:(n.time||'-'))+' WIB';
+    m.querySelector('#rqDownloadDate').textContent=mode==='form'?p.date:(n.date||'-');
+    m.querySelector('#rqDownloadNama').value=mode==='form'?(document.getElementById('rqFileNoteNama')?.value||''):(n.nama||'');
+    m.querySelector('#rqDownloadDevice').value=mode==='form'?(document.getElementById('rqFileNoteDevice')?.value||''):(n.device||'');
+    const fields=[...form.querySelectorAll('label')];fields.forEach(el=>el.classList.toggle('hidden',mode==='confirm'));
+    m.querySelectorAll('#rqDownloadDay,#rqDownloadTime,#rqDownloadDate').forEach(el=>el.parentElement.classList.toggle('hidden',mode==='confirm'));
+    details.classList.toggle('hidden',mode!=='confirm');
+    if(mode==='confirm'){
+      title.textContent='Informasi File Sudah Tersimpan';
+      desc.textContent='Informasi berikut sudah lengkap dan tersimpan. Periksa sebelum melanjutkan download.';
+      details.innerHTML=`<div class="space-y-2"><div><b>Nama Penginput:</b> ${esc(n.nama)}</div><div><b>No File:</b> ${esc(String(n.noFile||'').replace(/^FILE-KET-/i,''))}</div><div><b>Device:</b> ${esc(n.device)}</div><div><b>Hari:</b> ${esc(n.day)}</div><div><b>Jam:</b> ${esc(n.time)} WIB</div><div><b>Tanggal:</b> ${esc(n.date)}</div><p class="pt-2 font-semibold text-violet-700 dark:text-violet-300">Informasi file sudah lengkap dan tersimpan. File data siap diunduh.</p></div>`;
+      submit.textContent='Lanjutkan Download';m.querySelector('#rqDownloadCancel').textContent='Tutup';
+    }else{
+      title.textContent='Lengkapi Informasi File';
+      desc.textContent='Isi Nama Penginput dan pilih Device. Hari, jam, tanggal, dan nomor file diisi otomatis.';
+      submit.textContent='Simpan dan Download';m.querySelector('#rqDownloadCancel').textContent='Batal';
+    }
+    m.classList.remove('hidden');m.classList.add('flex');
+  }
+  let originalDownload=null;
+  function runDownload(){if(busy)return;busy=true;try{if(typeof originalDownload==='function')originalDownload();else alert('Fungsi download asli tidak ditemukan.');}finally{setTimeout(()=>{busy=false},800)}}
+  function install(){
+    if(typeof window.exportAllLocalDataToCsv!=='function'||window.exportAllLocalDataToCsv.__rqPopupWrapped)return;
+    originalDownload=window.exportAllLocalDataToCsv;
+    const wrapped=function(){const n=latestComplete();if(n){show('confirm',n)}else{show('form',null)}};
+    wrapped.__rqPopupWrapped=true;window.exportAllLocalDataToCsv=wrapped;
+  }
+  install();
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install,{once:true});
+})();
+</script>
+
+
+<style id="rq-floating-file-info-style-v2">
+#rqFloatingFileVersion{
+  display:block!important; width:220px!important; min-width:220px!important;
+  height:auto!important; min-height:0!important; max-width:calc(100vw - 16px)!important;
+  padding:10px 12px!important; border:1px solid #cbd5e1!important; border-radius:12px!important;
+  background:#fff!important; color:#0f172a!important; white-space:normal!important;
+  line-height:1.25!important; font-size:11px!important; box-sizing:border-box!important;
+  box-shadow:0 5px 18px rgba(15,23,42,.2)!important; cursor:grab!important;
+}
+#rqFloatingFileVersion .rqfv-number{font-size:24px;font-weight:900;letter-spacing:.04em;line-height:1.05;color:#047857;margin-bottom:7px}
+#rqFloatingFileVersion .rqfv-label{font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:#64748b;margin-bottom:2px}
+#rqFloatingFileVersion .rqfv-meta{font-size:11px;font-weight:700;overflow-wrap:anywhere;margin-top:4px}
+@media(max-width:767px){#rqFloatingFileVersion{width:190px!important;min-width:190px!important;padding:9px 10px!important;border-radius:10px!important}#rqFloatingFileVersion .rqfv-number{font-size:22px}}
+</style>
+<script id="rq-floating-file-info-sync-v2">
+(function(){
+ 'use strict';
+ const KEY='rq_file_notes_v1';
+ const el=()=>document.getElementById('rqFloatingFileVersion');
+ const esc=v=>String(v==null?'':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+ function getLatest(){
+   try{
+     const arr=JSON.parse(localStorage.getItem(KEY)||'[]');
+     if(!Array.isArray(arr))return null;
+     for(let i=arr.length-1;i>=0;i--){
+       const n=arr[i]; if(!n||typeof n!=='object')continue;
+       const nama=String(n.nama||'').trim(), device=String(n.device||'').trim();
+       const no=String(n.noFile||'').replace(/^FILE-KET-/i,'').replace(/\D/g,'');
+       if(nama&&no&&n.day&&n.time&&n.date&&device)return {no:no.padStart(4,'0').slice(-4),nama,day:String(n.day),time:String(n.time).replace(/\s*WIB$/i,''),date:String(n.date),device};
+     }
+   }catch(_){}
+   return null;
+ }
+ window.rqRenderFloatingFileVersion=function(){
+   const node=el();if(!node)return;
+   const n=getLatest();
+   node.setAttribute('aria-label','Informasi file terakhir tersimpan — dapat dipindahkan');
+   node.title='Informasi file terakhir yang berhasil disimpan — dapat dipindahkan';
+   if(!n){
+     node.innerHTML='<div class="rqfv-label">Informasi file</div><div class="rqfv-meta">Belum ada data file tersimpan</div>';
+   }else{
+     node.innerHTML='<div class="rqfv-label">Nomor File</div><div class="rqfv-number">'+esc(n.no)+'</div><div class="rqfv-meta"><span class="rqfv-label">Nama Penginput</span><div>'+esc(n.nama)+'</div></div><div class="rqfv-meta">'+esc(n.time)+' WIB</div><div class="rqfv-meta">'+esc(n.date)+'</div>';
+   }
+   // Setelah tinggi kotak berubah, pastikan tetap berada dalam layar tanpa menghilangkan kemampuan drag.
+   try{
+     const r=node.getBoundingClientRect();
+     if(r.right>innerWidth)node.style.left=Math.max(0,innerWidth-node.offsetWidth-8)+'px',node.style.right='auto';
+     if(r.bottom>innerHeight)node.style.top=Math.max(0,innerHeight-node.offsetHeight-8)+'px',node.style.bottom='auto';
+   }catch(_){}
+ };
+ function refresh(){window.rqRenderFloatingFileVersion?.()}
+ function init(){
+   refresh();
+   // Sinkronisasi untuk penyimpanan yang dilakukan pada halaman yang sama atau dari tab lain.
+   const original=Storage.prototype.setItem;
+   if(!Storage.prototype.__rqFloatNoteHook){
+     Storage.prototype.setItem=function(k,v){const result=original.apply(this,arguments);if(k===KEY)queueMicrotask(refresh);return result};
+     Storage.prototype.__rqFloatNoteHook=true;
+   }
+   window.addEventListener('storage',e=>{if(e.key===KEY)refresh()});
+   window.addEventListener('resize',refresh);
+   // Hook tombol Save formulir keterangan agar kotak diperbarui setelah entri disimpan.
+   document.addEventListener('submit',e=>{if(e.target&&e.target.id==='rqFileNotesForm')setTimeout(refresh,0)},true);
+   // Backup interval hanya membaca data; tidak mengubah penyimpanan.
+   setInterval(refresh,1500);
+ }
+ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
+})();
+</script>
+
+
+<style id="rq-floating-file-info-final-fix">
+#rqFloatingFileVersion{
+ display:block!important;width:230px!important;min-width:230px!important;height:auto!important;min-height:0!important;
+ max-width:calc(100vw - 16px)!important;padding:11px 13px!important;border:1px solid #cbd5e1!important;
+ border-radius:12px!important;background:#fff!important;color:#0f172a!important;white-space:normal!important;
+ line-height:1.3!important;font-size:11px!important;box-sizing:border-box!important;box-shadow:0 5px 18px rgba(15,23,42,.22)!important;
+ cursor:grab!important;touch-action:none!important;z-index:99999!important;overflow-wrap:anywhere!important
+}
+#rqFloatingFileVersion .rqfv-label{display:block;font-size:9px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:#64748b;margin:2px 0}
+#rqFloatingFileVersion .rqfv-number{display:block;font-size:28px!important;font-weight:900!important;letter-spacing:.04em;line-height:1.05;color:#047857;margin:2px 0 8px}
+#rqFloatingFileVersion .rqfv-meta{font-size:11px;font-weight:700;line-height:1.35;margin-top:5px}
+@media(max-width:767px){#rqFloatingFileVersion{width:210px!important;min-width:210px!important;max-width:calc(100vw - 16px)!important;padding:10px 11px!important}#rqFloatingFileVersion .rqfv-number{font-size:26px!important}}
+</style>
+<script id="rq-floating-file-info-final-fix">
+(function(){
+ 'use strict';
+ const KEY='rq_file_notes_v1';
+ const esc=v=>String(v==null?'':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+ function latest(){
+  try{
+   const a=JSON.parse(localStorage.getItem(KEY)||'[]'); if(!Array.isArray(a))return null;
+   for(let i=a.length-1;i>=0;i--){
+    const n=a[i]; if(!n||typeof n!=='object')continue;
+    const nama=String(n.nama||n.name||n.inputBy||'').trim();
+    const raw=String(n.noFile||n.fileNo||'').replace(/^FILE-KET-/i,'').replace(/^FILE-/i,'');
+    const digits=raw.match(/\d+/); const no=digits?digits[0]:''; 
+    const day=String(n.day||n.hari||'').trim(),time=String(n.time||n.jam||'').replace(/\s*WIB$/i,'').trim(),date=String(n.date||n.tanggal||'').trim();
+    if(nama&&no&&day&&time&&date)return {no:no.padStart(4,'0').slice(-4),nama,day,time,date};
+   }
+  }catch(e){}
+  return null;
+ }
+ function render(){
+  const el=document.getElementById('rqFloatingFileVersion'); if(!el)return;
+  const n=latest();
+  el.setAttribute('aria-label','Informasi file terakhir tersimpan — dapat dipindahkan');
+  el.title='Informasi file terakhir yang berhasil disimpan — dapat dipindahkan';
+  const html=!n
+   ? '<div class="rqfv-label">Informasi File</div><div class="rqfv-meta">Belum ada data file tersimpan</div>'
+   : '<div class="rqfv-label">Nomor File</div><div class="rqfv-number">'+esc(n.no)+'</div><div class="rqfv-meta"><span class="rqfv-label">Nama Penginput</span>'+esc(n.nama)+'</div><div class="rqfv-meta"><span class="rqfv-label">Jam</span>'+esc(n.time)+' WIB</div><div class="rqfv-meta"><span class="rqfv-label">Tanggal</span>'+esc(n.day)+', '+esc(n.date)+'</div>';
+  if(el.innerHTML!==html)el.innerHTML=html;
+  try{const r=el.getBoundingClientRect();if(r.right>innerWidth)el.style.left=Math.max(0,innerWidth-el.offsetWidth-8)+'px';if(r.bottom>innerHeight)el.style.top=Math.max(0,innerHeight-el.offsetHeight-8)+'px'}catch(e){}
+ }
+ // Force the final renderer to remain authoritative even if older legacy code runs.
+ window.rqRenderFloatingFileVersion=render;
+ function init(){
+  render();
+  const el=document.getElementById('rqFloatingFileVersion');
+  if(el&&!el.dataset.rqInfoFinalObserver){
+   el.dataset.rqInfoFinalObserver='1';
+   const mo=new MutationObserver(()=>{if(!el.querySelector('.rqfv-number')&&latest())render()});
+   mo.observe(el,{childList:true,subtree:true,characterData:true});
+  }
+  window.addEventListener('storage',e=>{if(!e||e.key===KEY)render()});
+  window.addEventListener('resize',render);
+  // Save handlers may write to localStorage in the same tab, so refresh after user actions.
+  document.addEventListener('click',()=>setTimeout(render,80),true);
+  setInterval(render,1500);
+ }
+ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
+})();
+</script>
+
 </body>
 
 <script>
@@ -11961,5 +12180,28 @@ html.dark #rqSafetyBackupBox #rqSafetyBackupLocation b{color:#ecfdf5 !important}
  };
  window.addEventListener('storage',e=>{if(e.key===STORE)window.rqRefreshCanonicalTargetReports();});
  document.addEventListener('DOMContentLoaded',()=>setTimeout(()=>window.rqRefreshCanonicalTargetReports(),0));
+})();
+</script>
+
+
+<script id="rq-file-notes-feature-v1">
+(function(){
+  'use strict';
+  const STORE_KEY='rq_file_notes_v1';
+  const esc=(v)=>String(v==null?'':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  function readNotes(){try{const x=JSON.parse(localStorage.getItem(STORE_KEY)||'[]');return Array.isArray(x)?x.filter(v=>v&&typeof v==='object'):[]}catch(_){return []}}
+  function wibParts(d){const f=new Intl.DateTimeFormat('id-ID',{timeZone:'Asia/Jakarta',weekday:'long',day:'2-digit',month:'long',year:'numeric'});const day=new Intl.DateTimeFormat('id-ID',{timeZone:'Asia/Jakarta',weekday:'long'}).format(d);const date=new Intl.DateTimeFormat('id-ID',{timeZone:'Asia/Jakarta',day:'2-digit',month:'long',year:'numeric'}).format(d);const time=new Intl.DateTimeFormat('id-ID',{timeZone:'Asia/Jakarta',hour:'2-digit',minute:'2-digit',hour12:false}).format(d);return {day,date,time,full:f.format(d)}}
+  function nextNo(list){let max=0;list.forEach(x=>{const m=String(x.noFile||'').match(/(\d+)/);if(m)max=Math.max(max,Number(m[1])||0)});return String(max+1).padStart(4,'0')}
+  function renderList(){const host=document.getElementById('rqFileNotesList');if(!host)return;const list=readNotes().slice().reverse();if(!list.length){host.innerHTML='<div class="rounded-xl border border-dashed border-slate-300 dark:border-slate-600 p-4 text-sm text-slate-500 dark:text-slate-400">Belum ada data file yang tersimpan.</div>';return;}host.innerHTML=list.map(n=>{const number=String(n.noFile||'-').replace(/^FILE-KET-/i,'');return `<article class="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-3 sm:p-4"><div class="flex flex-wrap items-center justify-between gap-2"><strong class="text-sm text-sky-800 dark:text-sky-300">${esc(number)}</strong><span class="text-xs font-bold text-slate-500 dark:text-slate-400">${esc(n.day||'-')}, ${esc(n.date||'-')} · ${esc(n.time||'-')} WIB</span></div><div class="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2 text-xs text-slate-600 dark:text-slate-300"><div><b>Nama Penginput:</b> ${esc(n.nama||'-')}</div><div><b>Device:</b> ${esc(n.device||'-')}</div></div></article>`}).join('')}
+  function toast(msg,type){if(typeof window.showToast==='function')window.showToast(msg,type||'success');else alert(msg)}
+  function saveNote(){const form=document.getElementById('rqFileNotesForm');if(!form)return;const namaEl=document.getElementById('rqFileNoteNama');const nama=namaEl.value.trim();const deviceEl=document.getElementById('rqFileNoteDevice');const device=deviceEl.value;if(!nama){toast('Nama Penginput wajib diisi.','error');namaEl.focus();return}if(!device){toast('Silakan pilih Device.','error');deviceEl.focus();return}const now=new Date(),p=wibParts(now),list=readNotes();const entry={id:'rq-file-note-'+Date.now()+'-'+Math.random().toString(36).slice(2,7),keterangan:'',nama,noFile:nextNo(list),day:p.day,time:p.time,date:p.date,device,createdAt:now.toISOString(),timezone:'Asia/Jakarta'};try{list.push(entry);localStorage.setItem(STORE_KEY,JSON.stringify(list));renderList();document.getElementById('rqFileNoteNo').value=nextNo(list);toast('Data file berhasil disimpan.');}catch(e){toast('Gagal menyimpan data file. Data sebelumnya tetap dipertahankan. '+(e&&e.message?e.message:''),'error')}}
+  function mount(){const section=document.getElementById('section-export');if(!section||document.getElementById('rqFileNotesCard'))return;const card=document.createElement('section');card.id='rqFileNotesCard';card.className='mt-4 rounded-2xl border-2 border-violet-200 dark:border-violet-900 bg-violet-50/70 dark:bg-violet-950/20 p-4 sm:p-5 space-y-4';card.innerHTML=`<div><h3 class="text-base sm:text-lg font-black text-violet-900 dark:text-violet-200">Keterangan File</h3><p class="mt-1 text-xs sm:text-sm font-medium text-slate-600 dark:text-slate-300">Simpan identitas file. Semua entri tersimpan lokal dan ikut dalam Download Semua Data CSV.</p></div><form id="rqFileNotesForm" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3"><label class="text-xs font-black text-slate-700 dark:text-slate-200">Nama Penginput<input id="rqFileNoteNama" type="text" placeholder="Nama penginput" autocomplete="name" class="mt-1.5 w-full rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 p-3 text-sm" required></label><label class="text-xs font-black text-slate-700 dark:text-slate-200">No File<input id="rqFileNoteNo" type="text" readonly class="mt-1.5 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 p-3 text-sm font-black" aria-label="Nomor file otomatis"></label><label class="text-xs font-black text-slate-700 dark:text-slate-200">Device<select id="rqFileNoteDevice" class="mt-1.5 w-full rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 p-3 text-sm" required><option value="">Pilih perangkat</option><option value="HP">HP</option><option value="Laptop">Laptop</option></select></label><div class="rounded-xl border border-slate-200 dark:border-slate-700 bg-white/80 dark:bg-slate-900/70 p-3"><div class="text-xs font-black text-slate-500 dark:text-slate-400">Hari (otomatis)</div><div id="rqFileNoteDay" class="mt-1 text-sm font-bold text-slate-800 dark:text-slate-100">-</div></div><div class="rounded-xl border border-slate-200 dark:border-slate-700 bg-white/80 dark:bg-slate-900/70 p-3"><div class="text-xs font-black text-slate-500 dark:text-slate-400">Jam (otomatis)</div><div id="rqFileNoteTime" class="mt-1 text-sm font-bold text-slate-800 dark:text-slate-100">-</div></div><div class="rounded-xl border border-slate-200 dark:border-slate-700 bg-white/80 dark:bg-slate-900/70 p-3"><div class="text-xs font-black text-slate-500 dark:text-slate-400">Tanggal (otomatis)</div><div id="rqFileNoteDate" class="mt-1 text-sm font-bold text-slate-800 dark:text-slate-100">-</div></div><div class="sm:col-span-2 lg:col-span-3"><button id="rqFileNoteSaveBtn" type="submit" class="w-full sm:w-auto px-6 py-3 rounded-xl bg-violet-600 hover:bg-violet-700 text-white font-black text-sm shadow-md active:scale-[.99]">Save</button></div></form><div class="border-t border-violet-200 dark:border-violet-900 pt-4"><div class="font-black text-sm text-violet-900 dark:text-violet-200 mb-3">Data Keterangan File yang Sudah Tersimpan</div><div id="rqFileNotesList" class="space-y-3"></div><p class="mt-3 text-[11px] font-medium text-slate-500 dark:text-slate-400">Metadata disimpan sebagai data tambahan dan tidak menggantikan data bacaan, hafalan, atau data aplikasi lainnya.</p></div>`;
+    const downloadBtn=section.querySelector('button[onclick*="exportAllLocalDataToCsv"]');const downloadCard=downloadBtn&&downloadBtn.closest('.p-3\\.5');if(downloadCard&&downloadCard.parentElement===section)downloadCard.insertAdjacentElement('afterend',card);else section.insertBefore(card,section.firstChild);
+    const form=card.querySelector('#rqFileNotesForm');form.addEventListener('submit',function(e){e.preventDefault();saveNote()});
+    function updateClock(){const p=wibParts(new Date());document.getElementById('rqFileNoteDay').textContent=p.day;document.getElementById('rqFileNoteTime').textContent=p.time+' WIB';document.getElementById('rqFileNoteDate').textContent=p.date;document.getElementById('rqFileNoteNo').value=nextNo(readNotes())}
+    updateClock();renderList();
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',mount,{once:true});else mount();
+  window.addEventListener('storage',function(e){if(e.key===STORE_KEY)renderList()});
 })();
 </script>
