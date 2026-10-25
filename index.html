@@ -10351,10 +10351,102 @@ html.dark #rqSafetyBackupBox #rqSafetyBackupLocation b{color:#ecfdf5 !important}
    return Math.max(0,Math.min(100,Math.round(done.size/Math.max(1,Number(targetAyat)||1)*100)));
  }
  function renderOne(cat,name,slot){
-   const cont=getInput(`slot_container_${cat}_${slot}_${name}`);if(!cont||cont.querySelector('.rq-slot-target-panel'))return;
+   const cont=getInput(`slot_container_${cat}_${slot}_${name}`);
+   if(!cont)return;
+   const panelKey=`${cat}|${name}|${slot}`;
+   if(Array.from(document.querySelectorAll('.rq-slot-target-panel')).some(p=>p.dataset.rqTargetKey===panelKey))return;
+   const formType=cat==='haf'?'hafalan':'murojaah';
+   const formContent=getInput(`card_section_content_${formType}_${name}`);
+   if(!formContent)return;
+   const sendButton=Array.from(formContent.querySelectorAll('button')).find(btn=>{
+     const call=btn.getAttribute('onclick')||'';
+     return call.includes('saveSectionData(')&&call.includes(name)&&call.includes(formType);
+   });
+   if(!sendButton||!sendButton.parentElement)return;
+   const sendAnchor=sendButton.parentElement;
+   const areaId=`rq-target-area-${cat}-${name}`;
+   let targetArea=document.getElementById(areaId);
+   if(!targetArea){
+     targetArea=document.createElement('div');
+     targetArea.id=areaId;
+     const areaColor=cat==='haf'?'rose':'purple';
+     targetArea.className=`mt-3 p-3 rounded-xl border-2 border-${areaColor}-200 dark:border-${areaColor}-800 bg-white/70 dark:bg-slate-900/40 space-y-3`;
+     const heading=document.createElement('div');
+     heading.className=`font-black text-xs text-${areaColor}-700 dark:text-${areaColor}-300`;
+     heading.textContent=cat==='haf'?'Target Hafalan':'Target Muroja’ah';
+     targetArea.appendChild(heading);
+   }
+   if(targetArea.parentElement!==formContent || targetArea.previousElementSibling!==sendAnchor){
+     sendAnchor.insertAdjacentElement('afterend',targetArea);
+   }
    const kind=cat==='haf'?'Hafalan':'Muroja’ah',color=cat==='haf'?'rose':'purple',key=`${cat}|${name}|${slot}`,db=safeRead(),v=db[key]||{};
-   const panel=document.createElement('div');panel.className=`rq-slot-target-panel mt-3 p-3 rounded-xl border-2 border-${color}-300 dark:border-${color}-800 bg-white/80 dark:bg-slate-900/50 space-y-2`;panel.innerHTML=`<div class="font-black text-xs text-${color}-700 dark:text-${color}-300">Target ${kind} ${slot}</div><label class="block text-[11px] font-bold">Surat target (otomatis dari input)<input class="rq-st-surah mt-1 w-full p-3 rounded-xl border-2 bg-white dark:bg-slate-900 text-sm font-black" readonly value="${esc(getSurah(cat,name,slot)||v.surah||'')}" /></label><div class="grid grid-cols-[minmax(0,1fr)_auto] gap-2 items-end"><label class="block text-[11px] font-bold min-w-0">Target ayat<input class="rq-st-ayat mt-1 w-full min-w-0 p-3 rounded-xl border-2 bg-white dark:bg-slate-900 text-sm font-black" type="number" min="1" value="${esc(v.ayat||'')}" placeholder="Masukkan target ayat" /></label><button type="button" class="rq-st-last-ayat mb-0.5 px-3 py-3 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-black text-xs whitespace-nowrap">Ayat Terakhir</button></div><div class="grid grid-cols-1 sm:grid-cols-2 gap-2"><label class="block text-[11px] font-bold">Tanggal mulai<input class="rq-st-start mt-1 w-full p-3 rounded-xl border-2 bg-white dark:bg-slate-900 text-sm" type="date" value="${esc(v.mulai||'')}" /></label><label class="block text-[11px] font-bold">Tanggal selesai<input class="rq-st-end mt-1 w-full p-3 rounded-xl border-2 bg-white dark:bg-slate-900 text-sm" type="date" value="${esc(v.selesai||'')}" /></label></div><div class="rq-st-progress text-[11px] font-black">Progress: 0%</div><div class="h-2 rounded-full bg-slate-200 overflow-hidden"><div class="rq-st-bar h-full bg-${color}-500 rounded-full" style="width:0%"></div></div><div class="grid grid-cols-2 gap-2"><button type="button" class="rq-st-reset py-2 rounded-xl border-2 border-slate-300 dark:border-slate-600 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-black text-xs">Reset</button><button type="button" class="rq-st-save py-2 rounded-xl bg-${color}-600 hover:bg-${color}-700 text-white font-black text-xs">Simpan Target ${kind} ${slot}</button></div>`;
-   cont.appendChild(panel);
+   const panel=document.createElement('div');panel.dataset.rqTargetKey=panelKey;panel.className=`rq-slot-target-panel mt-3 p-3 rounded-xl border-2 border-${color}-300 dark:border-${color}-800 bg-white/80 dark:bg-slate-900/50 space-y-2`;panel.innerHTML=`<div class="font-black text-xs text-${color}-700 dark:text-${color}-300">Target ${kind} ${slot}</div><label class="block text-[11px] font-bold">Surat target (otomatis dari input)<input class="rq-st-surah mt-1 w-full p-3 rounded-xl border-2 bg-white dark:bg-slate-900 text-sm font-black" readonly value="${esc(getSurah(cat,name,slot)||v.surah||'')}" /></label><div class="grid grid-cols-[minmax(0,1fr)_auto] gap-2 items-end"><label class="block text-[11px] font-bold min-w-0">Target ayat<input class="rq-st-ayat mt-1 w-full min-w-0 p-3 rounded-xl border-2 bg-white dark:bg-slate-900 text-sm font-black" type="number" min="1" value="${esc(v.ayat||'')}" placeholder="Masukkan target ayat" /></label><button type="button" class="rq-st-last-ayat mb-0.5 px-3 py-3 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-black text-xs whitespace-nowrap">Ayat Terakhir</button></div><div class="grid grid-cols-1 sm:grid-cols-2 gap-2"><label class="block text-[11px] font-bold">Tanggal mulai<input class="rq-st-start mt-1 w-full p-3 rounded-xl border-2 bg-white dark:bg-slate-900 text-sm" type="date" value="${esc(v.mulai||'')}" /></label><label class="block text-[11px] font-bold">Tanggal selesai<input class="rq-st-end mt-1 w-full p-3 rounded-xl border-2 bg-white dark:bg-slate-900 text-sm" type="date" value="${esc(v.selesai||'')}" /></label></div><div class="rq-st-progress text-[11px] font-black">Progress: 0%</div><div class="h-2 rounded-full bg-slate-200 overflow-hidden"><div class="rq-st-bar h-full bg-${color}-500 rounded-full" style="width:0%"></div></div><div class="grid grid-cols-2 gap-2"><button type="button" class="rq-st-reset py-2 rounded-xl border-2 border-slate-300 dark:border-slate-600 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-black text-xs">Reset</button><button type="button" class="rq-st-save py-2 rounded-xl bg-${color}-600 hover:bg-${color}-700 text-white font-black text-xs">Simpan Target ${kind} ${slot}</button></div>`;
+
+   // Tombol cepat tanggal: tidak menyimpan otomatis dan tetap memakai input tanggal asli.
+   const startDateInput=panel.querySelector('.rq-st-start');
+   const endDateInput=panel.querySelector('.rq-st-end');
+   if(startDateInput&&endDateInput){
+     const quickDates=document.createElement('div');
+     quickDates.className='grid grid-cols-1 gap-2 mt-2';
+     const startActions=document.createElement('div');
+     startActions.className='flex flex-wrap items-center gap-2';
+     const todayButton=document.createElement('button');
+     todayButton.type='button';
+     todayButton.className='px-3 py-2 rounded-lg text-xs font-black border border-sky-300 dark:border-sky-700 bg-sky-50 dark:bg-slate-800 text-sky-700 dark:text-sky-300 active:scale-95';
+     todayButton.textContent='Hari Ini';
+     todayButton.addEventListener('click',function(){
+       const now=new Date();
+       const localDate=new Date(now.getTime()-now.getTimezoneOffset()*60000).toISOString().slice(0,10);
+       startDateInput.value=localDate;
+       startDateInput.dispatchEvent(new Event('input',{bubbles:true}));
+       startDateInput.dispatchEvent(new Event('change',{bubbles:true}));
+     });
+     startActions.appendChild(todayButton);
+     const endActions=document.createElement('div');
+     endActions.className='flex flex-wrap items-center gap-2';
+     [5,10,15,20].forEach(function(days){
+       const button=document.createElement('button');
+       button.type='button';
+       button.className='px-3 py-2 rounded-lg text-xs font-black border border-indigo-300 dark:border-indigo-700 bg-indigo-50 dark:bg-slate-800 text-indigo-700 dark:text-indigo-300 active:scale-95';
+       button.textContent=days+' Hari';
+       button.setAttribute('aria-pressed','false');
+       button.addEventListener('click',function(){
+         if(!startDateInput.value){
+           window.showToast?.('Isi Tanggal Mulai terlebih dahulu.','error');
+           if(typeof window.showToast!=='function') alert('Isi Tanggal Mulai terlebih dahulu.');
+           return;
+         }
+         const parts=startDateInput.value.split('-').map(Number);
+         const date=new Date(parts[0],parts[1]-1,parts[2]);
+         date.setDate(date.getDate()+days);
+         endDateInput.value=date.getFullYear()+'-'+String(date.getMonth()+1).padStart(2,'0')+'-'+String(date.getDate()).padStart(2,'0');
+         endDateInput.dispatchEvent(new Event('input',{bubbles:true}));
+         endDateInput.dispatchEvent(new Event('change',{bubbles:true}));
+         endActions.querySelectorAll('button').forEach(function(b){
+           b.classList.remove('ring-2','ring-indigo-500');
+           b.setAttribute('aria-pressed','false');
+         });
+         button.classList.add('ring-2','ring-indigo-500');
+         button.setAttribute('aria-pressed','true');
+       });
+       endActions.appendChild(button);
+     });
+     const startLabel=document.createElement('div');
+     startLabel.className='text-[10px] font-bold opacity-80';
+     startLabel.textContent='Atur tanggal mulai';
+     const endLabel=document.createElement('div');
+     endLabel.className='text-[10px] font-bold opacity-80';
+     endLabel.textContent='Durasi tanggal selesai';
+     quickDates.appendChild(startLabel);
+     quickDates.appendChild(startActions);
+     quickDates.appendChild(endLabel);
+     quickDates.appendChild(endActions);
+     const dateRow=startDateInput.closest('.grid');
+     if(dateRow&&dateRow.parentElement) dateRow.insertAdjacentElement('afterend',quickDates);
+     else panel.appendChild(quickDates);
+   }
+
+   targetArea.appendChild(panel);
    const surahEl=panel.querySelector('.rq-st-surah'),ayatEl=panel.querySelector('.rq-st-ayat'),startEl=panel.querySelector('.rq-st-start'),endEl=panel.querySelector('.rq-st-end');
    function syncSurah(){const current=getSurah(cat,name,slot);if(current){surahEl.value=current;const cache=safeRead();if(cache[key]&&cache[key].surah!==current){cache[key].surah=current;safeWrite(cache)}}updatePct()}
    panel.querySelector('.rq-st-last-ayat').addEventListener('click',()=>{
@@ -10383,8 +10475,26 @@ html.dark #rqSafetyBackupBox #rqSafetyBackupLocation b{color:#ecfdf5 !important}
    const search=getInput(`${cat}_surah_search_${slot}_${name}`),select=getInput(`${cat}_surah_${slot}_${name}`);[search,select].filter(Boolean).forEach(el=>el.addEventListener('change',syncSurah));if(search)search.addEventListener('input',syncSurah);syncSurah();
  }
  function scan(){if(!Array.isArray(window.santriList))return;window.santriList.forEach(s=>{[1,2,3].forEach(slot=>{renderOne('haf',s.name,slot);renderOne('mur',s.name,slot)})})}
- if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',scan);else scan();
- const obs=new MutationObserver(()=>scan());obs.observe(document.body,{childList:true,subtree:true});setTimeout(scan,700);setTimeout(scan,1800);
+ let scanQueued=false;
+ function queueScan(){if(scanQueued)return;scanQueued=true;window.setTimeout(()=>{scanQueued=false;scan()},120)}
+ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',scan,{once:true});else scan();
+ const inputRoot=document.getElementById('section-setoran')||document.getElementById('section-input')||document.body;
+ const obs=new MutationObserver(records=>{
+   const relevant=records.some(r=>{
+     const t=r.target;
+     if(t&&t.closest&&t.closest('.rq-slot-target-panel,[id^="rq-target-area-"]'))return false;
+     const nodes=Array.from(r.addedNodes||[]).concat(Array.from(r.removedNodes||[]));
+     return nodes.some(n=>n.nodeType===1&&((n.id&&n.id.startsWith('card_section_content_'))||(n.querySelector&&n.querySelector('[id^="card_section_content_"]'))));
+   });
+   if(relevant)queueScan();
+ });
+ obs.observe(inputRoot,{childList:true,subtree:true});
+ const oldRender=window.renderSantriCardsAndTable;
+ if(typeof oldRender==='function'&&!oldRender.__rqSlotTargetScanWrapped){
+   const wrapped=function(){const result=oldRender.apply(this,arguments);queueScan();return result};
+   wrapped.__rqSlotTargetScanWrapped=true;window.renderSantriCardsAndTable=wrapped;
+ }
+ setTimeout(scan,500);
 })();
 </script>
  
@@ -12453,3 +12563,7 @@ html.dark #rqSafetyBackupBox #rqSafetyBackupLocation b{color:#ecfdf5 !important}
  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
 })();
 </script>
+
+
+
+
